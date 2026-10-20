@@ -140,6 +140,20 @@ final class ImporterTests: FixtureTestCase {
             XCTAssertFalse(game.validation.warnings.isEmpty)
         }
     }
+    func testSymlinkedAncestorPreservesRelativeEntryAndEngineDetection() throws {
+        let parent = temporary.appendingPathComponent("actual")
+        let game = parent.appendingPathComponent("export")
+        try FileManager.default.createDirectory(at: game.appendingPathComponent("www/js"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: game.appendingPathComponent("www/data"), withIntermediateDirectories: true)
+        try html.write(to: game.appendingPathComponent("www/index.html"))
+        try Data().write(to: game.appendingPathComponent("www/js/rpg_core.js"))
+        try Data("{}".utf8).write(to: game.appendingPathComponent("www/data/System.json"))
+        let alias = temporary.appendingPathComponent("linked-parent")
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: parent)
+        let result = try GameDetector.detect(at: alias.appendingPathComponent("export"))
+        XCTAssertEqual(result.entryPoint, "www/index.html")
+        XCTAssertEqual(result.engine, .rpgMakerMV)
+    }
     func testIncompleteRPGMakerExportRejected() throws {
         XCTAssertThrowsError(try prepare([("index.html", html), ("js/rpg_core.js", Data())])) {
             XCTAssertEqual($0 as? EverPlayError, .incompleteEngine("RPG Maker MV"))

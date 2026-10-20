@@ -12,7 +12,10 @@ public struct WebGameAdapter: GameEngineAdapter {
 }
 
 public enum GameDetector {
-    public static func detect(at root: URL) throws -> GameValidationResult {
+    public static func detect(at suppliedRoot: URL) throws -> GameValidationResult {
+        // Darwin enumerators resolve aliases such as /var -> /private/var in returned URLs.
+        // Use the same canonical base before deriving relative paths or resolving engine files.
+        let root = suppliedRoot.standardizedFileURL.resolvingSymlinksInPath()
         let manager = FileManager.default
         var scanError: Error?
         guard let enumerator = manager.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey],
