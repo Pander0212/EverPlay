@@ -122,21 +122,21 @@ private struct VirtualControls: View {
                 .opacity(settings.opacity)
                 .padding(8).background(editing ? Color.mint.opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 20))
                 .contentShape(Rectangle())
-                .gesture(DragGesture(coordinateSpace: .named("controls")).onChanged { value in
+                .highPriorityGesture(DragGesture(coordinateSpace: .named("controls")).onChanged { value in
                     guard editing else { return }
                     settings.leftX = min(0.82, max(0.18, value.location.x / geometry.size.width))
                     settings.leftY = min(0.82, max(0.18, value.location.y / geometry.size.height))
-                }, including: editing ? .gesture : .subviews)
+                }, including: editing ? .all : .subviews)
                 .position(x: geometry.size.width * settings.leftX, y: geometry.size.height * settings.leftY)
             actions
                 .opacity(settings.opacity)
                 .padding(8).background(editing ? Color.mint.opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 20))
                 .contentShape(Rectangle())
-                .gesture(DragGesture(coordinateSpace: .named("controls")).onChanged { value in
+                .highPriorityGesture(DragGesture(coordinateSpace: .named("controls")).onChanged { value in
                     guard editing else { return }
                     settings.rightX = min(0.82, max(0.18, value.location.x / geometry.size.width))
                     settings.rightY = min(0.82, max(0.18, value.location.y / geometry.size.height))
-                }, including: editing ? .gesture : .subviews)
+                }, including: editing ? .all : .subviews)
                 .position(x: geometry.size.width * settings.rightX, y: geometry.size.height * settings.rightY)
         }.coordinateSpace(name: "controls")
     }
@@ -171,7 +171,7 @@ private struct VirtualKey: View {
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 0).onChanged { _ in
                 if enabled && !pressed { pressed = true; send(key, true) }
-            }.onEnded { _ in if pressed { pressed = false; send(key, false) } })
+            }.onEnded { _ in if pressed { pressed = false; send(key, false) } }, including: enabled ? .all : .none)
             .onDisappear { if pressed { send(key, false); pressed = false } }
             .accessibilityLabel(key).accessibilityAddTraits(.isButton)
             .accessibilityAction { if enabled { send(key, true); send(key, false) } }
