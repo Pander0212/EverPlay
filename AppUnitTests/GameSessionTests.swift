@@ -54,13 +54,15 @@ final class GameSessionTests: XCTestCase {
     private func load(_ session: GameSession) async throws {
         await session.start()
         let deadline = Date().addingTimeInterval(20)
-        while session.loading && session.error == nil && Date() < deadline {
+        while session.error == nil && Date() < deadline {
+            if !session.loading {
+                let ready = try await session.webView.evaluateJavaScript("document.body?.dataset.ready === 'true'")
+                if ready as? Bool == true { return }
+            }
             try await Task.sleep(nanoseconds: 50_000_000)
         }
-        XCTAssertNil(session.error)
-        guard !session.loading, session.error == nil else {
-            throw NSError(domain: "EverPlay.GameSessionTests", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: session.error ?? "WKWebView readiness timed out"])
-        }
+        XCTFail(session.error ?? "The demo's module/JSON readiness marker did not appear")
+        throw NSError(domain: "EverPlay.GameSessionTests", code: 1,
+                      userInfo: [NSLocalizedDescriptionKey: session.error ?? "WKWebView readiness timed out"])
     }
 }

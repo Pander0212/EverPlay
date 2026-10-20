@@ -8,6 +8,10 @@ report_failure() {
   failure_code=$?
   trap - ERR
   python3 scripts/report-ci-failure.py "$phase" "$failure_code" || true
+  if [[ -n "${result_path:-}" && -d "$result_path" ]]; then
+    xcrun xcresulttool export attachments --path "$result_path" --output-path "$attachment_path" \
+      > artifacts/attachment-export.log 2>&1 || true
+  fi
   exit "$failure_code"
 }
 trap report_failure ERR
@@ -31,13 +35,27 @@ phones=[device["udid"] for runtime,devices in items.items() if "iOS" in runtime 
 if not phones: sys.exit("No available iPhone simulator installed")
 print(phones[0])
 ')"
+phase=simulator-boot
+python3 - "$simulator_id" <<'PYTHON' 2>&1 | tee artifacts/simulator-boot.log
+import subprocess, sys
+subprocess.run(['xcrun', 'simctl', 'bootstatus', sys.argv[1], '-b'], timeout=180, check=True)
+PYTHON
+printf '%s\n' '::notice title=EverPlay CI::iPhone simulator boot completed.'
 # A new result directory prevents stale test results from being mistaken for a new run.
 result_path="$PWD/artifacts/ios-$(date -u +%Y%m%dT%H%M%S).xcresult"
+attachment_path="$PWD/artifacts/attachments-$(basename "$result_path" .xcresult)"
 phase=ios-build-test
 xcodebuild test -project EverPlay.xcodeproj -scheme EverPlay \
-  -destination "platform=iOS Simulator,id=$simulator_id" \
+  -destination "platform=iOS Simulator,id=$simulator_id" -destination-timeout 120 \
   -derivedDataPath DerivedData -clonedSourcePackagesDirPath .build/xcode-packages \
   -onlyUsePackageVersionsFromResolvedFile -resultBundlePath "$result_path" \
-  -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO \
+  -parallel-testing-enabled NO -test-timeouts-enabled YES \
+  -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 180 \
+  CODE_SIGN_IDENTITY=- \
   2>&1 | tee artifacts/ios-build-test.log
 python3 scripts/verify-ios-tests.py artifacts/ios-build-test.log
+# Standalone screenshots let the owner inspect actual simulator UI without a local Mac.
+if ! xcrun xcresulttool export attachments --path "$result_path" --output-path "$attachment_path" \
+    > artifacts/attachment-export.log 2>&1; then
+  printf '%s\n' '::warning title=Screenshot export::Standalone attachments could not be exported; the original xcresult is retained.'
+fi

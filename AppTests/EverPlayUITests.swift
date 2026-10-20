@@ -8,7 +8,7 @@ final class EverPlayUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let game = app.buttons["game-Lantern Garden"]
-        if !game.exists {
+        if !game.waitForExistence(timeout: 3) {
             let demo = app.buttons["importDemo"]
             XCTAssertTrue(demo.waitForExistence(timeout: 10))
             demo.tap()
@@ -44,7 +44,7 @@ final class EverPlayUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         let game = app.buttons["game-Lantern Garden"]
-        if !game.exists { app.buttons["importDemo"].tap() }
+        if !game.waitForExistence(timeout: 3) { app.buttons["importDemo"].tap() }
         XCTAssertTrue(game.waitForExistence(timeout: 20)); game.tap()
         XCTAssertTrue(app.webViews.buttons["Collect light +10"].waitForExistence(timeout: 20))
         app.buttons["gameMenu"].tap()
@@ -59,7 +59,13 @@ final class EverPlayUITests: XCTestCase {
         let target = app.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.48))
         action.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .press(forDuration: 0.2, thenDragTo: target)
+        let direction = app.buttons["ArrowUp"]
+        let directionBefore = direction.frame
+        direction.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.2, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.45)))
         app.buttons["Done"].tap()
+        XCTAssertLessThan(direction.frame.midY, directionBefore.midY - 20, "Arrange mode must also move the D-pad")
+        let savedDirectionFrame = direction.frame
         XCTAssertLessThan(action.frame.midY, before.midY - 20, "Arrange mode must move the control group")
         let savedFrame = action.frame
         action.tap()
@@ -82,6 +88,8 @@ final class EverPlayUITests: XCTestCase {
         XCTAssertTrue(action.waitForExistence(timeout: 20))
         XCTAssertEqual(action.frame.midX, savedFrame.midX, accuracy: 15, "Saved horizontal layout must survive reopening")
         XCTAssertEqual(action.frame.midY, savedFrame.midY, accuracy: 15, "Saved vertical layout must survive reopening")
+        XCTAssertEqual(direction.frame.midX, savedDirectionFrame.midX, accuracy: 15, "Saved D-pad layout must survive reopening")
+        XCTAssertEqual(direction.frame.midY, savedDirectionFrame.midY, accuracy: 15, "Saved D-pad layout must survive reopening")
         app.buttons["gameMenu"].tap()
         reveal(toggle, in: app); toggle.tap()
         app.buttons["Resume"].tap()
