@@ -24,8 +24,15 @@ public enum GameDetector {
         }
         var entries: [String] = []
         var legacy = false
-        for case let url as URL in enumerator {
-            let relative = String(url.path.dropFirst(root.path.count + 1))
+        let rootComponents = root.pathComponents
+        for case let enumeratedURL as URL in enumerator {
+            let url = enumeratedURL.standardizedFileURL.resolvingSymlinksInPath()
+            let components = url.pathComponents
+            guard components.count > rootComponents.count,
+                  components.starts(with: rootComponents) else {
+                throw EverPlayError.unsafePath("resource outside game root: \(enumeratedURL.lastPathComponent)")
+            }
+            let relative = components.dropFirst(rootComponents.count).joined(separator: "/")
             if relative.split(separator: "/").contains(where: { $0.hasPrefix(".") || $0 == "__MACOSX" }) { continue }
             if ["rxdata", "rvdata", "rvdata2", "rpa", "pck", "ldb"].contains(url.pathExtension.lowercased()) { legacy = true }
             if url.lastPathComponent == "index.html", try url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true {

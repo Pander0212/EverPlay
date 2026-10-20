@@ -17,12 +17,26 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Reuse the pinned XcodeGen source build
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        id: xcodegen-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: .build-tools/XcodeGen
           key: ${{ runner.os }}-${{ runner.arch }}-xcode16.4-xcodegen-21ac9944b0ab546a07422dbed86f33dd2ebd76f8-v1
       - name: Resolve, compile and test Swift core and iOS application
         run: bash scripts/test-ios.sh
+      - name: Check whether the generator completed
+        if: always()
+        id: generator
+        run: |
+          if [[ -x .build-tools/XcodeGen/.build/release/xcodegen ]]; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Preserve the generator even if an application test failed
+        if: always() && steps.generator.outputs.ready == 'true' && steps.xcodegen-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/XcodeGen
+          key: ${{ steps.xcodegen-cache.outputs.cache-primary-key }}
       - name: Upload logs and current simulator test results
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

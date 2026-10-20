@@ -14,12 +14,15 @@ trap report_failure ERR
 xcodebuild -version 2>&1 | tee artifacts/environment.log
 phase=project-generation
 bash scripts/generate-project.sh 2>&1 | tee artifacts/project-generation.log
+printf '%s\n' '::notice title=EverPlay CI::Project generation passed.'
 phase=swift-tests
 bash scripts/test-core.sh 2>&1 | tee artifacts/swift-tests.log
+printf '%s\n' '::notice title=EverPlay CI::Swift core tests passed on macOS.'
 phase=ios-resolve
 xcodebuild -resolvePackageDependencies -project EverPlay.xcodeproj -scheme EverPlay \
   -clonedSourcePackagesDirPath .build/xcode-packages -onlyUsePackageVersionsFromResolvedFile \
   2>&1 | tee artifacts/ios-resolve.log
+printf '%s\n' '::notice title=EverPlay CI::Xcode package resolution passed.'
 phase=simulator-selection
 simulator_id="$(xcrun simctl list devices available -j | python3 -c '
 import json,sys
