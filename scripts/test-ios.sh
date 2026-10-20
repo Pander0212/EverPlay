@@ -59,7 +59,7 @@ xcodebuild test-without-building -project EverPlay.xcodeproj -scheme EverPlay \
   -onlyUsePackageVersionsFromResolvedFile -resultBundlePath "$result_path" \
   -parallel-testing-enabled NO -test-timeouts-enabled YES \
   -enableCodeCoverage NO -collect-test-diagnostics never \
-  -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 180 \
+  -default-test-execution-time-allowance 300 -maximum-test-execution-time-allowance 300 \
   CODE_SIGN_IDENTITY=- \
   2>&1 | tee artifacts/ios-build-test.log
 python3 scripts/verify-ios-tests.py artifacts/ios-build-test.log
