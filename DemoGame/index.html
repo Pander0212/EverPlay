@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lantern Garden · EverPlay</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="game.js"></script>
+</head>
+<body>
+  <main>
+    <header><span class="eyebrow">EVERPLAY ORIGINAL</span><h1>Lantern Garden</h1><p>A small journey under a quiet sky.</p></header>
+    <div class="stats" aria-label="Game statistics"><span>✦ <output id="gold" aria-label="Gold">0</output> gold</span><span>Day <output id="day">1</output></span><button id="sound" aria-pressed="false">Sound off</button></div>
+    <section id="garden" aria-label="Garden"><div class="moon"></div><div class="mountains"></div><div class="path"></div><button id="lantern" aria-label="Collect a lantern">✧</button><div id="player" aria-label="Player">♟</div><span class="caption">Tap a lantern. Find a little light.</span></section>
+    <section class="dialogue"><span class="eyebrow">THE GARDENER</span><p id="dialogue" lang="ja" data-translate></p><button id="talk">Talk / 話す</button></section>
+    <nav aria-label="Game actions"><button id="collect">Collect light +10</button><button id="seed">Buy seed · 20 gold</button><button id="nextDay">Next day</button><button id="save">Save game</button></nav>
+    <footer><span id="inventory">Seeds: 0</span><span id="saveStatus" role="status">Starting…</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "everplay-foundation-checks",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser integration checks for the original EverPlay HTML5 fixture. Not shipped in the iOS app.",
+  "license": "MIT",
+  "engines": {"node": ">=22"},
+  "scripts": {
+    "test": "node --test tests/demo-state.test.js",
+    "test:browser": "playwright test",
+    "check": "node --check DemoGame/game.js && node --check DemoGame/state.js",
+    "package:demo": "python3 scripts/package-demo.py"
+  },
+  "devDependencies": {"@playwright/test": "1.64.1"}
+}

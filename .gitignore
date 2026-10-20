@@ -1,0 +1,15 @@
+.build/
+.swiftpm/
+.DS_Store
+*.xcodeproj/
+DerivedData/
+.build-tools/
+node_modules/
+artifacts/
+playwright-report/
+test-results/
+*.xcuserstate
+.env
+.env.*
+*.p12
+*.mobileprovision

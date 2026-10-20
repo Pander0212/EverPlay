@@ -1,0 +1,35 @@
+name: iOS Simulator
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  simulator:
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Resolve, compile and test Swift core and iOS application
+        run: bash scripts/test-ios.sh
+      - name: Upload logs and current simulator test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ios-simulator-results
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Upload unsigned simulator application (not an iPhone IPA)
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: EverPlay-simulator-app
+          path: DerivedData/Build/Products/Debug-iphonesimulator/EverPlay.app
+          retention-days: 14
