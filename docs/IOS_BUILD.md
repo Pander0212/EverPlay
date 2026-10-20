@@ -2,22 +2,23 @@
 
 ## Current evidence
 
-The Xcode project was successfully generated with XcodeGen 2.44.1 on Linux. Swift core tests pass on Linux with Swift 6.0.3. SwiftUI/WebKit/Network.framework sources passed a Swift syntax parse, which is **not** Apple-SDK type checking or compilation.
+Swift core tests pass on Linux and macOS. The real application and test targets compile using Xcode 16.4 on the GitHub `macos-15-intel` runner, and native tests have executed. Full acceptance is being validated; see [the current results](DEVELOPMENT_STATUS.md). Physical iPhone playback and device distribution are not verified.
 
-No Xcode or Apple SDK is installed in this cloud machine. `gh api repos/Pander0212/EverPlay/actions/runs` and an HTTPS API probe fail at the network proxy with HTTP 403. Native Git reads work. No GitHub Actions result, simulator execution, code signing, IPA installation or iPhone playback is claimed.
+The source is pushed to `codex/everplay-foundation` in [Pander0212/EverPlay](https://github.com/Pander0212/EverPlay). GitHub API reads and native Git pushes now work with the platform-provided authentication. The initially denied API access is resolved. Direct log/artifact download domains may still need the saved network-setting changes; the workflow also emits bounded failure diagnostics through API-readable check annotations.
 
 ## Reproducible simulator workflow
 
-`.github/workflows/ios.yml` selects `macos-15`, Xcode 16.4 and read-only repository permissions. `scripts/test-ios.sh`:
+`.github/workflows/ios.yml` selects `macos-15-intel`, Xcode 16.4 and read-only repository permissions. `scripts/test-ios.sh`:
 
 1. Packages the original demo ZIP deterministically.
 2. Builds XcodeGen at verified commit `21ac9944b0ab546a07422dbed86f33dd2ebd76f8` (2.44.1), using its tracked lockfile.
 3. Generates `EverPlay.xcodeproj` from `project.yml`; copies the root Swift resolution into the Xcode workspace lockfile.
 4. Runs the portable core tests and resolves exact package versions.
-5. Selects an available iPhone simulator, compiles/tests the real application with signing disabled, runs a native HTTP transport test and the ZIP import → touch play → save → exit → app relaunch UI test.
-6. Preserves logs and a unique `.xcresult`. `pipefail` preserves command failures.
+5. Compiles the app and every native test target with `build-for-testing` before booting a device, using local ad-hoc simulator signing (no Apple credentials). It then explicitly boots the selected simulator with a bounded wait.
+6. Uses `test-without-building` to reuse the validated products with 300-second per-test limits. Runs native HTTP/range and WebKit storage/input tests plus import → touch play → save → exit → full app relaunch and draggable-controls/orientation UI tests. Requires all four named cases to be recorded as passed; a zero-test run is rejected.
+7. Preserves logs, a unique `.xcresult` and exported standalone attachments/screenshots. `pipefail` preserves command failures; the generator cache is retained even when an application test fails.
 
-The workflow uploads an unsigned **simulator `.app`**, not a device IPA. It cannot be installed on an iPhone. Native tests are written but have not run. If the runner image no longer carries Xcode 16.4, update the explicit Xcode/runner selection and revalidate; do not silently skip the iOS build.
+After success the workflow uploads a locally ad-hoc-signed **simulator `.app`**, not a device IPA. It cannot be installed on an iPhone. Native test and build results must be checked for the actual source commit. If the runner image no longer carries Xcode 16.4, update the explicit Xcode/runner selection and revalidate; do not silently skip the iOS build.
 
 On a future Mac or a configured macOS cloud runner:
 
@@ -25,7 +26,7 @@ On a future Mac or a configured macOS cloud runner:
 bash scripts/test-ios.sh
 ```
 
-No local laptop is needed to run the configured GitHub workflow after the code is available on GitHub and Actions is enabled. This task commits locally; no remote workflow run was triggered or confirmed.
+No local laptop is needed to run the configured GitHub workflow after the code is available on GitHub and Actions is enabled. The prepared workflows have been triggered remotely and browser/security runs have succeeded; the current native result is recorded in development status.
 
 ## Privacy manifest
 

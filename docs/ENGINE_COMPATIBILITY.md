@@ -2,7 +2,7 @@
 
 | Engine/package | This build | Evidence and limits |
 | --- | --- | --- |
-| Generic HTML5/JavaScript with `index.html` | Runtime implemented; native verification pending | ZIP import/resource routing pass Swift tests; original demo passes Chromium touch/save tests. WKWebView execution has not run here. |
+| Generic HTML5/JavaScript with `index.html` | Compiled and exercised in the simulator; complete controls gate pending | Original demo passes import/touch/save/app-relaunch, native HTTP and WebKit isolation/input cases. Browser and portable-core tests also pass. Physical-device and arbitrary-game compatibility remain unverified. |
 | Twine HTML export | Potentially compatible, untested | Must be packaged as `index.html` with local assets; no Twine-specific fixture yet. |
 | RPG Maker MV | Detected, experimental web runtime path | Tests recognize `js/rpg_core.js` and require `data/System.json`; no real MV runtime/game test or compatibility patches yet. |
 | RPG Maker MZ | Detected, experimental web runtime path | Tests recognize `js/rmmz_core.js` and require `data/System.json`; no real MZ runtime/game test yet. |

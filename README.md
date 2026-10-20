@@ -1,8 +1,8 @@
 # EverPlay
 
-An open-source iPhone game library and HTML5 player, built with SwiftUI and WKWebView. **Foundation in development; iOS compilation and device playback are not yet verified.**
+An open-source iPhone game library and HTML5 player, built with SwiftUI and WKWebView. **Foundation in development; simulator compilation is verified, native acceptance validation is in progress, and physical-device playback is unverified.**
 
-This first slice contains a real iOS application target, ZIP importer, persistent library, local resource server, touch/keyboard controls, and the original **Lantern Garden** demo. The portable Swift core and browser fixture have been compiled and tested in Linux. This is not yet a signed or installable iPhone release.
+This first slice contains a real iOS application target, ZIP importer, persistent library, local resource server, touch/keyboard controls, and the original **Lantern Garden** demo. The portable Swift core passes on Linux and macOS; the application has compiled and executed on a GitHub macOS iPhone simulator. See the exact native acceptance status below. This is not yet a signed or installable iPhone release.
 
 ## What is implemented
 
@@ -13,7 +13,7 @@ This first slice contains a real iOS application target, ZIP importer, persisten
 - Use touch or optional D-pad/action/Enter/Escape controls, with per-game opacity and draggable group layouts.
 - Import the included demo ZIP through the same importer; collect gold, buy seeds, advance the day, read Japanese dialogue and save.
 
-Native execution, control gestures and WebKit persistence still need the macOS/iOS tests. **MV/MZ detection is tested; real RPG Maker game compatibility is not.** No Unity support. Translation, mods, cheats, additional engines and an MCP Bridge are future milestones, not hidden working features.
+Native acceptance checks cover HTTP transport, WebKit storage isolation, virtual controls, orientation and app-relaunch persistence; their current result is recorded in [development status](docs/DEVELOPMENT_STATUS.md). **MV/MZ detection is tested; real RPG Maker game compatibility is not.** No Unity support. Translation, mods, cheats, additional engines and an MCP Bridge are future milestones, not hidden working features.
 
 ## Develop in the cloud
 

@@ -318,7 +318,7 @@ This product contains derivations of various scripts from SwiftNIO.
     * https://www.apache.org/licenses/LICENSE-2.0
   * HOMEPAGE:
     * https://github.com/apple/swift-nio
-    
+
 ---
 
 This product contains derivations of various scripts from Swift OpenAPI Generator.

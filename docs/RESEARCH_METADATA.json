@@ -1,0 +1,174 @@
+{
+  "inspected_on": "2026-10-20",
+  "method": "GitHub REST repository metadata and first listed published release; no release binaries executed",
+  "repositories": [
+    {
+      "repository": "mateo-m/empo-app",
+      "archived": false,
+      "pushed_at": "2026-10-20T13:23:32Z",
+      "github_license_detection": "GPL-3.0",
+      "first_listed_release": {
+        "tag_name": "v0.7.4",
+        "prerelease": false,
+        "draft": false,
+        "published_at": "2026-10-20T12:25:09Z",
+        "html_url": "https://github.com/mateo-m/empo-app/releases/tag/v0.7.4",
+        "asset_count": 1
+      }
+    },
+    {
+      "repository": "2p1endid/rrppgo",
+      "archived": false,
+      "pushed_at": "2026-08-20T09:42:31Z",
+      "github_license_detection": "MIT",
+      "first_listed_release": {
+        "tag_name": "v0.1.1",
+        "prerelease": false,
+        "draft": false,
+        "published_at": "2026-08-14T18:34:28Z",
+        "html_url": "https://github.com/2p1endid/rrppgo/releases/tag/v0.1.1",
+        "asset_count": 1
+      }
+    },
+    {
+      "repository": "yoimerdr/ludens",
+      "archived": false,
+      "pushed_at": "2026-08-01T21:35:08Z",
+      "github_license_detection": "Apache-2.0",
+      "first_listed_release": {
+        "tag_name": "0.4.0",
+        "prerelease": false,
+        "draft": false,
+        "published_at": "2026-07-19T06:11:03Z",
+        "html_url": "https://github.com/yoimerdr/ludens/releases/tag/0.4.0",
+        "asset_count": 1
+      }
+    },
+    {
+      "repository": "EasyRPG/Player",
+      "archived": false,
+      "pushed_at": "2026-10-19T17:52:03Z",
+      "github_license_detection": "GPL-3.0",
+      "first_listed_release": {
+        "tag_name": "0.8.1.1",
+        "prerelease": false,
+        "draft": false,
+        "published_at": "2025-06-02T11:17:44Z",
+        "html_url": "https://github.com/EasyRPG/Player/releases/tag/0.8.1.1",
+        "asset_count": 0
+      }
+    },
+    {
+      "repository": "NaniteCrafter/rpgmaker-translator4",
+      "archived": false,
+      "pushed_at": "2026-03-25T13:27:46Z",
+      "github_license_detection": "NOASSERTION",
+      "first_listed_release": null
+    },
+    {
+      "repository": "nt7011/RPG-Maker-Live-Translator",
+      "archived": false,
+      "pushed_at": "2026-09-23T20:03:00Z",
+      "github_license_detection": "AGPL-3.0",
+      "first_listed_release": {
+        "tag_name": "v5.1.0b0",
+        "prerelease": true,
+        "draft": false,
+        "published_at": "2026-09-23T19:54:19Z",
+        "html_url": "https://github.com/nt7011/RPG-Maker-Live-Translator/releases/tag/v5.1.0b0",
+        "asset_count": 2
+      }
+    },
+    {
+      "repository": "JaimeDevCode/RPGMakerTranslator",
+      "archived": false,
+      "pushed_at": "2026-03-02T12:34:30Z",
+      "github_license_detection": "MIT",
+      "first_listed_release": null
+    },
+    {
+      "repository": "paradoxie/saveeditor",
+      "archived": false,
+      "pushed_at": "2026-08-31T10:09:15Z",
+      "github_license_detection": null,
+      "first_listed_release": null
+    },
+    {
+      "repository": "paramonos/RPG-Maker-MV-MZ-Cheat-UI-Plugin",
+      "archived": false,
+      "pushed_at": "2025-04-27T16:49:48Z",
+      "github_license_detection": "MIT",
+      "first_listed_release": {
+        "tag_name": "v1.0.3",
+        "prerelease": false,
+        "draft": false,
+        "published_at": "2022-06-05T13:08:54Z",
+        "html_url": "https://github.com/paramonos/RPG-Maker-MV-MZ-Cheat-UI-Plugin/releases/tag/v1.0.3",
+        "asset_count": 2
+      }
+    },
+    {
+      "repository": "modelcontextprotocol/typescript-sdk",
+      "archived": false,
+      "pushed_at": "2026-10-20T14:33:45Z",
+      "github_license_detection": "NOASSERTION",
+      "first_listed_release": {
+        "tag_name": "v2.3.1",
+        "prerelease": false,
+        "draft": false,
+        "published_at": "2026-10-05T11:54:56Z",
+        "html_url": "https://github.com/modelcontextprotocol/typescript-sdk/releases/tag/v2.3.1",
+        "asset_count": 0
+      }
+    },
+    {
+      "repository": "weichsel/ZIPFoundation",
+      "archived": false,
+      "pushed_at": "2026-09-12T08:20:42Z",
+      "github_license_detection": "MIT",
+      "first_listed_release": {
+        "tag_name": "0.9.20",
+        "prerelease": false,
+        "draft": false,
+        "published_at": "2025-09-24T18:44:49Z",
+        "html_url": "https://github.com/weichsel/ZIPFoundation/releases/tag/0.9.20",
+        "asset_count": 0
+      }
+    },
+    {
+      "repository": "renpy/renpy",
+      "archived": false,
+      "pushed_at": "2026-10-20T12:14:26Z",
+      "github_license_detection": null,
+      "first_listed_release": {
+        "tag_name": "8.5.3.26051504",
+        "prerelease": false,
+        "draft": false,
+        "published_at": "2026-05-16T02:09:49Z",
+        "html_url": "https://github.com/renpy/renpy/releases/tag/8.5.3.26051504",
+        "asset_count": 14
+      }
+    },
+    {
+      "repository": "godotengine/godot",
+      "archived": false,
+      "pushed_at": "2026-10-20T14:44:29Z",
+      "github_license_detection": "MIT",
+      "first_listed_release": {
+        "tag_name": "3.6.3-stable",
+        "prerelease": false,
+        "draft": false,
+        "published_at": "2026-08-22T14:05:19Z",
+        "html_url": "https://github.com/godotengine/godot/releases/tag/3.6.3-stable",
+        "asset_count": 26
+      }
+    },
+    {
+      "repository": "mkxp-z/mkxp-z",
+      "archived": false,
+      "pushed_at": "2026-10-03T08:32:53Z",
+      "github_license_detection": "GPL-2.0",
+      "first_listed_release": null
+    }
+  ]
+}
