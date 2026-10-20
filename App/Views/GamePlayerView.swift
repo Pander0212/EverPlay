@@ -7,6 +7,7 @@ struct GamePlayerView: View {
     @StateObject private var session: GameSession
     @State private var controls: ControlSettings
     @State private var menuVisible = false
+    @State private var menuDetent: PresentationDetent = .large
     @State private var editingLayout = false
     @State private var storageError: String?
     @State private var closing = false
@@ -39,6 +40,7 @@ struct GamePlayerView: View {
                 if editingLayout {
                     Text("Drag each control group").font(.caption)
                     Button("Done") { editingLayout = false; saveControls() }.buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("finishControlLayout")
                 }
                 Button { menuVisible = true } label: {
                     Image(systemName: "ellipsis").font(.title3.bold()).frame(width: 44, height: 44)
@@ -60,12 +62,15 @@ struct GamePlayerView: View {
                         Text(game.title).font(.title2.bold())
                         Text(game.engine.title + " · " + game.engine.compatibility).font(.caption).foregroundStyle(.secondary)
                         Button("Resume", systemImage: "play.fill") { menuVisible = false }
+                            .accessibilityIdentifier("resumeGame")
                     }
                     Section("Controls") {
                         Toggle("Show virtual controls", isOn: $controls.visible)
+                            .accessibilityIdentifier("virtualControlsToggle")
                         if controls.visible {
                             LabeledContent("Opacity") { Slider(value: $controls.opacity, in: 0.15...1).frame(maxWidth: 180) }
                             Button("Arrange controls", systemImage: "hand.draw") { editingLayout = true; menuVisible = false }
+                                .accessibilityIdentifier("arrangeControls")
                             Button("Reset layout") { controls = ControlSettings(); controls.visible = true }
                         }
                     }
@@ -79,7 +84,8 @@ struct GamePlayerView: View {
                             .disabled(closing).accessibilityIdentifier("exitGame")
                     }
                 }.navigationTitle("Game menu").navigationBarTitleDisplayMode(.inline)
-            }.presentationDetents([.medium, .large]).preferredColorScheme(.dark)
+            }.presentationDetents([.medium, .large], selection: $menuDetent)
+                .presentationDragIndicator(.visible).preferredColorScheme(.dark)
         }
         .onChange(of: menuVisible) { _, shown in if shown { releaseKeys() } }
         .alert("Storage error", isPresented: Binding(get: { storageError != nil }, set: { if !$0 { storageError = nil } })) {
@@ -115,21 +121,23 @@ private struct VirtualControls: View {
             dpad
                 .opacity(settings.opacity)
                 .padding(8).background(editing ? Color.mint.opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 20))
-                .position(x: geometry.size.width * settings.leftX, y: geometry.size.height * settings.leftY)
+                .contentShape(Rectangle())
                 .gesture(DragGesture(coordinateSpace: .named("controls")).onChanged { value in
                     guard editing else { return }
                     settings.leftX = min(0.82, max(0.18, value.location.x / geometry.size.width))
                     settings.leftY = min(0.82, max(0.18, value.location.y / geometry.size.height))
                 }, including: editing ? .gesture : .subviews)
+                .position(x: geometry.size.width * settings.leftX, y: geometry.size.height * settings.leftY)
             actions
                 .opacity(settings.opacity)
                 .padding(8).background(editing ? Color.mint.opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 20))
-                .position(x: geometry.size.width * settings.rightX, y: geometry.size.height * settings.rightY)
+                .contentShape(Rectangle())
                 .gesture(DragGesture(coordinateSpace: .named("controls")).onChanged { value in
                     guard editing else { return }
                     settings.rightX = min(0.82, max(0.18, value.location.x / geometry.size.width))
                     settings.rightY = min(0.82, max(0.18, value.location.y / geometry.size.height))
                 }, including: editing ? .gesture : .subviews)
+                .position(x: geometry.size.width * settings.rightX, y: geometry.size.height * settings.rightY)
         }.coordinateSpace(name: "controls")
     }
     private var dpad: some View {

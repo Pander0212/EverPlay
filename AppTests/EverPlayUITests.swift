@@ -48,10 +48,11 @@ final class EverPlayUITests: XCTestCase {
         XCTAssertTrue(game.waitForExistence(timeout: 20)); game.tap()
         XCTAssertTrue(app.webViews.buttons["Collect light +10"].waitForExistence(timeout: 20))
         app.buttons["gameMenu"].tap()
-        let toggle = app.switches["Show virtual controls"]
+        let toggle = app.switches["virtualControlsToggle"]
         reveal(toggle, in: app)
         if toggle.value as? String != "1" { toggle.tap() }
-        let arrange = app.buttons["Arrange controls"]
+        XCTAssertEqual(toggle.value as? String, "1", "Virtual controls must be enabled before arranging them")
+        let arrange = app.buttons["arrangeControls"]
         reveal(arrange, in: app); arrange.tap()
         let action = app.buttons["z"]
         XCTAssertTrue(action.waitForExistence(timeout: 5))
@@ -63,7 +64,7 @@ final class EverPlayUITests: XCTestCase {
         let directionBefore = direction.frame
         direction.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             .press(forDuration: 0.2, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.45)))
-        app.buttons["Done"].tap()
+        app.buttons["finishControlLayout"].tap()
         XCTAssertLessThan(direction.frame.midY, directionBefore.midY - 20, "Arrange mode must also move the D-pad")
         let savedDirectionFrame = direction.frame
         XCTAssertLessThan(action.frame.midY, before.midY - 20, "Arrange mode must move the control group")
@@ -92,24 +93,18 @@ final class EverPlayUITests: XCTestCase {
         XCTAssertEqual(direction.frame.midY, savedDirectionFrame.midY, accuracy: 15, "Saved D-pad layout must survive reopening")
         app.buttons["gameMenu"].tap()
         reveal(toggle, in: app); toggle.tap()
-        app.buttons["Resume"].tap()
+        app.buttons["resumeGame"].tap()
         XCTAssertFalse(action.exists, "Hidden controls must stop obstructing the game")
     }
 
     @MainActor
     private func reveal(_ element: XCUIElement, in app: XCUIApplication,
                         file: StaticString = #filePath, line: UInt = #line) {
-        // A medium-height sheet begins below the window's center. Window-level swipeUp()
-        // can hit the covered game instead of expanding/scrolling the actual menu.
+        let menu = app.collectionViews.firstMatch
         for _ in 0..<4 {
             if element.isHittable { return }
-            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
-                .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)))
-        }
-        for _ in 0..<4 {
-            if element.isHittable { return }
-            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
-                .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
+            if menu.exists && menu.isHittable { menu.swipeUp() }
+            else { app.swipeUp() }
         }
         if !element.isHittable {
             let switches = app.switches.allElementsBoundByIndex.map { "\($0.label): \(String(describing: $0.frame))" }

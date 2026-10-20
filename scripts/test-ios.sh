@@ -35,6 +35,14 @@ phones=[device["udid"] for runtime,devices in items.items() if "iOS" in runtime 
 if not phones: sys.exit("No available iPhone simulator installed")
 print(phones[0])
 ')"
+# Compile all application and test targets before spending time booting a device.
+phase=ios-build
+xcodebuild build-for-testing -project EverPlay.xcodeproj -scheme EverPlay \
+  -destination "platform=iOS Simulator,id=$simulator_id" -destination-timeout 120 \
+  -derivedDataPath DerivedData -clonedSourcePackagesDirPath .build/xcode-packages \
+  -onlyUsePackageVersionsFromResolvedFile -enableCodeCoverage NO CODE_SIGN_IDENTITY=- \
+  2>&1 | tee artifacts/ios-build.log
+printf '%s\n' '::notice title=EverPlay CI::iOS application and test-target compilation passed.'
 phase=simulator-boot
 python3 - "$simulator_id" <<'PYTHON' 2>&1 | tee artifacts/simulator-boot.log
 import subprocess, sys
@@ -45,7 +53,7 @@ printf '%s\n' '::notice title=EverPlay CI::iPhone simulator boot completed.'
 result_path="$PWD/artifacts/ios-$(date -u +%Y%m%dT%H%M%S).xcresult"
 attachment_path="$PWD/artifacts/attachments-$(basename "$result_path" .xcresult)"
 phase=ios-build-test
-xcodebuild test -project EverPlay.xcodeproj -scheme EverPlay \
+xcodebuild test-without-building -project EverPlay.xcodeproj -scheme EverPlay \
   -destination "platform=iOS Simulator,id=$simulator_id" -destination-timeout 120 \
   -derivedDataPath DerivedData -clonedSourcePackagesDirPath .build/xcode-packages \
   -onlyUsePackageVersionsFromResolvedFile -resultBundlePath "$result_path" \
