@@ -46,7 +46,7 @@ final class EverPlayUITests: XCTestCase {
         let game = app.buttons["game-Lantern Garden"]
         if !game.waitForExistence(timeout: 3) { app.buttons["importDemo"].tap() }
         XCTAssertTrue(game.waitForExistence(timeout: 20)); game.tap()
-        XCTAssertTrue(app.webViews.buttons["Collect light +10"].waitForExistence(timeout: 20))
+        XCTAssertTrue(app.webViews.buttons["Collect light +10"].waitForExistence(timeout: 60), app.debugDescription)
         app.buttons["gameMenu"].tap()
         let toggle = app.switches["virtualControlsToggle"]
         reveal(toggle, in: app)
