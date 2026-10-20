@@ -112,7 +112,7 @@ final class EverPlayUITests: XCTestCase {
                 .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
         }
         if !element.isHittable {
-            let switches = app.switches.allElementsBoundByIndex.map { "\($0.label): \(NSStringFromCGRect($0.frame))" }
+            let switches = app.switches.allElementsBoundByIndex.map { "\($0.label): \(String(describing: $0.frame))" }
             XCTFail("Expected menu item to become reachable: \(element.description). Switches: \(switches)", file: file, line: line)
         }
     }

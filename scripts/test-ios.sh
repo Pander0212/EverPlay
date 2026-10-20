@@ -50,6 +50,7 @@ xcodebuild test -project EverPlay.xcodeproj -scheme EverPlay \
   -derivedDataPath DerivedData -clonedSourcePackagesDirPath .build/xcode-packages \
   -onlyUsePackageVersionsFromResolvedFile -resultBundlePath "$result_path" \
   -parallel-testing-enabled NO -test-timeouts-enabled YES \
+  -enableCodeCoverage NO -collect-test-diagnostics never \
   -default-test-execution-time-allowance 180 -maximum-test-execution-time-allowance 180 \
   CODE_SIGN_IDENTITY=- \
   2>&1 | tee artifacts/ios-build-test.log
