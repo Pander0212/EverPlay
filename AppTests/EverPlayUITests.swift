@@ -57,7 +57,8 @@ final class EverPlayUITests: XCTestCase {
         XCTAssertTrue(action.waitForExistence(timeout: 5))
         let before = action.frame
         let target = app.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.48))
-        action.press(forDuration: 0.2, thenDragTo: target)
+        action.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            .press(forDuration: 0.2, thenDragTo: target)
         app.buttons["Done"].tap()
         XCTAssertLessThan(action.frame.midY, before.midY - 20, "Arrange mode must move the control group")
         let savedFrame = action.frame

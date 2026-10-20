@@ -40,3 +40,4 @@ xcodebuild test -project EverPlay.xcodeproj -scheme EverPlay \
   -onlyUsePackageVersionsFromResolvedFile -resultBundlePath "$result_path" \
   -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO \
   2>&1 | tee artifacts/ios-build-test.log
+python3 scripts/verify-ios-tests.py artifacts/ios-build-test.log
