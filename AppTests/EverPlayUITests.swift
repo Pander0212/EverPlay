@@ -97,12 +97,24 @@ final class EverPlayUITests: XCTestCase {
     }
 
     @MainActor
-    private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
+    private func reveal(_ element: XCUIElement, in app: XCUIApplication,
+                        file: StaticString = #filePath, line: UInt = #line) {
+        // A medium-height sheet begins below the window's center. Window-level swipeUp()
+        // can hit the covered game instead of expanding/scrolling the actual menu.
         for _ in 0..<4 {
             if element.isHittable { return }
-            app.swipeUp()
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
+                .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)))
         }
-        XCTAssertTrue(element.isHittable, "Expected menu item to become reachable")
+        for _ in 0..<4 {
+            if element.isHittable { return }
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
+                .press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
+        }
+        if !element.isHittable {
+            let switches = app.switches.allElementsBoundByIndex.map { "\($0.label): \(NSStringFromCGRect($0.frame))" }
+            XCTFail("Expected menu item to become reachable: \(element.description). Switches: \(switches)", file: file, line: line)
+        }
     }
 
 }
