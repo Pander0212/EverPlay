@@ -50,8 +50,7 @@ final class EverPlayUITests: XCTestCase {
         app.buttons["gameMenu"].tap()
         let toggle = app.switches["virtualControlsToggle"]
         reveal(toggle, in: app)
-        if toggle.value as? String != "1" { toggle.tap() }
-        XCTAssertEqual(toggle.value as? String, "1", "Virtual controls must be enabled before arranging them")
+        setSwitch(toggle, enabled: true)
         let arrange = app.buttons["arrangeControls"]
         reveal(arrange, in: app); arrange.tap()
         let action = app.buttons["z"]
@@ -92,9 +91,25 @@ final class EverPlayUITests: XCTestCase {
         XCTAssertEqual(direction.frame.midX, savedDirectionFrame.midX, accuracy: 15, "Saved D-pad layout must survive reopening")
         XCTAssertEqual(direction.frame.midY, savedDirectionFrame.midY, accuracy: 15, "Saved D-pad layout must survive reopening")
         app.buttons["gameMenu"].tap()
-        reveal(toggle, in: app); toggle.tap()
+        reveal(toggle, in: app); setSwitch(toggle, enabled: false)
         app.buttons["resumeGame"].tap()
         XCTAssertFalse(action.exists, "Hidden controls must stop obstructing the game")
+    }
+
+    @MainActor
+    private func setSwitch(_ element: XCUIElement, enabled: Bool,
+                           file: StaticString = #filePath, line: UInt = #line) {
+        // SwiftUI can expose a switch row and its native thumb as nested switch nodes.
+        // Tapping the center of the whole row may hit the non-interactive label.
+        let child = element.switches.firstMatch
+        let target = child.exists && child.isHittable ? child : element
+        let expected = enabled ? "1" : "0"
+        if target.value as? String != expected {
+            target.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        }
+        let changed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", expected), object: target)
+        XCTAssertEqual(XCTWaiter.wait(for: [changed], timeout: 5), .completed,
+                       "Switch must change to \(expected); actual value \(String(describing: target.value))", file: file, line: line)
     }
 
     @MainActor
