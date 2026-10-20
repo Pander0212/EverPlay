@@ -14,7 +14,7 @@ The source is pushed to `codex/everplay-foundation` in [Pander0212/EverPlay](htt
 2. Builds XcodeGen at verified commit `21ac9944b0ab546a07422dbed86f33dd2ebd76f8` (2.44.1), using its tracked lockfile.
 3. Generates `EverPlay.xcodeproj` from `project.yml`; copies the root Swift resolution into the Xcode workspace lockfile.
 4. Runs the portable core tests and resolves exact package versions.
-5. Compiles the app and every native test target with `build-for-testing` before booting a device, using local ad-hoc simulator signing (no Apple credentials). It then explicitly boots the selected simulator with a bounded wait.
+5. Compiles the app and every native test target with `build-for-testing` before booting a device, using local ad-hoc simulator signing (no Apple credentials). It then explicitly boots the selected simulator with a bounded 600-second wait for first-boot migration.
 6. Uses `test-without-building` to reuse the validated products with 300-second per-test limits. Runs native HTTP/range and WebKit storage/input tests plus import → touch play → save → exit → full app relaunch and draggable-controls/orientation UI tests. Requires all four named cases to be recorded as passed; a zero-test run is rejected.
 7. Preserves logs, a unique `.xcresult` and exported standalone attachments/screenshots. `pipefail` preserves command failures; the generator cache is retained even when an application test fails.
 

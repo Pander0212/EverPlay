@@ -46,7 +46,7 @@ printf '%s\n' '::notice title=EverPlay CI::iOS application and test-target compi
 phase=simulator-boot
 python3 - "$simulator_id" <<'PYTHON' 2>&1 | tee artifacts/simulator-boot.log
 import subprocess, sys
-subprocess.run(['xcrun', 'simctl', 'bootstatus', sys.argv[1], '-b'], timeout=180, check=True)
+subprocess.run(['xcrun', 'simctl', 'bootstatus', sys.argv[1], '-b'], timeout=600, check=True)
 PYTHON
 printf '%s\n' '::notice title=EverPlay CI::iPhone simulator boot completed.'
 # A new result directory prevents stale test results from being mistaken for a new run.
