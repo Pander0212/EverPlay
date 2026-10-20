@@ -34,14 +34,17 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
     }
 
     func start() async {
+        trace("start requested; started=\(started), stopped=\(stopped)")
         guard !started, !stopped else { return }
         started = true
         do {
             try await server.start()
+            trace("loopback server ready")
             guard !stopped else { server.stop(); return }
             let base = URL(string: "http://127.0.0.1:\(game.port)/")!
             let url = base.appendingPathComponent(game.resourceToken).appendingPathComponent(game.entryPoint)
             startedAt = Date()
+            trace("requesting game navigation")
             webView.load(URLRequest(url: url))
         } catch {
             self.error = "The game server could not start: \(error.localizedDescription). Close and reopen the game to retry."
@@ -50,6 +53,7 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
     }
 
     func stop() {
+        trace("stop requested")
         guard !stopped else { return }
         stopped = true
         webView.stopLoading()
@@ -84,10 +88,17 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
         }
         decisionHandler(.allow)
     }
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { loading = false }
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { trace("navigation started") }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { trace("navigation finished"); loading = false }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { fail(error) }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { fail(error) }
+    private func trace(_ message: String) {
+        #if DEBUG
+        print("[EverPlay runtime] \(message)")
+        #endif
+    }
     private func fail(_ error: Error) {
+        trace("navigation error code \((error as NSError).code)")
         if (error as NSError).code != NSURLErrorCancelled { self.error = error.localizedDescription; loading = false }
     }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {

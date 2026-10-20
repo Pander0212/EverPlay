@@ -35,6 +35,11 @@ final class EverPlayUITests: XCTestCase {
         app.terminate(); app.launch()
         XCTAssertTrue(game.waitForExistence(timeout: 10)); game.tap()
         XCTAssertTrue(app.webViews.staticTexts[expectedInventory].waitForExistence(timeout: 20), "Per-game WebKit storage must survive application relaunch")
+        // Leave the independent layout test a closed session, rather than implicitly
+        // force-killing an active WebKit data-store process on its next app.launch().
+        app.buttons["gameMenu"].tap()
+        reveal(exit, in: app); exit.tap()
+        XCTAssertTrue(game.waitForExistence(timeout: 10))
     }
 
     @MainActor

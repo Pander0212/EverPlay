@@ -7,6 +7,7 @@
 - No remote game network access by default; CSP blocks remote services/assets. Offline single-player games are the target. NW.js/Node filesystem plugins, native binaries and desktop browser extensions are unsupported.
 - WebKit media/codecs, WebGL limits, service workers, browser permissions and synthetic keyboard behavior vary. Audio requires user interaction. There is no guarantee for every web API or every game.
 - Use the game's own save controls. Browser localStorage/IndexedDB persists by design, but in-memory state is not automatically serialized. Native save backup/import/export, migration and restore are not implemented.
+- A simulator CI sequence that force-terminated an actively playing app before the next independent test produced a blank WebView/loading indicator after relaunch. Graceful exit is used for test cleanup; force-quit/background recovery needs separate investigation and is not claimed reliable.
 - One foreground game at a time; app backgrounding is not a guarantee the game's simulation or server keeps running. The menu does not universally pause games.
 - Saved ports do not change automatically. An occupied port produces a startup error instead of opening a new origin and appearing to lose saves.
 - Library schema v1 uses atomic JSON; unknown versions fail closed. Recovery preserves interrupted/orphaned imports. Archive retains files/browser data, but a restore/purge UI is not yet implemented. Recovery data may use storage until explicitly managed.
