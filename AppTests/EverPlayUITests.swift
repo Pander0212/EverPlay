@@ -16,7 +16,7 @@ final class EverPlayUITests: XCTestCase {
         XCTAssertTrue(game.waitForExistence(timeout: 20), "Bundled ZIP should pass the same importer as Files imports")
         game.tap()
         let collect = app.webViews.buttons["Collect light +10"]
-        XCTAssertTrue(collect.waitForExistence(timeout: 20), "Local HTTP server must serve module JS, CSS and dialogue JSON")
+        waitForDemo(in: app)
         let inventory = app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Seeds: ")).firstMatch
         XCTAssertTrue(inventory.waitForExistence(timeout: 5))
         let initialSeeds = try XCTUnwrap(Int(inventory.label.replacingOccurrences(of: "Seeds: ", with: "")))
@@ -34,7 +34,9 @@ final class EverPlayUITests: XCTestCase {
         XCTAssertTrue(game.waitForExistence(timeout: 10))
         app.terminate(); app.launch()
         XCTAssertTrue(game.waitForExistence(timeout: 10)); game.tap()
-        XCTAssertTrue(app.webViews.staticTexts[expectedInventory].waitForExistence(timeout: 20), "Per-game WebKit storage must survive application relaunch")
+        waitForDemo(in: app)
+        XCTAssertTrue(app.webViews.staticTexts[expectedInventory].waitForExistence(timeout: 5),
+                      "Per-game WebKit storage must survive application relaunch. \(app.debugDescription)")
         // Leave the independent layout test a closed session, rather than implicitly
         // force-killing an active WebKit data-store process on its next app.launch().
         app.buttons["gameMenu"].tap()
@@ -51,7 +53,7 @@ final class EverPlayUITests: XCTestCase {
         let game = app.buttons["game-Lantern Garden"]
         if !game.waitForExistence(timeout: 3) { app.buttons["importDemo"].tap() }
         XCTAssertTrue(game.waitForExistence(timeout: 20)); game.tap()
-        XCTAssertTrue(app.webViews.buttons["Collect light +10"].waitForExistence(timeout: 60), app.debugDescription)
+        waitForDemo(in: app)
         app.buttons["gameMenu"].tap()
         let toggle = app.switches["virtualControlsToggle"]
         reveal(toggle, in: app)
@@ -99,6 +101,15 @@ final class EverPlayUITests: XCTestCase {
         reveal(toggle, in: app); setSwitch(toggle, enabled: false)
         app.buttons["resumeGame"].tap()
         XCTAssertFalse(action.exists, "Hidden controls must stop obstructing the game")
+    }
+
+    @MainActor
+    private func waitForDemo(in app: XCUIApplication,
+                             file: StaticString = #filePath, line: UInt = #line) {
+        // WebKit process startup and save restoration are separate requirements.
+        // Use the same bounded readiness wait for initial launch and app relaunch.
+        XCTAssertTrue(app.webViews.buttons["Collect light +10"].waitForExistence(timeout: 60),
+                      "Demo did not become ready. \(app.debugDescription)", file: file, line: line)
     }
 
     @MainActor

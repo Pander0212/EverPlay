@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import OSLog
 import EverPlayCore
 
 @MainActor
@@ -94,7 +95,7 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { fail(error) }
     private func trace(_ message: String) {
         #if DEBUG
-        print("[EverPlay runtime] \(message)")
+        Logger(subsystem: "app.everplay.player", category: "runtime").notice("\(message, privacy: .public)")
         #endif
     }
     private func fail(_ error: Error) {

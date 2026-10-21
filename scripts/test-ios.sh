@@ -8,6 +8,14 @@ report_failure() {
   failure_code=$?
   trap - ERR
   python3 scripts/report-ci-failure.py "$phase" "$failure_code" || true
+  if [[ -n "${simulator_id:-}" ]]; then
+    # App-process stdout is not reliably forwarded by UI tests. Keep only our
+    # fixed lifecycle messages (no game content, URLs or saved data).
+    xcrun simctl spawn "$simulator_id" log show --last 15m --style compact \
+      --predicate 'subsystem == "app.everplay.player" AND category == "runtime"' \
+      > artifacts/runtime.log 2>&1 || true
+    tail -n 100 artifacts/runtime.log
+  fi
   if [[ -n "${result_path:-}" && -d "$result_path" ]]; then
     xcrun xcresulttool export attachments --path "$result_path" --output-path "$attachment_path" \
       > artifacts/attachment-export.log 2>&1 || true
