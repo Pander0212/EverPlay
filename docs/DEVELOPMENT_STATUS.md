@@ -1,6 +1,6 @@
 # Development status
 
-Recorded **2026-10-20**. The initial empty repository now contains an actual SwiftUI iOS application and a tested portable foundation. Source is pushed to [`codex/everplay-foundation`](https://github.com/Pander0212/EverPlay/tree/codex/everplay-foundation). **The full native acceptance gate is still being validated.**
+Recorded **2026-10-21**. The initial empty repository now contains an actual SwiftUI iOS application and a tested portable foundation. Source is pushed to [`codex/everplay-foundation`](https://github.com/Pander0212/EverPlay/tree/codex/everplay-foundation). **The complete four-case native acceptance gate passed on the iPhone simulator. Physical-device validation remains open.**
 
 ## Implemented and tested
 
@@ -13,7 +13,7 @@ Recorded **2026-10-20**. The initial empty repository now contains an actual Swi
 - The pinned XcodeGen source build generates the real app and native test targets. Dependency setup is repeatable with frozen locks. Swift's official download signature was verified; the corresponding archive digest is pinned in setup.
 - The iOS application has compiled with Xcode 16.4 and native XCTest/UI suites have actually executed on the GitHub macOS simulator runner. Compilation is no longer an unverified assumption.
 
-## Native acceptance validation in progress
+## Native acceptance passed
 
 The native suite requires these four tests to pass, and `scripts/verify-ios-tests.py` rejects a zero-test or incomplete run:
 
@@ -22,7 +22,11 @@ The native suite requires these four tests to pass, and `scripts/verify-ios-test
 3. Demo ZIP import, touch play, inventory/save, exit and full application relaunch.
 4. Both virtual-control groups' draggable/saved layout, portrait/landscape gameplay and hiding controls.
 
-The latest source under validation is `f68340db35903c08269b686eb586d95ad2fb71a4`, [iOS run 39467612506](https://github.com/Pander0212/EverPlay/actions/runs/39467612506). Browser and security workflows for this source have passed. The first three named native acceptance cases passed in preceding ARM and Intel simulator runs. The Intel retry failed while waiting for WebKit content before it reached the controls assertion; startup waiting is now bounded at 60 seconds and preserves the actual accessibility hierarchy on failure. The complete gate is being rerun. Earlier native failures exposed a real Darwin path bug and test-harness readiness/sheet-gesture issues; they are not described as successful runs.
+Tested application/test source: `2eda7f330b3a0c59dc2e2ea97389c007c7cd5e01`. [iOS run 39564217383](https://github.com/Pander0212/EverPlay/actions/runs/39564217383) **passed all four cases**, compiled the application/test targets with Xcode 16.4, and passed all 37 core tests on macOS. The UI persistence case passed in 106.577 seconds and the controls/orientation case in 85.491 seconds. The workflow uploaded simulator results and a simulator application. Browser [run 39564217159](https://github.com/Pander0212/EverPlay/actions/runs/39564217159) and repository [run 39564217066](https://github.com/Pander0212/EverPlay/actions/runs/39564217066) also passed. Subsequent changes to this recorded source are documentation only.
+
+The preceding [run 39475323802](https://github.com/Pander0212/EverPlay/actions/runs/39475323802), source `b1a08fdd1749f9689cdeb83727b185ab9a0b371d`, compiled successfully and passed the HTTP, WebKit-isolation and **complete control-layout/landscape** cases. Giving group dragging priority over individual key gestures fixed the D-pad movement failure. The full run nevertheless failed: the demo's expected inventory did not appear within 20 seconds after application relaunch. That log did not distinguish page readiness from a restored-save mismatch. The current test waits up to 60 seconds for the demo’s module/JSON-ready status independently, then checks the exact saved inventory without resetting game data. Failures retain the accessibility hierarchy and fixed, content-free runtime lifecycle messages.
+
+Earlier native failures exposed a Darwin canonical-path bug and test-harness readiness/sheet-gesture issues. Intel simulator cold boot required a bounded 600-second window during Apple data migration. A previous sequence also showed a blank WebView/loading indicator after implicitly terminating an active game between tests; normal exit is now used for independent test cleanup. The current normal-exit/relaunch acceptance case passes; this does not prove that the earlier intermittent blank-loading behavior or active-game force-quit/background recovery is fixed. Retain a dedicated lifecycle/stress follow-up before broad compatibility work.
 
 ## Implemented but untested on physical devices
 
@@ -45,7 +49,7 @@ Provider/Keychain integration, SQLite translation memory, safe live/pre-translat
 
 - The cloud machine is Linux; native compilation uses GitHub's macOS runner. It is not necessary to use the owner's laptop.
 - GitHub API reads and native Git pushes work using supplied platform authentication. Direct job-log/artifact storage domains can still be restricted; bounded failure diagnostics are also published as API-readable GitHub check annotations.
-- Required native acceptance failures must be fixed before milestone 1 is called accepted. A simulator build alone does not validate all functionality.
+- The normal four-case simulator acceptance gate passed. Earlier intermittent startup observations still need dedicated lifecycle/stress validation; one passing run is not a universal reliability claim.
 - There is no signed device release, Apple distribution configuration or physical-device result.
 - The environment configuration is saved as a draft. Publishing a new Codex snapshot and restoring it in a new Codex task have not been verified. Code is remotely recoverable from the pushed Git branch rather than only a local commit.
 
@@ -58,7 +62,7 @@ Provider/Keychain integration, SQLite translation memory, safe live/pre-translat
 | `npm run check` and `npm test` | Syntax passed; 5 Node tests passed. |
 | `npm run test:browser` | 4 Chromium integration tests passed locally and in GitHub Actions. |
 | Dependency/repository workflow | Passed; npm audit reported 0 vulnerabilities, tracked-file screening/action pin checks passed. Basic screening is not a complete security audit. |
-| iOS app compilation and simulator execution | Confirmed; complete four-case acceptance result is still pending for the current source. |
+| iOS app compilation and simulator execution | Passed for source `2eda7f3`: all four required HTTP/WebKit/UI cases, zero native failures; simulator `.app` uploaded. |
 | Real iPhone | Not run. |
 
 ### Diagnosed failures and corrections
@@ -71,11 +75,11 @@ Provider/Keychain integration, SQLite translation memory, safe live/pre-translat
 
 ## Cloud configuration
 
-The versioned setup script installs/verifies the toolchain if needed and refreshes frozen dependencies. Startup instructions identify the existing checkout and functional tests, and prohibit unnecessary worktrees. Custom network draft additions preserve presets. Draft saving does not execute scripts, publish a snapshot or prove new-task restoration.
+On 2026-10-21, `bash scripts/setup-cloud.sh` was rerun successfully without changing source or locks, followed by 37 passing Linux core tests, 5 Node tests and 4 Chromium tests. The versioned setup script installs/verifies the toolchain if needed and refreshes frozen dependencies. Startup instructions identify the existing checkout and functional tests, and prohibit unnecessary worktrees. Custom network draft additions preserve presets. Draft saving does not execute scripts, publish a snapshot or prove new-task restoration.
 
 ## Precise next task
 
-1. Continue from the pushed branch/current checkout and inspect the latest native workflow result. Fix any remaining acceptance failure and require all four named native cases to complete, not just an open port or successful compile.
+1. Continue from the pushed branch/current checkout. Preserve the passing four-case baseline at `2eda7f3` (run 39564217383). Next, add focused repeated lifecycle coverage for graceful reopen, active-game termination and background/foreground transitions; inspect retained runtime diagnostics if the earlier intermittent blank-loading behavior recurs. Do not hide failures with automatic test retries or reset saved game data.
 2. After native acceptance, validate an external Files ZIP on a device when signing/distribution is available. No manual Windows-laptop setup is needed for the cloud build.
 3. Advance to milestone 2 with a legally usable minimal MV/MZ web export. Do not redistribute commercial engine/game assets without the appropriate rights. Verify startup, audio, touch and saves before adding narrowly scoped compatibility shims.
 4. Follow translation → mods/cheats/saves → Bridge → additional engines in roadmap order. Preserve the working HTML5 test fixture and immutable installations.

@@ -2,7 +2,7 @@
 
 ## Current evidence
 
-Swift core tests pass on Linux and macOS. The real application and test targets compile using Xcode 16.4 on the GitHub `macos-15-intel` runner, and native tests have executed. Full acceptance is being validated; see [the current results](DEVELOPMENT_STATUS.md). Physical iPhone playback and device distribution are not verified.
+Swift core tests pass on Linux and macOS. The real application and test targets compile using Xcode 16.4 on the GitHub `macos-15-intel` runner, and native tests have executed. All four required native acceptance cases passed at source `2eda7f3`; see [the current results and lifecycle follow-up](DEVELOPMENT_STATUS.md). Physical iPhone playback and device distribution are not verified.
 
 The source is pushed to `codex/everplay-foundation` in [Pander0212/EverPlay](https://github.com/Pander0212/EverPlay). GitHub API reads and native Git pushes now work with the platform-provided authentication. The initially denied API access is resolved. Direct log/artifact download domains may still need the saved network-setting changes; the workflow also emits bounded failure diagnostics through API-readable check annotations.
 

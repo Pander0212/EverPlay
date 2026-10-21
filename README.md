@@ -1,6 +1,6 @@
 # EverPlay
 
-An open-source iPhone game library and HTML5 player, built with SwiftUI and WKWebView. **Foundation in development; simulator compilation is verified, native acceptance validation is in progress, and physical-device playback is unverified.**
+An open-source iPhone game library and HTML5 player, built with SwiftUI and WKWebView. **Foundation in development; simulator compilation and all four native acceptance tests passed. Physical-device playback is unverified.**
 
 This first slice contains a real iOS application target, ZIP importer, persistent library, local resource server, touch/keyboard controls, and the original **Lantern Garden** demo. The portable Swift core passes on Linux and macOS; the application has compiled and executed on a GitHub macOS iPhone simulator. See the exact native acceptance status below. This is not yet a signed or installable iPhone release.
 
