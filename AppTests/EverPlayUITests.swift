@@ -108,7 +108,7 @@ final class EverPlayUITests: XCTestCase {
                              file: StaticString = #filePath, line: UInt = #line) {
         // WebKit process startup and save restoration are separate requirements.
         // Use the same bounded readiness wait for initial launch and app relaunch.
-        XCTAssertTrue(app.webViews.buttons["Collect light +10"].waitForExistence(timeout: 60),
+        XCTAssertTrue(app.webViews.staticTexts["Ready · progress saves automatically"].waitForExistence(timeout: 60),
                       "Demo did not become ready. \(app.debugDescription)", file: file, line: line)
     }
 
