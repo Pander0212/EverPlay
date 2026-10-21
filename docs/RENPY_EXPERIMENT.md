@@ -48,7 +48,18 @@ Direct desktop ZIP/RPA import inside EverPlay is still unsupported. The data-onl
 
 ## Requested real-game check
 
-The owner supplied download access to [Contract Demon](https://nomnomnami.itch.io/contract-demon). On 2026-10-21, both the supplied R2 download host and itch.io download page were blocked by the cloud network proxy (`Tunnel connection failed: 403 Forbidden`), before an origin response. No game bytes were downloaded or executed; its engine version and compatibility remain unknown. The direct signed URL advertises a 60-second lifetime; future testing may need a refreshed link or a locally supplied ZIP. Signed URLs are not retained in source or configuration. The two exact destination hosts were prepared in the environment configuration draft; saving that draft does not activate networking.
+The owner supplied download access to [Contract Demon](https://nomnomnami.itch.io/contract-demon). A refreshed link successfully downloaded **Contract Demon 2.2.7 PC**, 84,098,513 bytes, on 2026-10-21. The earlier proxy blocker is resolved for this download. Package SHA-256: `174ee799d011887b82ac000b4c85e1427a281011d1134c096882017e6b7346bd`.
+
+Passive ZIP inspection found RenPy **8.2.0.24012702**, `script_version.txt` `(8, 2, 0)`, one `game/archive.rpa` and additional translation fonts. A matching official 8.2.0 SDK/web runtime was downloaded and verified against its release SHA-256 list:
+
+- SDK: `e79ec1014bad6adba69336f90802e89ae7a70172c1bb9c15301267390e9d7b38`
+- Web: `6db580f557bd77d403b9c29b84e33ec2fe9fc154e5d38056d976703093dae92f`
+
+Only our reviewed fixture was passed to the host SDK's `web_build` to create a matching runtime template. ZIP operations removed the template's `game/` entries and inserted Contract Demon's game data, excluding desktop caches/saves. No downloaded game Python or RPA pickle was executed/deserialized on the host. Its 41,824,343-byte RPA is preserved byte-for-byte (SHA-256 `95d81239af731ea964534e16c5a889a3ce427f231cf1635a9c9ff50c08c8b037`). Runtime execution takes place inside Chromium/WebAssembly with the production CSP and external browser requests blocked.
+
+Observed: language selection, German title menu, animated first scene, translated dialogue advancement and saving through the normal menu. The saved slot survives a full browser-process restart and loads back into the saved dialogue. Assertions then verify that advancing changes the dialogue and loading through the normal UI/confirmation restores the exact previously captured dialogue. The local restore harness completed successfully (`artifacts/contract-result.json`). This is a browser compatibility probe, not a native EverPlay/iPhone result for Contract Demon. Audio output, full playthrough, choices, rollback, all translations, memory pressure and physical-device behavior are unverified. Browser autoplay warnings appeared before the first gesture. The first automated restart attempt clicked during the splash sequence; startup checks must wait for the actual RenPy main-menu screen and its animated controls to become interactive; the corrected harness verifies the load screen before selecting the slot.
+
+The private downloaded package and local browser harness/results remain outside tracked source (tool cache and ignored `artifacts/`). In the retained workspace, the matching SDK/template/repacked web directory are under `/workspace/everplay-tools/renpy-8.2-cache/`; `node artifacts/contract-restore.mjs` repeats the restart/load/dialogue assertions against the previously UI-created local save and its fixed loopback origin. These private local test inputs are not restored by a Git checkout alone. No game assets, signed URLs or save files are committed or uploaded to CI. Do not use the repository's pinned 8.5.3 fixture builder on this third-party package.
 
 ## Licensing and provenance
 
