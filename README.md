@@ -13,7 +13,7 @@ This first slice contains a real iOS application target, ZIP importer, persisten
 - Use touch or optional D-pad/action/Enter/Escape controls, with per-game opacity and draggable group layouts.
 - Import the included demo ZIP through the same importer; collect gold, buy seeds, advance the day, read Japanese dialogue and save.
 
-Native acceptance checks cover HTTP transport, WebKit storage isolation, virtual controls, orientation and app-relaunch persistence; their current result is recorded in [development status](docs/DEVELOPMENT_STATUS.md). **MV/MZ detection is tested; real RPG Maker game compatibility is not.** No Unity support. Translation, mods, cheats, additional engines and an MCP Bridge are future milestones, not hidden working features.
+Native acceptance checks cover HTTP transport, WebKit storage isolation, virtual controls, orientation and app-relaunch persistence; their current result is recorded in [development status](docs/DEVELOPMENT_STATUS.md). **MV/MZ detection is tested; real RPG Maker game compatibility is not.** No Unity support. A separate [RenPy desktop-data experiment](docs/RENPY_EXPERIMENT.md) tests a matched-version Windows/Linux fixture; direct RenPy import is not yet available. Translation, mods, cheats, broader engine compatibility and an MCP Bridge remain future work.
 
 ## Develop in the cloud
 

@@ -8,7 +8,7 @@
 | RPG Maker MZ | Detected, experimental web runtime path | Tests recognize `js/rmmz_core.js` and require `data/System.json`; no real MZ runtime/game test yet. |
 | RPG Maker 2000/2003 | Unsupported | EasyRPG is a plausible GPLv3 interpreter; not linked. |
 | RPG Maker XP/VX/VX Ace | Unsupported | Investigate mkxp-z/mobile forks, Ruby/native dependencies and GPL obligations. EasyRPG does **not** implement these engines. |
-| Ren’Py desktop package | Unsupported | Official iOS export is version-specific; a desktop `.rpa`/`.rpyc` package is not an iOS executable. |
+| Ren’Py desktop package | Direct app import unsupported; matched-version experiment | Original RenPy 8.5.3 Windows/Linux `story.rpa` runs after controlled packaging into WebAssembly; Chromium interaction/save/restart and native simulator interaction/save/session-reopen tests pass. Exact experiment validation is recorded in [RENPY_EXPERIMENT.md](RENPY_EXPERIMENT.md). Windows executables, unknown versions and native extensions are not supported. |
 | Godot native/PCK export | Unsupported | Needs matching engine/resource version and native extension/signing review. |
 | Godot web export | Not validated | Could fit the web adapter, but WebGL/WASM/thread requirements need real exported fixtures; no compatibility claim. |
 | Unity | Excluded | No implementation or roadmap target. |

@@ -22,11 +22,17 @@ The native suite requires these four tests to pass, and `scripts/verify-ios-test
 3. Demo ZIP import, touch play, inventory/save, exit and full application relaunch.
 4. Both virtual-control groups' draggable/saved layout, portrait/landscape gameplay and hiding controls.
 
-Tested application/test source: `2eda7f330b3a0c59dc2e2ea97389c007c7cd5e01`. [iOS run 39564217383](https://github.com/Pander0212/EverPlay/actions/runs/39564217383) **passed all four cases**, compiled the application/test targets with Xcode 16.4, and passed all 37 core tests on macOS. The UI persistence case passed in 106.577 seconds and the controls/orientation case in 85.491 seconds. The workflow uploaded simulator results and a simulator application. Browser [run 39564217159](https://github.com/Pander0212/EverPlay/actions/runs/39564217159) and repository [run 39564217066](https://github.com/Pander0212/EverPlay/actions/runs/39564217066) also passed. Subsequent changes to this recorded source are documentation only.
+Tested application/test source: `2eda7f330b3a0c59dc2e2ea97389c007c7cd5e01`. [iOS run 39564217383](https://github.com/Pander0212/EverPlay/actions/runs/39564217383) **passed all four cases**, compiled the application/test targets with Xcode 16.4, and passed all 37 core tests on macOS. The UI persistence case passed in 106.577 seconds and the controls/orientation case in 85.491 seconds. The workflow uploaded simulator results and a simulator application. Browser [run 39564217159](https://github.com/Pander0212/EverPlay/actions/runs/39564217159) and repository [run 39564217066](https://github.com/Pander0212/EverPlay/actions/runs/39564217066) also passed. This is the accepted foundation baseline; the later RenPy experiment below has its own source/run evidence.
 
 The preceding [run 39475323802](https://github.com/Pander0212/EverPlay/actions/runs/39475323802), source `b1a08fdd1749f9689cdeb83727b185ab9a0b371d`, compiled successfully and passed the HTTP, WebKit-isolation and **complete control-layout/landscape** cases. Giving group dragging priority over individual key gestures fixed the D-pad movement failure. The full run nevertheless failed: the demo's expected inventory did not appear within 20 seconds after application relaunch. That log did not distinguish page readiness from a restored-save mismatch. The current test waits up to 60 seconds for the demo’s module/JSON-ready status independently, then checks the exact saved inventory without resetting game data. Failures retain the accessibility hierarchy and fixed, content-free runtime lifecycle messages.
 
 Earlier native failures exposed a Darwin canonical-path bug and test-harness readiness/sheet-gesture issues. Intel simulator cold boot required a bounded 600-second window during Apple data migration. A previous sequence also showed a blank WebView/loading indicator after implicitly terminating an active game between tests; normal exit is now used for independent test cleanup. The current normal-exit/relaunch acceptance case passes; this does not prove that the earlier intermittent blank-loading behavior or active-game force-quit/background recovery is fixed. Retain a dedicated lifecycle/stress follow-up before broad compatibility work.
+
+## RenPy desktop-data experiment (owner-prioritized follow-up)
+
+The owner prioritized Windows/Linux RenPy games on 2026-10-21. See [the experiment and reproduction steps](RENPY_EXPERIMENT.md). Source `32ae7adab370b7126982a7953b82e8a92e2b7666` contains an original RenPy 8.5.3 fixture, a reproducible desktop-package build, byte-preserving reuse of its compiled `story.rpa`, browser integration checks and an optional native integration case. No original `.rpy` source is present in the desktop conversion input.
+
+Both Chromium scenarios passed real canvas clicks, route selection, save/load and save restoration after complete browser-process restart under the current app CSP and a private URL prefix. The second scenario uses a different Windows-only archive and a data-only repack that executes no game code during conversion. The [native experiment run 39604184241](https://github.com/Pander0212/EverPlay/actions/runs/39604184241) passed: the RenPy native case (28.304 seconds), all four existing foundation acceptance cases and all 37 core tests. This verifies native session reopen; the distinct Windows-only replacement scenario remains browser-tested only. The requested Contract Demon download is blocked by the cloud proxy on both supplied hosts, so real-game compatibility remains unverified. Direct import of arbitrary desktop ZIP/RPA packages in the app is **not implemented**; the builder executes only our trusted fixture. Do not run unknown games through host-side RenPy packaging tools as though they were passive file parsers.
 
 ## Implemented but untested on physical devices
 
@@ -36,6 +42,7 @@ Earlier native failures exposed a Darwin canonical-path bug and test-harness rea
 
 ## Partially implemented
 
+- RenPy: a matched-version desktop-data experiment; user-facing desktop import, version selection and broad game compatibility are not implemented.
 - MV/MZ: tested structural detection and the shared web runtime; no legitimate full MV/MZ engine export has been exercised yet. No engine runtime assets are redistributed.
 - Saves: persistent per-game browser storage is wired; native backup/export/restore and game-specific save decoding remain planned.
 - Recovery: original data and origin metadata are retained, with automatic recovery of interrupted archives still referenced by the library. Restore/purge UI remains planned.
@@ -81,7 +88,7 @@ On 2026-10-21, `bash scripts/setup-cloud.sh` was rerun successfully without chan
 
 1. Continue from the pushed branch/current checkout. Preserve the passing four-case baseline at `2eda7f3` (run 39564217383). Next, add focused repeated lifecycle coverage for graceful reopen, active-game termination and background/foreground transitions; inspect retained runtime diagnostics if the earlier intermittent blank-loading behavior recurs. Do not hide failures with automatic test retries or reset saved game data.
 2. After native acceptance, validate an external Files ZIP on a device when signing/distribution is available. No manual Windows-laptop setup is needed for the cloud build.
-3. Advance to milestone 2 with a legally usable minimal MV/MZ web export. Do not redistribute commercial engine/game assets without the appropriate rights. Verify startup, audio, touch and saves before adding narrowly scoped compatibility shims.
+3. Follow the owner’s updated priority: continue the limited RenPy Windows/Linux data-import investigation in RENPY_EXPERIMENT.md while preserving the baseline. Once that scope is agreed/tested, advance to MV/MZ with a legally usable minimal web export. Do not redistribute commercial engine/game assets without the appropriate rights. Verify startup, audio, touch and saves before adding narrowly scoped compatibility shims.
 4. Follow translation → mods/cheats/saves → Bridge → additional engines in roadmap order. Preserve the working HTML5 test fixture and immutable installations.
 5. For future TestFlight/device work, verify Apple's current SDK/submission requirements, configure a unique bundle ID/team and secure signing outside the repository, and test a genuinely signed device build. Never request private-key values in chat.
 
@@ -91,6 +98,7 @@ All files below were created from the initially empty repository; generated proj
 
 ```text
 .github/workflows/ios.yml
+.github/workflows/renpy.yml
 .github/workflows/security.yml
 .github/workflows/web.yml
 .gitignore
@@ -107,11 +115,13 @@ App/WebRuntime/LocalGameServer.swift
 AppTests/EverPlayUITests.swift
 AppUnitTests/GameSessionTests.swift
 AppUnitTests/LocalGameServerTests.swift
+AppUnitTests/RenPyRuntimeTests.swift
 DemoGame/dialogue.json
 DemoGame/game.js
 DemoGame/index.html
 DemoGame/state.js
 DemoGame/style.css
+Experiments/RenPyProbe/game/script.rpy
 LICENSE
 Package.resolved
 Package.swift
@@ -131,6 +141,7 @@ docs/IOS_BUILD.md
 docs/KNOWN_LIMITATIONS.md
 docs/MCP.md
 docs/MODDING.md
+docs/RENPY_EXPERIMENT.md
 docs/RESEARCH.md
 docs/RESEARCH_METADATA.json
 docs/ROADMAP.md
@@ -139,6 +150,7 @@ package-lock.json
 package.json
 playwright.config.js
 project.yml
+scripts/build-renpy-probe.py
 scripts/check-repository.py
 scripts/generate-project.sh
 scripts/package-demo.py
@@ -146,6 +158,8 @@ scripts/report-ci-failure.py
 scripts/setup-cloud.sh
 scripts/test-core.sh
 scripts/test-ios.sh
+scripts/test-renpy-browser.mjs
+scripts/test-renpy-data-only.py
 scripts/verify-ios-tests.py
 tests/browser/demo.spec.js
 tests/demo-state.test.js

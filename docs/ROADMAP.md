@@ -1,5 +1,7 @@
 # Roadmap
 
+**Owner priority update (2026-10-21):** investigate existing Windows/Linux RenPy game data before the broader engine roadmap below. The matched-version experiment is documented in [RENPY_EXPERIMENT.md](RENPY_EXPERIMENT.md); it does not yet enable arbitrary desktop imports. Preserve the passing HTML5 baseline.
+
 1. **Foundation (this slice, simulator baseline passed):** SwiftUI target, safe ZIP import, engine detection, immutable installations, local HTTP/WKWebView runtime, original demo, persistent per-game storage, virtual controls, portable tests and simulator CI. All four native acceptance cases passed at `2eda7f3`. Follow up earlier intermittent startup observations with lifecycle/stress coverage; physical-device and external Files-provider validation remain open.
 2. **MV/MZ:** Obtain legitimate minimal engine exports, verify startup/audio/touch/storage, add narrowly tested web compatibility shims and engine APIs. Never infer real-game compatibility from filename detection.
 3. **Translation:** Provider abstraction, deterministic tests, Keychain, SQLite migrations/cache, language/model settings, safe extraction/replacement, bounded asynchronous work and placeholder preservation.
