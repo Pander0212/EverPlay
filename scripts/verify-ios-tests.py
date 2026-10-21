@@ -10,6 +10,7 @@ required = [
     'testDemoZIPImportLaunchTouchAndPersistentReopen',
     'testVirtualControlLayoutPersistsAndGameRemainsUsableInLandscape',
 ]
+required += sys.argv[2:]
 log = Path(sys.argv[1]).read_text(errors='replace')
 missing = [name for name in required if not re.search(
     rf'^Test case [^\r\n]*\b{re.escape(name)}\b[^\r\n]*\bpassed\b', log, re.MULTILINE | re.IGNORECASE)]

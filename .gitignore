@@ -13,3 +13,10 @@ test-results/
 .env.*
 *.p12
 *.mobileprovision
+# Generated Ren'Py experiment outputs; engine binaries are downloaded with pinned hashes.
+Experiments/RenPyProbe/*.txt
+Experiments/RenPyProbe/game/*.rpyc
+Experiments/RenPyProbe/game/cache/
+Experiments/RenPyProbe/game/saves/
+App/Resources/EverPlayRenPyProbe.zip
+__pycache__/
