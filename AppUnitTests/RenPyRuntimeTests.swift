@@ -42,7 +42,12 @@ final class RenPyRuntimeTests: XCTestCase {
         try await wait(first, for: "window.everplayProbe.gold === 30")
         first.sendKey("Enter", pressed: true); first.sendKey("Enter", pressed: false)
         try await wait(first, for: "window.everplayProbe.gold === 20")
-        let snapshot = try await first.webView.takeSnapshot(with: nil)
+        let snapshot: UIImage = try await withCheckedThrowingContinuation { continuation in
+            first.webView.takeSnapshot(with: nil) { image, error in
+                if let image { continuation.resume(returning: image) }
+                else { continuation.resume(throwing: error ?? NSError(domain: "EverPlay.RenPySnapshot", code: 1)) }
+            }
+        }
         let attachment = XCTAttachment(image: snapshot)
         attachment.name = "RenPy desktop archive running inside EverPlay WebKit"
         attachment.lifetime = .keepAlways; add(attachment)

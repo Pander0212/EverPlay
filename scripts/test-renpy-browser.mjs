@@ -8,9 +8,12 @@ import { createServer } from 'node:http';
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 
+const dataOnly = process.argv.includes('--data-only');
+const initialGold = dataOnly ? 37 : 10;
+const fixture = dataOnly ? 'artifacts/EverPlayRenPyDataOnly.zip' : 'App/Resources/EverPlayRenPyProbe.zip';
 const work = await mkdtemp(path.join(tmpdir(), 'everplay-renpy-'));
 const root = path.join(work, 'web');
-execFileSync('python3', ['-m', 'zipfile', '-e', 'App/Resources/EverPlayRenPyProbe.zip', root]);
+execFileSync('python3', ['-m', 'zipfile', '-e', fixture, root]);
 const router = await readFile('Sources/EverPlayCore/HTTPResourceRouter.swift', 'utf8');
 const policy = router.match(/"Content-Security-Policy": "([^"]+)"/)[1];
 const mime = {'.html':'text/html', '.js':'text/javascript', '.json':'application/json', '.wasm':'application/wasm', '.png':'image/png', '.jpg':'image/jpeg'};
@@ -46,23 +49,23 @@ async function open() {
 }
 try {
   let page = await open();
-  assert.equal(await page.evaluate(() => window.everplayProbe.gold), 10);
+  assert.equal(await page.evaluate(() => window.everplayProbe.gold), initialGold);
   await page.mouse.click(110,250);
-  await page.waitForFunction(() => window.everplayProbe.gold === 20);
+  await page.waitForFunction(expected => window.everplayProbe.gold === expected, initialGold + 10);
   await page.mouse.click(110,315);
   await page.waitForFunction(() => window.everplayProbe.route === 'garden');
   await page.mouse.click(110,385);
   await page.waitForFunction(() => window.everplayProbe.saved === true);
   await page.mouse.click(110,250);
-  await page.waitForFunction(() => window.everplayProbe.gold === 30);
+  await page.waitForFunction(expected => window.everplayProbe.gold === expected, initialGold + 20);
   await page.mouse.click(110,455);
-  await page.waitForFunction(() => window.everplayProbe.gold === 20 && window.everplayProbe.route === 'garden');
-  await page.screenshot({path:'artifacts/renpy-desktop-data-browser.png'});
+  await page.waitForFunction(expected => window.everplayProbe.gold === expected && window.everplayProbe.route === 'garden', initialGold + 10);
+  await page.screenshot({path: dataOnly ? 'artifacts/renpy-data-only-browser.png' : 'artifacts/renpy-desktop-data-browser.png'});
   await context.close(); context = null;
   page = await open();
   await page.waitForFunction(() => window.everplayProbe.saved === true);
   await page.mouse.click(110,455);
-  await page.waitForFunction(() => window.everplayProbe.gold === 20 && window.everplayProbe.route === 'garden');
+  await page.waitForFunction(expected => window.everplayProbe.gold === expected && window.everplayProbe.route === 'garden', initialGold + 10);
   assert.deepEqual(diagnostics, [], 'Unexpected JavaScript errors');
   console.log('PASS: archived desktop scripts render, respond to clicks, select a route, save/load and restore after browser-process restart under EverPlay CSP.');
 } catch (error) {
