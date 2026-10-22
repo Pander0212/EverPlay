@@ -51,14 +51,24 @@ jobs:
             -configuration Release -sdk iphoneos ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= \
             PRODUCT_BUNDLE_IDENTIFIER=app.everplay.renpy${{ matrix.major }} \
+            PRODUCT_NAME=EverPlayRenPy${{ matrix.major }} \
             SYMROOT="$PWD/build/renpy-ios/products" 2>&1 | tee artifacts/xcodebuild.log | tail -n 30
       - name: Package the IPA
         run: |
           set -euo pipefail
           app="$(find build/renpy-ios/products/Release-iphoneos -maxdepth 1 -name '*.app' -type d | head -n 1)"
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' -c 'Print :CFBundleDisplayName' "$app/Info.plist"
-          ls "$app/Frameworks"
-          lipo -info "$app/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
+          # The prebuilt MetalANGLE still carries an armv7 slice and declares iOS 9; ship arm64 only
+          # and the app's own minimum, which re-signing tools and current iOS accept more readily.
+          angle="$app/Frameworks/MetalANGLE.framework"
+          lipo "$angle/MetalANGLE" -thin arm64 -output "$angle/MetalANGLE.arm64"
+          mv "$angle/MetalANGLE.arm64" "$angle/MetalANGLE"
+          /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion $(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$app/Info.plist")" "$angle/Info.plist"
+          # Ad-hoc placeholder signature; sideloading tools replace it with the user's certificate.
+          codesign --force --sign - --timestamp=none "$angle"
+          codesign --force --sign - --timestamp=none "$app"
+          codesign --verify --deep --verbose=2 "$app"
+          lipo -info "$angle/MetalANGLE" "$app/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
           mkdir -p ipa/Payload
           cp -R "$app" ipa/Payload/
           (cd ipa && zip -qry "../artifacts/EverPlay-RenPy${{ matrix.major }}-unsigned.ipa" Payload)
