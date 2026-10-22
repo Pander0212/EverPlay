@@ -1,5 +1,5 @@
 name: Xcode inventory
-# Lists the Xcode versions on the macOS runners (to decide whether iOS 26 APIs such as Liquid Glass can be built).
+# Lists the Xcode versions and iOS SDKs on the macOS runners (to decide whether iOS 26 APIs such as Liquid Glass can be built).
 on:
   workflow_dispatch:
   push:
