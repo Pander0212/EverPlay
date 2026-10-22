@@ -78,9 +78,7 @@ final class RenPyDesktopGameTests: XCTestCase {
         _ = try await until(session, Self.screensExpression, "title menu") { ($0 as? [String])?.contains("main_menu") == true }
         try await focus(session, "start button", hint: repeated("ArrowRight", 5) + repeated("ArrowLeft", 5)) { $0[0] == "Start" }
         try await press(session, "Enter")
-        var position = try XCTUnwrap(Position(try await until(session, Self.positionExpression, "first dialogue", timeout: 60) {
-            (Position($0)?.history ?? 0) >= 1
-        }))
+        var position = try await waitForPosition(session, "first dialogue") { $0.history >= 1 }
         position = try await advance(session, from: position)
         position = try await advance(session, from: position)
         mark("before save", position)
@@ -118,9 +116,7 @@ final class RenPyDesktopGameTests: XCTestCase {
         _ = try await until(session, Self.screensExpression, "load screen") { ($0 as? [String])?.contains("load") == true }
         try await focus(session, "saved slot", hint: repeated("ArrowDown", 3)) { $0[0] == "FileLoad" }
         try await press(session, "Enter")
-        position = try XCTUnwrap(Position(try await until(session, Self.positionExpression, "restored dialogue", timeout: 60) {
-            Position($0) == saved
-        }))
+        position = try await waitForPosition(session, "restored dialogue") { $0 == saved }
         mark("restored after reopen", position)
 
         // Play on, then load the same save from inside the running game.
@@ -142,9 +138,7 @@ final class RenPyDesktopGameTests: XCTestCase {
             try await focus(session, "confirm yes", hint: ["ArrowDown"]) { $0[0] == "FileLoad" }
             try await press(session, "Enter")
         }
-        position = try XCTUnwrap(Position(try await until(session, Self.positionExpression, "restored dialogue in game", timeout: 60) {
-            Position($0) == saved
-        }))
+        position = try await waitForPosition(session, "restored dialogue in game") { $0 == saved }
         mark("restored in game", position)
         try await attachSnapshot(of: session, name: "Real Ren'Py desktop game restored from its save")
     }
@@ -200,6 +194,16 @@ final class RenPyDesktopGameTests: XCTestCase {
         }
         XCTFail(session.error ?? "Ren'Py desktop game timed out waiting for \(label)")
         throw NSError(domain: "EverPlay.RenPyDesktopGame", code: 1)
+    }
+
+    @MainActor
+    private func waitForPosition(_ session: GameSession, _ label: String,
+                                 _ predicate: (Position) -> Bool) async throws -> Position {
+        let value = try await until(session, Self.positionExpression, label, timeout: 60) {
+            Position($0).map(predicate) ?? false
+        }
+        guard let position = Position(value) else { throw NSError(domain: "EverPlay.RenPyDesktopGame", code: 6) }
+        return position
     }
 
     /// Moves focus with virtual arrows until a focused button carries a matching action. Tries the expected
