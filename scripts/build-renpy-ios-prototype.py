@@ -178,12 +178,12 @@ def everplay_game_packages():
                 sys.path.append(path)
 
 
-def everplay_compatibility():
+def everplay_patch_translations():
     # EverPlay: some desktop games define the same string translation twice (for example in
     # code paths that only run on mobile). Desktop Ren'Py aborts; keep the first one and log.
     import renpy.translation
     translator = getattr(renpy.translation, "StringTranslator", None)
-    if translator is None:
+    if translator is None or getattr(translator.add, "everplay", False):
         return
     original = translator.add
 
@@ -193,7 +193,21 @@ def everplay_compatibility():
             return
         return original(self, old, new, newloc)
 
+    add.everplay = True
     translator.add = add
+
+
+def everplay_compatibility():
+    # Patch only after Ren'Py has imported its own modules in its usual order; importing
+    # renpy.translation any earlier fails because it needs renpy.ast.
+    import renpy
+    original = renpy.import_all
+
+    def import_all():
+        original()
+        everplay_patch_translations()
+
+    renpy.import_all = import_all
 
 
 """
