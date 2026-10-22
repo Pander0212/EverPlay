@@ -61,13 +61,15 @@ printf '%s\n' '::notice title=EverPlay CI::iPhone simulator boot completed.'
 result_path="$PWD/artifacts/ios-$(date -u +%Y%m%dT%H%M%S).xcresult"
 attachment_path="$PWD/artifacts/attachments-$(basename "$result_path" .xcresult)"
 phase=ios-build-test
+# The real desktop-game test (private CI only) may need longer than the default.
+time_allowance="${EVERPLAY_TEST_TIME_ALLOWANCE:-300}"
 xcodebuild test-without-building -project EverPlay.xcodeproj -scheme EverPlay \
   -destination "platform=iOS Simulator,id=$simulator_id" -destination-timeout 120 \
   -derivedDataPath DerivedData -clonedSourcePackagesDirPath .build/xcode-packages \
   -onlyUsePackageVersionsFromResolvedFile -resultBundlePath "$result_path" \
   -parallel-testing-enabled NO -test-timeouts-enabled YES \
   -enableCodeCoverage NO -collect-test-diagnostics never \
-  -default-test-execution-time-allowance 300 -maximum-test-execution-time-allowance 300 \
+  -default-test-execution-time-allowance "$time_allowance" -maximum-test-execution-time-allowance "$time_allowance" \
   CODE_SIGN_IDENTITY=- \
   2>&1 | tee artifacts/ios-build-test.log
 python3 scripts/verify-ios-tests.py artifacts/ios-build-test.log

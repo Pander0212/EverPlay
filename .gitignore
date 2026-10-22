@@ -20,3 +20,6 @@ Experiments/RenPyProbe/game/cache/
 Experiments/RenPyProbe/game/saves/
 App/Resources/EverPlayRenPyProbe.zip
 __pycache__/
+# Private real-game bundles assembled only in private CI; never commit them.
+App/Resources/EverPlayRenPyDesktopGame.zip
+App/Resources/EverPlayRenPyDesktopGame.json
