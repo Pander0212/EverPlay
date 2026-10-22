@@ -1,0 +1,71 @@
+name: Native Ren'Py iOS feasibility
+# Our MIT fixture only. A: game inside the app bundle (official renios layout).
+# B: a desktop (pc) package's game/ in the app's Documents, started via the basedir argument.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: renpy-native-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  prototype:
+    runs-on: macos-15-intel
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Reuse verified Ren'Py 8.2.0 SDK and renios downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-8.2
+          key: renpy-8.2.0-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Build the renios project around our fixture
+        run: |
+          mkdir -p artifacts
+          set -o pipefail
+          if ! python3 scripts/build-renpy-ios-prototype.py 2>&1 | tr '\r' '\n' > artifacts/prototype-build.log; then
+            tail -n 60 artifacts/prototype-build.log
+            exit 1
+          fi
+      - name: Compile for the iPhone simulator
+        run: |
+          set -o pipefail
+          xcodebuild build -project build/renpy-ios/xcode/EverPlayRenPyProbe.xcodeproj -alltargets \
+            -configuration Debug -sdk iphonesimulator ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- \
+            SYMROOT="$PWD/build/renpy-ios/products" 2>&1 | tee artifacts/xcodebuild.log | tail -n 40
+      - name: Run A (bundled game) and B (desktop game from Documents)
+        run: |
+          set -euo pipefail
+          app="$(find build/renpy-ios/products -maxdepth 2 -name '*.app' -type d | head -n 1)"
+          bundle="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")"
+          udid="$(xcrun simctl list devices available -j | python3 -c '
+          import json,sys
+          items=json.load(sys.stdin)["devices"]
+          print(next(d["udid"] for r,ds in items.items() if "iOS" in r for d in ds if "iPhone" in d["name"]))')"
+          python3 -c 'import subprocess,sys; subprocess.run(["xcrun","simctl","bootstatus",sys.argv[1],"-b"],timeout=600,check=True)' "$udid"
+          xcrun simctl install "$udid" "$app"
+
+          xcrun simctl launch --stdout="$PWD/artifacts/a-stdout.log" --stderr="$PWD/artifacts/a-stderr.log" "$udid" "$bundle"
+          sleep 60
+          xcrun simctl io "$udid" screenshot artifacts/a-bundled-game.png
+          xcrun simctl terminate "$udid" "$bundle" || true
+
+          data="$(xcrun simctl get_app_container "$udid" "$bundle" data)"
+          mkdir -p "$data/Documents/EverPlayGames/variant"
+          cp -R build/renpy-ios/variant/game "$data/Documents/EverPlayGames/variant/"
+          xcrun simctl launch --stdout="$PWD/artifacts/b-stdout.log" --stderr="$PWD/artifacts/b-stderr.log" \
+            "$udid" "$bundle" "$data/Documents/EverPlayGames/variant"
+          sleep 60
+          xcrun simctl io "$udid" screenshot artifacts/b-documents-game.png
+          xcrun simctl terminate "$udid" "$bundle" || true
+          tail -n 40 artifacts/a-stdout.log artifacts/a-stderr.log artifacts/b-stdout.log artifacts/b-stderr.log || true
+      - name: Keep screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: renpy-native-prototype
+          path: artifacts/
+          retention-days: 14
