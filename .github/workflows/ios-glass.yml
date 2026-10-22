@@ -1,0 +1,63 @@
+name: Liquid Glass screenshots
+# Builds with the iOS 26 SDK so the optional Liquid Glass style uses the real system glass
+# effect, then captures the appearance screenshots on an iOS 26 simulator. The full acceptance
+# suite keeps running in ios.yml.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/ios-glass.yml
+      - App/**
+      - AppTests/**
+permissions:
+  contents: read
+concurrency:
+  group: ios-glass-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  screenshots:
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Reuse the pinned XcodeGen source build
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/XcodeGen
+          key: ${{ runner.os }}-${{ runner.arch }}-xcode26.6-xcodegen-21ac9944b0ab546a07422dbed86f33dd2ebd76f8-v1
+      - name: Build with the iOS 26 SDK and capture screenshots
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          xcodebuild -version
+          bash scripts/generate-project.sh > artifacts/project-generation.log 2>&1 || { tail -n 60 artifacts/project-generation.log; exit 1; }
+          udid="$(xcrun simctl list devices available -j | python3 -c '
+          import json,sys
+          items=json.load(sys.stdin)["devices"]
+          runtimes=sorted((r for r in items if "iOS-26" in r), reverse=True)
+          print(next(d["udid"] for r in runtimes for d in items[r] if "iPhone" in d["name"]))')"
+          python3 -c 'import subprocess,sys; subprocess.run(["xcrun","simctl","bootstatus",sys.argv[1],"-b"],timeout=600,check=True)' "$udid"
+          result="$PWD/artifacts/glass.xcresult"
+          set -o pipefail
+          xcodebuild test -project EverPlay.xcodeproj -scheme EverPlay \
+            -destination "platform=iOS Simulator,id=$udid" -destination-timeout 120 \
+            -derivedDataPath DerivedData -clonedSourcePackagesDirPath .build/xcode-packages \
+            -only-testing:EverPlayUITests/EverPlayUITests/testAppearanceScreenshots \
+            -resultBundlePath "$result" -enableCodeCoverage NO CODE_SIGN_IDENTITY=- \
+            2>&1 | tee artifacts/glass-test.log | grep -E 'error:|warning: .*glass|Test Case|\*\* TEST' || true
+          grep -q '\*\* TEST SUCCEEDED \*\*' artifacts/glass-test.log
+      - name: Export screenshots
+        if: always()
+        run: |
+          [[ -d artifacts/glass.xcresult ]] || exit 0
+          xcrun xcresulttool export attachments --path artifacts/glass.xcresult --output-path artifacts/screenshots || true
+          rm -rf artifacts/glass.xcresult
+      - name: Keep screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: liquid-glass-screenshots
+          path: artifacts/
+          retention-days: 14

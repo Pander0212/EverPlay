@@ -3,6 +3,37 @@ import XCTest
 final class EverPlayUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
+    /// Runs first (alphabetical order), so a fresh simulator still shows the empty library.
+    @MainActor
+    func testAppearanceScreenshots() throws {
+        let app = XCUIApplication()
+        app.launch()
+        let game = app.buttons["game-Lantern Garden"]
+        if !game.waitForExistence(timeout: 3) {
+            let demo = app.buttons["importDemo"]
+            XCTAssertTrue(demo.waitForExistence(timeout: 10))
+            snapshot(app, "Library empty")
+            demo.tap()
+        }
+        XCTAssertTrue(game.waitForExistence(timeout: 20))
+        snapshot(app, "Library")
+        app.tabBars.buttons["Import"].tap()
+        snapshot(app, "Import")
+        app.tabBars.buttons["Settings"].tap()
+        let glass = app.buttons["Liquid Glass"]
+        XCTAssertTrue(glass.waitForExistence(timeout: 5))
+        snapshot(app, "Settings standard")
+        glass.tap()
+        snapshot(app, "Settings liquid glass")
+        app.tabBars.buttons["Library"].tap()
+        XCTAssertTrue(game.waitForExistence(timeout: 5))
+        snapshot(app, "Library liquid glass")
+        // Leave the default style for the acceptance tests that follow.
+        app.tabBars.buttons["Settings"].tap()
+        app.buttons["Standard"].tap()
+        app.tabBars.buttons["Library"].tap()
+    }
+
     @MainActor
     func testDemoZIPImportLaunchTouchAndPersistentReopen() throws {
         let app = XCUIApplication()
@@ -42,6 +73,7 @@ final class EverPlayUITests: XCTestCase {
         app.buttons["gameMenu"].tap()
         reveal(exit, in: app); exit.tap()
         XCTAssertTrue(game.waitForExistence(timeout: 10))
+        snapshot(app, "Library with continue playing")
     }
 
     @MainActor
@@ -101,6 +133,14 @@ final class EverPlayUITests: XCTestCase {
         reveal(toggle, in: app); setSwitch(toggle, enabled: false)
         app.buttons["resumeGame"].tap()
         XCTAssertFalse(action.exists, "Hidden controls must stop obstructing the game")
+    }
+
+    @MainActor
+    private func snapshot(_ app: XCUIApplication, _ name: String) {
+        // Let appear animations settle so the screenshot shows the resting design.
+        _ = XCTWaiter.wait(for: [XCTestExpectation(description: "settle")], timeout: 1.2)
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name; shot.lifetime = .keepAlways; add(shot)
     }
 
     @MainActor

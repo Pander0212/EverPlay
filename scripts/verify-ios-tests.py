@@ -9,6 +9,7 @@ required = [
     'testGameStorageIsolationAndSessionReopen',
     'testDemoZIPImportLaunchTouchAndPersistentReopen',
     'testVirtualControlLayoutPersistsAndGameRemainsUsableInLandscape',
+    'testAppearanceScreenshots',
 ]
 required += sys.argv[2:]
 log = Path(sys.argv[1]).read_text(errors='replace')
