@@ -163,6 +163,33 @@ def configure(xcode):
         project.write_text(project.read_text().replace('"-lpython3.9"', '"-lpython2.7"'))
 
 
+GAME_PACKAGES = """
+def everplay_game_packages():
+    # EverPlay: desktop games may ship extra pure-Python packages (in game/python-packages or
+    # their lib/ folder). Make them importable *after* the runtime's own modules, so the iOS
+    # standard library always wins and only missing modules come from the game.
+    import glob
+    if len(sys.argv) < 2 or not os.path.isdir(sys.argv[1]):
+        return
+    base = os.path.abspath(sys.argv[1])
+    for pattern in ("game/python-packages", "lib/python*/site-packages", "lib/python*"):
+        for path in sorted(glob.glob(os.path.join(base, pattern))):
+            if os.path.isdir(path) and path not in sys.path:
+                sys.path.append(path)
+
+
+"""
+
+
+def add_game_packages(main_py):
+    source = main_py.read_text()
+    assert source.count('def main():') == 1 and source.count('    renpy.bootstrap.bootstrap(renpy_base)') == 1
+    source = source.replace('def main():', GAME_PACKAGES.lstrip('\n') + 'def main():')
+    source = source.replace('    renpy.bootstrap.bootstrap(renpy_base)',
+                            '    everplay_game_packages()\n    renpy.bootstrap.bootstrap(renpy_base)')
+    main_py.write_text(source)
+
+
 def fetch(cache):
     for name, (url, expected) in HASHES.items():
         archive = cache / name
@@ -227,6 +254,7 @@ def main():
         shutil.copytree(work / 'quit/game', output / 'quit/game')
         (xcode / 'main.c').write_text(MAIN)
         configure(xcode)
+        add_game_packages(xcode / 'base/main.py')
     print(f'Built Ren\'Py {RELEASE} iOS prototype and desktop variant in {output.relative_to(ROOT)}')
 
 
