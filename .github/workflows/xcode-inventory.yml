@@ -1,0 +1,22 @@
+name: Xcode inventory
+# Lists the Xcode versions on the macOS runners (to decide whether iOS 26 APIs such as Liquid Glass can be built).
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/xcode-inventory.yml
+permissions:
+  contents: read
+jobs:
+  list:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15-intel, macos-15, macos-26]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    steps:
+      - run: |
+          ls -d /Applications/Xcode*.app
+          for x in /Applications/Xcode*.app; do echo "== $x"; DEVELOPER_DIR="$x/Contents/Developer" xcodebuild -version 2>/dev/null | head -2; DEVELOPER_DIR="$x/Contents/Developer" xcodebuild -showsdks 2>/dev/null | grep -i iphone; done
+          xcrun simctl list runtimes | grep -i ios || true
