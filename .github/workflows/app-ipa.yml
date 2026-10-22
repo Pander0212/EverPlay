@@ -1,0 +1,55 @@
+name: EverPlay test IPA (unsigned)
+# Device build of the EverPlay app with the iOS 26 SDK (Liquid Glass available). Contains only
+# our own code and MIT demo; users sign it themselves with their sideloading tool.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/app-ipa.yml
+      - App/**
+permissions:
+  contents: read
+concurrency:
+  group: app-ipa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ipa:
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Reuse the pinned XcodeGen source build
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/XcodeGen
+          key: ${{ runner.os }}-${{ runner.arch }}-xcode26.6-xcodegen-21ac9944b0ab546a07422dbed86f33dd2ebd76f8-v1
+      - name: Compile for iPhone (arm64, unsigned)
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          bash scripts/generate-project.sh > artifacts/project-generation.log 2>&1 || { tail -n 60 artifacts/project-generation.log; exit 1; }
+          set -o pipefail
+          xcodebuild build -project EverPlay.xcodeproj -scheme EverPlay -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath DerivedData \
+            -clonedSourcePackagesDirPath .build/xcode-packages \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= \
+            2>&1 | tee artifacts/xcodebuild.log | tail -n 30
+      - name: Package the IPA
+        run: |
+          set -euo pipefail
+          app=DerivedData/Build/Products/Release-iphoneos/EverPlay.app
+          # Ad-hoc placeholder signature; sideloading tools replace it with the user's certificate.
+          codesign --force --sign - --timestamp=none "$app"
+          codesign --verify --deep --verbose=2 "$app"
+          mkdir -p ipa/Payload
+          cp -R "$app" ipa/Payload/
+          (cd ipa && zip -qry ../artifacts/EverPlay-unsigned.ipa Payload)
+          ls -la artifacts/*.ipa
+      - name: Keep the IPA
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: EverPlay-unsigned-ipa
+          path: artifacts/
+          retention-days: 30
