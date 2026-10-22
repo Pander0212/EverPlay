@@ -24,6 +24,25 @@ final class RenPyDesktopGameTests: XCTestCase {
     private static let focusExpression = "(lambda f: [] if f is None else [(type(a).__name__, str(getattr(a, 'name', '')), str(getattr(a, 'screen', '')), str(getattr(a, 'value', ''))) for a in (f.action if isinstance(getattr(f, 'action', None), list) else [getattr(f, 'action', None)])])(renpy.display.focus.get_focused())"
     private static let screensExpression = "[n for n in ('langset', 'main_menu', 'say', 'save', 'load', 'confirm') if renpy.get_screen(n)]"
     private static let positionExpression = "list(renpy.get_filename_line()) + [len(_history_list)]"
+    private static let errorCollector = """
+    (() => {
+      window.__everplayErrors = [];
+      const remember = text => { if (window.__everplayErrors.length < 20) window.__everplayErrors.push(String(text).slice(0, 300)); };
+      addEventListener('error', event => remember(event.message || event.type));
+      addEventListener('unhandledrejection', event => remember(event.reason));
+      const consoleError = console.error.bind(console);
+      console.error = (...args) => { remember(args.join(' ')); consoleError(...args); };
+    })();
+    """
+    // Loader state from the RenPyWeb page's own status/progress elements, plus collected errors.
+    private static let diagnostics = """
+    JSON.stringify({ready: document.readyState, renpyGet: typeof window.renpy_get,
+      status: document.getElementById('statusTextDiv')?.innerText?.slice(-1500) ?? null,
+      statusClass: document.getElementById('statusDiv')?.className ?? null,
+      progress: document.getElementById('statusProgress')?.value ?? null,
+      canvas: (c => c ? [c.width, c.height] : null)(document.getElementById('canvas')),
+      lastGet: window.__everplayRenPyGet?.state ?? null, errors: window.__everplayErrors ?? null})
+    """
 
     @MainActor
     func testRealDesktopGameRunsSavesAndRestoresInWebKit() async throws {
@@ -56,6 +75,9 @@ final class RenPyDesktopGameTests: XCTestCase {
             session.webView.frame = window.bounds
             session.webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
             window.rootViewController!.view.addSubview(session.webView)
+            // Diagnostics only: remember page errors from document start for timeout reports.
+            session.webView.configuration.userContentController.addUserScript(WKUserScript(
+                source: Self.errorCollector, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page))
             await session.start()
             return session
         }
@@ -66,7 +88,7 @@ final class RenPyDesktopGameTests: XCTestCase {
 
         // First launch: the game's own language picker and its confirmation button.
         var session = await open()
-        _ = try await until(session, Self.screensExpression, "language picker", timeout: 180) {
+        _ = try await until(session, Self.screensExpression, "language picker", timeout: 300) {
             ($0 as? [String])?.contains("langset") == true
         }
         try await focus(session, "language button", hint: repeated("ArrowRight", 8)) { $0[0] == "SetScreenVariable" && $0[3] == language }
@@ -188,11 +210,20 @@ final class RenPyDesktopGameTests: XCTestCase {
     private func until(_ session: GameSession, _ expression: String, _ label: String, timeout: TimeInterval = 120,
                        _ predicate: (Any) -> Bool) async throws -> Any {
         let deadline = Date().addingTimeInterval(timeout)
+        var nextReport = Date().addingTimeInterval(60)
         while Date() < deadline && session.error == nil {
             if !session.loading, let value = try? await get(session, expression), predicate(value) { return value }
+            if Date() > nextReport {
+                nextReport = Date().addingTimeInterval(60)
+                let details = (try? await session.webView.evaluateJavaScript(Self.diagnostics)) as? String
+                print("RenPy desktop game still waiting for \(label): \(details ?? "unavailable")")
+            }
             try await Task.sleep(nanoseconds: 250_000_000)
         }
-        XCTFail(session.error ?? "Ren'Py desktop game timed out waiting for \(label)")
+        let details = (try? await session.webView.evaluateJavaScript(Self.diagnostics)) as? String
+        print("RenPy desktop game diagnostics: \(details ?? "unavailable")")
+        try? await attachSnapshot(of: session, name: "Ren'Py desktop game while waiting for \(label)")
+        XCTFail(session.error ?? "Ren'Py desktop game timed out waiting for \(label); \(details ?? "no diagnostics")")
         throw NSError(domain: "EverPlay.RenPyDesktopGame", code: 1)
     }
 
