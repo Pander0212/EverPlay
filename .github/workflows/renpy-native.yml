@@ -3,6 +3,10 @@ name: Native Ren'Py iOS feasibility
 # B: a desktop (pc) package's game/ in the app's Documents, started via the basedir argument.
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/renpy-native.yml
+      - scripts/build-renpy-ios-prototype.py
 permissions:
   contents: read
 concurrency:
