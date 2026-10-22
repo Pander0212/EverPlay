@@ -16,15 +16,24 @@ jobs:
   prototype:
     runs-on: macos-15-intel
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime: '8.2.0'
+            cache: '8.2'
+          - runtime: '7.8.7'
+            cache: '7.8'
     env:
       DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      EVERPLAY_RENPY_RUNTIME: ${{ matrix.runtime }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - name: Reuse verified Ren'Py 8.2.0 SDK and renios downloads
+      - name: Reuse verified Ren'Py SDK and renios downloads
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
-          path: .build-tools/renpy-8.2
-          key: renpy-8.2.0-renios-${{ runner.os }}-${{ runner.arch }}-v1
+          path: .build-tools/renpy-${{ matrix.cache }}
+          key: renpy-${{ matrix.runtime }}-renios-${{ runner.os }}-${{ runner.arch }}-v1
       - name: Build the renios project around our fixture
         run: |
           mkdir -p artifacts
@@ -80,6 +89,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: renpy-native-prototype
+          name: renpy-native-prototype-${{ matrix.runtime }}
           path: artifacts/
           retention-days: 14
