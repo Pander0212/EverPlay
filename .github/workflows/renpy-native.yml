@@ -83,6 +83,16 @@ jobs:
           sleep 75
           xcrun simctl io "$udid" screenshot artifacts/c-second-game-same-process.png
           xcrun simctl terminate "$udid" "$bundle" || true
+
+          # D: a game opening a link through os.system must hand it to Safari.
+          mkdir -p "$data/Documents/EverPlayGames/link"
+          cp -R build/renpy-ios/link/game "$data/Documents/EverPlayGames/link/"
+          xcrun simctl launch --stdout="$PWD/artifacts/d-stdout.log" --stderr="$PWD/artifacts/d-stderr.log" \
+            "$udid" "$bundle" "$data/Documents/EverPlayGames/link"
+          sleep 45
+          xcrun simctl io "$udid" screenshot artifacts/d-link-opens-safari.png
+          xcrun simctl terminate "$udid" "$bundle" || true
+          grep -E 'EverPlay:' artifacts/d-stderr.log || true
           tail -n 40 artifacts/a-stderr.log artifacts/b-stderr.log || true
           grep -E 'EverPlay:|Interface start|Error|Traceback' artifacts/c-stderr.log || true
       - name: Keep screenshots and logs

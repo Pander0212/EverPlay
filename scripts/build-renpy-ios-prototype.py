@@ -8,6 +8,7 @@ Builds, from pinned official Ren'Py downloads (EVERPLAY_RENPY_RUNTIME: 8.2.0, th
                            to be started from outside the app bundle via the basedir argument
 The SDK executes only our reviewed fixture. Never pass third-party games to this builder.
 """
+import ast
 import hashlib
 import os
 from pathlib import Path
@@ -197,11 +198,48 @@ def everplay_patch_translations():
     translator.add = add
 
 
+def everplay_open_url(url):
+    # Opens a link in Safari through UIKit (pyobjus is what Ren'Py itself uses on iOS).
+    try:
+        from pyobjus import autoclass, objc_str
+    except ImportError:
+        return False
+    try:
+        target = autoclass("NSURL").URLWithString_(objc_str(url))
+        application = autoclass("UIApplication").sharedApplication()
+        try:
+            application.openURL_options_completionHandler_(target, autoclass("NSDictionary").dictionary(), None)
+        except Exception:
+            application.openURL_(target)
+        print("EverPlay: opened %r" % (url,))
+        return True
+    except Exception as e:
+        print("EverPlay: could not open %r: %r" % (url, e))
+        return False
+
+
 def everplay_compatibility():
-    # iOS forbids starting other programs, so its Python has no os.system. Desktop extras such
-    # as Discord status libraries import it anyway; a stub that runs nothing lets them load.
+    import re
+    # Python's webbrowser module has no iOS backend here, so Ren'Py's open_url (link buttons
+    # such as Patreon or Discord invites) would silently do nothing. Route it to Safari.
+    try:
+        import webbrowser
+
+        def open_link(url, *args, **kwargs):
+            return everplay_open_url(url)
+
+        webbrowser.open = webbrowser.open_new = webbrowser.open_new_tab = open_link
+    except ImportError:
+        pass
+
+    # iOS forbids starting other programs, so its Python has no os.system. Desktop games still
+    # call it (Discord status libraries, "start https://..." link buttons). Open links in
+    # Safari and ignore everything else instead of failing.
     if not hasattr(os, "system"):
         def system(command):
+            link = re.search("https?://[^ <>']+", command or "")
+            if link and everplay_open_url(link.group(0).rstrip('"')):
+                return 0
             print("EverPlay: os.system is unavailable on iOS; ignored %r" % (command,))
             return 127
         os.system = system
@@ -228,6 +266,8 @@ def add_game_packages(main_py):
     source = source.replace('    renpy.bootstrap.bootstrap(renpy_base)',
                             '    everplay_game_packages()\n    everplay_compatibility()\n'
                             '    renpy.bootstrap.bootstrap(renpy_base)')
+    if PYTHON == 'py3':
+        ast.parse(source, str(main_py))  # A broken main.py would stop every game from starting.
     main_py.write_text(source)
 
 
@@ -304,6 +344,14 @@ def main():
         (packages / 'everplay_desktop_extra.py').write_text('from os import environ, system\n')
         (output / 'variant/game/desktop_extra.rpy').write_text('init python:\n    import everplay_desktop_extra\n')
         shutil.copytree(work / 'quit/game', output / 'quit/game')
+        # Opens a link via os.system the way desktop games do; CI expects Safari to show it.
+        (output / 'link/game').mkdir(parents=True)
+        (output / 'link/game/script.rpy').write_text(
+            'label start:\n'
+            '    $ import os\n'
+            '    $ os.system("start https://example.com/everplay-link-test")\n'
+            '    "EverPlay link test"\n'
+            '    return\n')
         (xcode / 'main.c').write_text(MAIN)
         configure(xcode)
         add_game_packages(xcode / 'base/main.py')
