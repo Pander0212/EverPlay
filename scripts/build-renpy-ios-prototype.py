@@ -178,6 +178,24 @@ def everplay_game_packages():
                 sys.path.append(path)
 
 
+def everplay_compatibility():
+    # EverPlay: some desktop games define the same string translation twice (for example in
+    # code paths that only run on mobile). Desktop Ren'Py aborts; keep the first one and log.
+    import renpy.translation
+    translator = getattr(renpy.translation, "StringTranslator", None)
+    if translator is None:
+        return
+    original = translator.add
+
+    def add(self, old, new, newloc):
+        if old in self.translations:
+            print("EverPlay: ignored duplicate translation for %r at %r" % (old, newloc))
+            return
+        return original(self, old, new, newloc)
+
+    translator.add = add
+
+
 """
 
 
@@ -186,7 +204,8 @@ def add_game_packages(main_py):
     assert source.count('def main():') == 1 and source.count('    renpy.bootstrap.bootstrap(renpy_base)') == 1
     source = source.replace('def main():', GAME_PACKAGES.lstrip('\n') + 'def main():')
     source = source.replace('    renpy.bootstrap.bootstrap(renpy_base)',
-                            '    everplay_game_packages()\n    renpy.bootstrap.bootstrap(renpy_base)')
+                            '    everplay_game_packages()\n    everplay_compatibility()\n'
+                            '    renpy.bootstrap.bootstrap(renpy_base)')
     main_py.write_text(source)
 
 
@@ -230,6 +249,7 @@ def main():
             (work / name / 'game').mkdir(parents=True)
             (work / name / 'game/script.rpy').write_text(script)
 
+
         platform = 'mac-universal' if sys.platform == 'darwin' else 'linux-x86_64'
         python = sdk / 'lib' / f'{PYTHON}-{platform}' / 'python'
         (work / 'create.py').write_text(CREATE)
@@ -251,6 +271,11 @@ def main():
             assert not any(n.endswith('.rpy') for n in members), 'desktop package unexpectedly ships source'
             archive.extractall(work / 'unpacked', members)
         shutil.copytree(work / 'unpacked' / top / 'game', output / 'variant/game')
+        # Two definitions of one string translation: stock Ren'Py refuses this (the SDK will not
+        # even build it), so add them after packaging; case B must still reach the gold-37 screen.
+        duplicate = 'translate None strings:\n    old "Load slot"\n    new "Load slot"\n'
+        for name in ('duplicate_a.rpy', 'duplicate_b.rpy'):
+            (output / 'variant/game' / name).write_text(duplicate)
         shutil.copytree(work / 'quit/game', output / 'quit/game')
         (xcode / 'main.c').write_text(MAIN)
         configure(xcode)
