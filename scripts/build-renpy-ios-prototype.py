@@ -198,6 +198,14 @@ def everplay_patch_translations():
 
 
 def everplay_compatibility():
+    # iOS forbids starting other programs, so its Python has no os.system. Desktop extras such
+    # as Discord status libraries import it anyway; a stub that runs nothing lets them load.
+    if not hasattr(os, "system"):
+        def system(command):
+            print("EverPlay: os.system is unavailable on iOS; ignored %r" % (command,))
+            return 127
+        os.system = system
+
     # Patch only after Ren'Py has imported its own modules in its usual order; importing
     # renpy.translation any earlier fails because it needs renpy.ast.
     import renpy
@@ -290,6 +298,11 @@ def main():
         duplicate = 'translate None strings:\n    old "Load slot"\n    new "Load slot"\n'
         for name in ('duplicate_a.rpy', 'duplicate_b.rpy'):
             (output / 'variant/game' / name).write_text(duplicate)
+        # A desktop-style package that imports os.system, which iOS Python lacks.
+        packages = output / 'variant/game/python-packages'
+        packages.mkdir(parents=True)
+        (packages / 'everplay_desktop_extra.py').write_text('from os import environ, system\n')
+        (output / 'variant/game/desktop_extra.rpy').write_text('init python:\n    import everplay_desktop_extra\n')
         shutil.copytree(work / 'quit/game', output / 'quit/game')
         (xcode / 'main.c').write_text(MAIN)
         configure(xcode)
