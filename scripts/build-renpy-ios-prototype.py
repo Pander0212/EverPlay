@@ -2,7 +2,7 @@
 """Feasibility: Ren'Py's official native iOS runtime around our trusted fixture.
 
 Builds, from pinned official Ren'Py downloads (EVERPLAY_RENPY_RUNTIME: 8.2.0, the default,
-or 7.8.7 for Python 2 games):
+8.5.3 for current Ren'Py 8 games, or 7.8.7 for Python 2 games):
   build/renpy-ios/xcode    renios prototype Xcode project; base/ holds our fixture (gold 10)
   build/renpy-ios/variant  game/ of a desktop (pc) package of the fixture with gold 37,
                            to be started from outside the app bundle via the basedir argument
@@ -25,6 +25,13 @@ RUNTIMES = {
                                     'e79ec1014bad6adba69336f90802e89ae7a70172c1bb9c15301267390e9d7b38'),
         'renpy-8.2.0-renios.zip': ('https://www.renpy.org/dl/8.2.0/renpy-8.2.0-renios.zip',
                                    '509452bc204c59245a8bb52d084c0bab4e0ece330eea03b055a90b37158df282'),
+    },
+    # Newest verified Ren'Py 8: newer engines start older 8.x games, not the reverse.
+    '8.5.3': {
+        'renpy-8.5.3-sdk.tar.bz2': ('https://github.com/renpy/renpy/releases/download/8.5.3.26051504/renpy-8.5.3-sdk.tar.bz2',
+                                    'eb0a9be7f0fb13632fe25ceade9a8bed5a1b4d6b6e83bd19eeeb29e1a1bb4a45'),
+        'renpy-8.5.3-renios.zip': ('https://www.renpy.org/dl/8.5.3/renpy-8.5.3-renios.zip',
+                                   'c4fae153e8276ed0faed5e84ea3e0b7c4bf337f0e3208e9130c6a41748a83b2b'),
     },
     # Last Python 2 release; also the runtime for older Ren'Py 6/7 games.
     '7.8.7': {
