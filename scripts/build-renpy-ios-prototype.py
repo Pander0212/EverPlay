@@ -11,6 +11,7 @@ The SDK executes only our reviewed fixture. Never pass third-party games to this
 import hashlib
 import os
 from pathlib import Path
+import plistlib
 import shutil
 import subprocess
 import sys
@@ -51,15 +52,77 @@ class Interface:
     def fail(self, message): raise SystemExit(message)
 renios.create.create_project(Interface(), dest, name, version)
 '''
-# Replaces the prototype's main.c: each launch argument is a game directory, run one after
-# another in the same process, to test re-initialising Python and SDL between games.
-MAIN = r'''#include <stdio.h>
+# Replaces the prototype's main.c. Launch arguments are game directories, run one after another
+# in the same process (to test re-initialising Python and SDL). Without arguments, the first
+# folder in Documents (visible in the Files app) that contains game/ is started; the bundled
+# fixture is the fallback.
+MAIN = r'''#include <dirent.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 
 int launcher_main(int argc, char **argv);
 int SDL_UIKitRunApp(int, char **, int (*)(int, char**));
 
+static int is_directory(const char *path) {
+    struct stat info;
+    return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
+}
+
+static int compare_names(const void *a, const void *b) {
+    return strcmp(*(char * const *) a, *(char * const *) b);
+}
+
+/* Writes the first game directory under Documents into `found`; returns 0 if there is none. */
+static int find_game(char *found, size_t size) {
+    const char *home = getenv("HOME");
+    char documents[PATH_MAX], candidate[PATH_MAX];
+    if (!home) return 0;
+    snprintf(documents, sizeof documents, "%s/Documents", home);
+
+    snprintf(candidate, sizeof candidate, "%s/README.txt", documents);
+    FILE *readme = fopen(candidate, "wx");
+    if (readme) {
+        fputs("EverPlay Ren'Py test build\n\n"
+              "Copy an unzipped Ren'Py PC game folder (the folder that contains game/) here.\n"
+              "The first such folder (alphabetical) starts when the app opens.\n"
+              "Saves are stored in this Documents folder. Quit the game to switch games.\n", readme);
+        fclose(readme);
+    }
+
+    snprintf(candidate, sizeof candidate, "%s/game", documents);
+    if (is_directory(candidate)) {
+        snprintf(found, size, "%s", documents);
+        return 1;
+    }
+    DIR *directory = opendir(documents);
+    if (!directory) return 0;
+    char *names[256];
+    int count = 0;
+    struct dirent *entry;
+    while ((entry = readdir(directory)) && count < 256) {
+        if (entry->d_name[0] == '.') continue;
+        snprintf(candidate, sizeof candidate, "%s/%s/game", documents, entry->d_name);
+        if (is_directory(candidate)) names[count++] = strdup(entry->d_name);
+    }
+    closedir(directory);
+    if (count == 0) return 0;
+    qsort(names, count, sizeof names[0], compare_names);
+    snprintf(found, size, "%s/%s", documents, names[0]);
+    for (int i = 0; i < count; i++) free(names[i]);
+    return 1;
+}
+
 static int everplay_main(int argc, char **argv) {
     if (argc < 2) {
+        char game[PATH_MAX];
+        if (find_game(game, sizeof game)) {
+            char *arguments[] = { argv[0], game, NULL };
+            fprintf(stderr, "EverPlay: starting %s\n", game);
+            return launcher_main(2, arguments);
+        }
         return launcher_main(argc, argv);
     }
     int status = 0;
@@ -76,6 +139,21 @@ int main(int argc, char **argv) {
     return SDL_UIKitRunApp(argc, argv, everplay_main);
 }
 '''
+
+
+def configure(xcode):
+    """Test-build settings: Documents visible in the Files app, per-runtime name, pointer support."""
+    plist = xcode / 'Info.plist'
+    with plist.open('rb') as stream:
+        info = plistlib.load(stream)
+    info.update(CFBundleDisplayName=f'EverPlay RenPy {RELEASE[0]}', UIFileSharingEnabled=True,
+                LSSupportsOpeningDocumentsInPlace=True, UIApplicationSupportsIndirectInputEvents=True)
+    with plist.open('wb') as stream:
+        plistlib.dump(info, stream)
+    if PYTHON == 'py2':
+        # The 7.x prototype's Release configuration still names Python 3.9.
+        project = xcode / 'EverPlayRenPyProbe.xcodeproj/project.pbxproj'
+        project.write_text(project.read_text().replace('"-lpython3.9"', '"-lpython2.7"'))
 
 
 def fetch(cache):
@@ -141,6 +219,7 @@ def main():
         shutil.copytree(work / 'unpacked' / top / 'game', output / 'variant/game')
         shutil.copytree(work / 'quit/game', output / 'quit/game')
         (xcode / 'main.c').write_text(MAIN)
+        configure(xcode)
     print(f'Built Ren\'Py {RELEASE} iOS prototype and desktop variant in {output.relative_to(ROOT)}')
 
 

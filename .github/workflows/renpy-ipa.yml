@@ -1,0 +1,71 @@
+name: Native Ren'Py test IPA (unsigned)
+# Device test builds of the native Ren'Py runtime with our MIT fixture only. Users copy their
+# own game folders into the app's Documents via the Files app and sign the IPA themselves.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/renpy-ipa.yml
+      - scripts/build-renpy-ios-prototype.py
+permissions:
+  contents: read
+concurrency:
+  group: renpy-ipa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ipa:
+    runs-on: macos-15-intel
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runtime: '8.2.0'
+            cache: '8.2'
+            major: '8'
+          - runtime: '7.8.7'
+            cache: '7.8'
+            major: '7'
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      EVERPLAY_RENPY_RUNTIME: ${{ matrix.runtime }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Reuse verified Ren'Py SDK and renios downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-${{ matrix.cache }}
+          key: renpy-${{ matrix.runtime }}-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Build the renios project around our fixture
+        run: |
+          mkdir -p artifacts
+          set -o pipefail
+          if ! python3 scripts/build-renpy-ios-prototype.py 2>&1 | tr '\r' '\n' > artifacts/prototype-build.log; then
+            tail -n 60 artifacts/prototype-build.log
+            exit 1
+          fi
+      - name: Compile for iPhone (arm64, unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild build -project build/renpy-ios/xcode/EverPlayRenPyProbe.xcodeproj -alltargets \
+            -configuration Release -sdk iphoneos ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= \
+            PRODUCT_BUNDLE_IDENTIFIER=app.everplay.renpy${{ matrix.major }} \
+            SYMROOT="$PWD/build/renpy-ios/products" 2>&1 | tee artifacts/xcodebuild.log | tail -n 30
+      - name: Package the IPA
+        run: |
+          set -euo pipefail
+          app="$(find build/renpy-ios/products/Release-iphoneos -maxdepth 1 -name '*.app' -type d | head -n 1)"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' -c 'Print :CFBundleDisplayName' "$app/Info.plist"
+          ls "$app/Frameworks"
+          lipo -info "$app/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
+          mkdir -p ipa/Payload
+          cp -R "$app" ipa/Payload/
+          (cd ipa && zip -qry "../artifacts/EverPlay-RenPy${{ matrix.major }}-unsigned.ipa" Payload)
+          ls -la artifacts/*.ipa
+      - name: Keep the IPA
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: EverPlay-RenPy${{ matrix.major }}-unsigned-ipa
+          path: artifacts/
+          retention-days: 30
