@@ -1,6 +1,14 @@
 name: RenPy desktop-data experiment
 on:
   workflow_dispatch:
+    inputs:
+      runtime:
+        description: 'Pinned runtime for our original fixture (never a third-party game upload)'
+        type: choice
+        default: '8.5.3'
+        options:
+          - '8.5.3'
+          - '8.2.0'
 permissions:
   contents: read
 concurrency:
@@ -22,15 +30,28 @@ jobs:
       - name: Reuse verified RenPy SDK and web runtime
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
-          path: .build-tools/renpy
-          key: renpy-8.5.3-${{ runner.os }}-${{ runner.arch }}-v1
+          path: |
+            .build-tools/renpy
+            .build-tools/renpy-8.2
+          key: renpy-${{ inputs.runtime }}-${{ runner.os }}-${{ runner.arch }}-v2
       - name: Build original desktop package and convert its compiled archive
+        env:
+          PROBE_RUNTIME: ${{ inputs.runtime }}
         run: |
           mkdir -p artifacts
           set -o pipefail
-          if ! python3 scripts/build-renpy-probe.py 2>&1 | tr '\r' '\n' > artifacts/renpy-build.log; then
+          case "$PROBE_RUNTIME" in
+            8.5.3) builder=scripts/build-renpy-probe.py ;;
+            8.2.0) builder=scripts/build-renpy-820-template.py ;;
+            *) echo 'Unsupported probe runtime' >&2; exit 1 ;;
+          esac
+          if ! python3 "$builder" 2>&1 | tr '\r' '\n' > artifacts/renpy-build.log; then
             tail -n 60 artifacts/renpy-build.log
             exit 1
+          fi
+          if [[ "$PROBE_RUNTIME" == 8.2.0 ]]; then
+            cp artifacts/EverPlayRenPy820Template.zip App/Resources/EverPlayRenPyProbe.zip
+            rm artifacts/EverPlayRenPy820Template.zip
           fi
       - name: Run production importer, HTTP server and WebKit with real RenPy
         run: |

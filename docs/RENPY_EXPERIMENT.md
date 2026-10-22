@@ -48,6 +48,22 @@ Direct desktop ZIP/RPA import inside EverPlay is still unsupported. The data-onl
 
 ## Requested real-game check
 
+### Resumed environment, 2026-10-22
+
+The new cloud environment did not retain the private Contract Demon package, its browser profile or the old 8.2.0 runtime cache. A new authorized ZIP/download is required; the historical real-game results below have not been rerun here.
+
+`scripts/build-renpy-820-template.py` now reproducibly rebuilds a matching **trusted original fixture** from the official 8.2.0 SDK/web archives, verifying both pinned SHA-256 values before extraction. It accepts no third-party game argument and does not overwrite the standard 8.5.3 fixture. The generated ZIP stays in ignored `artifacts/`. This original fixture passed the browser interaction/route/save/load/full-browser-restart assertions on 8.2.0 in the current environment:
+
+```sh
+python3 scripts/build-renpy-820-template.py
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium node scripts/test-renpy-browser.mjs \
+  --fixture artifacts/EverPlayRenPy820Template.zip
+```
+
+Override only the download cache location with `EVERPLAY_RENPY82_CACHE` if desired. The RenPy Actions workflow now offers runtime choices `8.5.3` (existing default) and `8.2.0`; both require the native original-fixture test plus all four existing acceptance cases. The 8.2.0 option tests a trusted runtime template, not a Contract Demon package or the 8.5.3 desktop-conversion proof. Its native result must be recorded separately after the run finishes.
+
+The [ios-builder assessment](IOS_BUILDER_REVIEW.md) explains why the existing CI is retained, where MobAI could add interactive access, and the remaining private transport prerequisite. Do not run our `window.everplayProbe` assertions against Contract Demon: its native test still needs to be implemented and exercised with the actual game through real menu interactions and read-only `renpy_get` observations.
+
 The owner supplied download access to [Contract Demon](https://nomnomnami.itch.io/contract-demon). A refreshed link successfully downloaded **Contract Demon 2.2.7 PC**, 84,098,513 bytes, on 2026-10-21. The earlier proxy blocker is resolved for this download. Package SHA-256: `174ee799d011887b82ac000b4c85e1427a281011d1134c096882017e6b7346bd`.
 
 Passive ZIP inspection found RenPy **8.2.0.24012702**, `script_version.txt` `(8, 2, 0)`, one `game/archive.rpa` and additional translation fonts. A matching official 8.2.0 SDK/web runtime was downloaded and verified against its release SHA-256 list:

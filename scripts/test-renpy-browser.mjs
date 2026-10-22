@@ -7,10 +7,18 @@ import path from 'node:path';
 import { createServer } from 'node:http';
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
+import { parseArgs } from 'node:util';
 
-const dataOnly = process.argv.includes('--data-only');
+// --fixture is for our trusted probe on another pinned runtime, not arbitrary
+// games: the assertions below intentionally depend on window.everplayProbe.
+const { values } = parseArgs({ options: {
+  'data-only': { type: 'boolean', default: false },
+  fixture: { type: 'string' },
+} });
+assert.ok(!(values['data-only'] && values.fixture), '--fixture and --data-only are mutually exclusive');
+const dataOnly = values['data-only'];
 const initialGold = dataOnly ? 37 : 10;
-const fixture = dataOnly ? 'artifacts/EverPlayRenPyDataOnly.zip' : 'App/Resources/EverPlayRenPyProbe.zip';
+const fixture = values.fixture ?? (dataOnly ? 'artifacts/EverPlayRenPyDataOnly.zip' : 'App/Resources/EverPlayRenPyProbe.zip');
 const work = await mkdtemp(path.join(tmpdir(), 'everplay-renpy-'));
 const root = path.join(work, 'web');
 execFileSync('python3', ['-m', 'zipfile', '-e', fixture, root]);
