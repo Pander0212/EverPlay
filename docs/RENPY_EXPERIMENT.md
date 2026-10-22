@@ -60,14 +60,7 @@ PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium node scripts/test-renpy-br
   --fixture artifacts/EverPlayRenPy820Template.zip
 ```
 
-Override only the download cache location with `EVERPLAY_RENPY82_CACHE` if desired. The RenPy Actions workflow now offers runtime choices `8.5.3` (existing default) and `8.2.0`; both require the native original-fixture test plus all four existing acceptance cases. The 8.2.0 option tests a trusted runtime template, not a Contract Demon package or the 8.5.3 desktop-conversion proof.
-
-**Native 8.2.0 result (source `cc87afc43c85d418db99abe257edccd536ac7334`, runtime input `8.2.0`):**
-
-- [Run 39746629710](https://github.com/Pander0212/EverPlay/actions/runs/39746629710) **passed** on `macos-15-intel`/Xcode 16.4: `testRenPyDesktopArchiveRunsAndRestoresSaveInWebKit` (47.489 s), all four foundation acceptance cases and all 37 core tests. The trusted fixture therefore runs on the RenPy 8.2.0 web runtime inside native EverPlay (production importer, `LocalGameServer`, `GameSession`/WKWebView, virtual keys, save/load, session reopen) in the iOS simulator.
-- The preceding dispatch, [run 39743473185](https://github.com/Pander0212/EverPlay/actions/runs/39743473185), on the same source and runtime failed for an infrastructure reason: `EverPlayUITests-Runner ... failed to initialize for UI testing (Timed out while loading Accessibility.)`. In that run the RenPy case (76.197 s), the HTTP case and the WebKit-isolation case had passed; only the UI-test runner never started. The next independent dispatch passed without source changes. This is recorded as a simulator start-up failure, not as evidence of RenPy instability, and it remains a reason for the planned lifecycle/stress coverage.
-
-This still does not test Contract Demon itself: it proves the matching runtime version works natively with our own fixture.
+Override only the download cache location with `EVERPLAY_RENPY82_CACHE` if desired. The RenPy Actions workflow now offers runtime choices `8.5.3` (existing default) and `8.2.0`; both require the native original-fixture test plus all four existing acceptance cases. The 8.2.0 option tests a trusted runtime template, not a Contract Demon package or the 8.5.3 desktop-conversion proof. Its native result must be recorded separately after the run finishes.
 
 The [ios-builder assessment](IOS_BUILDER_REVIEW.md) explains why the existing CI is retained, where MobAI could add interactive access, and the remaining private transport prerequisite. Do not run our `window.everplayProbe` assertions against Contract Demon: its native test still needs to be implemented and exercised with the actual game through real menu interactions and read-only `renpy_get` observations.
 
