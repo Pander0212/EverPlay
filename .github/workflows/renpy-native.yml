@@ -65,7 +65,17 @@ jobs:
           sleep 60
           xcrun simctl io "$udid" screenshot artifacts/b-documents-game.png
           xcrun simctl terminate "$udid" "$bundle" || true
-          tail -n 40 artifacts/a-stdout.log artifacts/a-stderr.log artifacts/b-stdout.log artifacts/b-stderr.log || true
+
+          # C: a game that quits itself, then the gold-37 game in the same process.
+          mkdir -p "$data/Documents/EverPlayGames/quit"
+          cp -R build/renpy-ios/quit/game "$data/Documents/EverPlayGames/quit/"
+          xcrun simctl launch --stdout="$PWD/artifacts/c-stdout.log" --stderr="$PWD/artifacts/c-stderr.log" \
+            "$udid" "$bundle" "$data/Documents/EverPlayGames/quit" "$data/Documents/EverPlayGames/variant"
+          sleep 75
+          xcrun simctl io "$udid" screenshot artifacts/c-second-game-same-process.png
+          xcrun simctl terminate "$udid" "$bundle" || true
+          tail -n 40 artifacts/a-stderr.log artifacts/b-stderr.log || true
+          grep -E 'EverPlay:|Interface start|Error|Traceback' artifacts/c-stderr.log || true
       - name: Keep screenshots and logs
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

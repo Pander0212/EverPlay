@@ -37,6 +37,31 @@ class Interface:
     def fail(self, message): raise SystemExit(message)
 renios.create.create_project(Interface(), dest, name, version)
 '''
+# Replaces the prototype's main.c: each launch argument is a game directory, run one after
+# another in the same process, to test re-initialising Python and SDL between games.
+MAIN = r'''#include <stdio.h>
+
+int launcher_main(int argc, char **argv);
+int SDL_UIKitRunApp(int, char **, int (*)(int, char**));
+
+static int everplay_main(int argc, char **argv) {
+    if (argc < 2) {
+        return launcher_main(argc, argv);
+    }
+    int status = 0;
+    for (int i = 1; i < argc; i++) {
+        char *game[] = { argv[0], argv[i], NULL };
+        fprintf(stderr, "EverPlay: starting game %d of %d\n", i, argc - 1);
+        status = launcher_main(2, game);
+        fprintf(stderr, "EverPlay: game %d exited with status %d\n", i, status);
+    }
+    return status;
+}
+
+int main(int argc, char **argv) {
+    return SDL_UIKitRunApp(argc, argv, everplay_main);
+}
+'''
 
 
 def fetch(cache):
@@ -70,7 +95,11 @@ def main():
             archive.extractall(sdk)
         source = (ROOT / 'Experiments/RenPyProbe/game/script.rpy').read_text()
         assert source.count('default gold = 10') == 1
-        projects = {'probe': source, 'variant': source.replace('default gold = 10', 'default gold = 37')}
+        assert source.count('    call screen probe\n') == 1
+        projects = {'probe': source, 'variant': source.replace('default gold = 10', 'default gold = 37'),
+                    # Ends itself so a following game can run in the same process.
+                    'quit': source.replace('    call screen probe\n',
+                                           '    $ renpy.pause(3.0, hard=True)\n    $ renpy.quit()\n')}
         for name, script in projects.items():
             (work / name / 'game').mkdir(parents=True)
             (work / name / 'game/script.rpy').write_text(script)
@@ -94,6 +123,8 @@ def main():
             assert not any(n.endswith('.rpy') for n in members), 'desktop package unexpectedly ships source'
             archive.extractall(work / 'unpacked', members)
         shutil.copytree(work / 'unpacked' / top / 'game', output / 'variant/game')
+        shutil.copytree(work / 'quit/game', output / 'quit/game')
+        (xcode / 'main.c').write_text(MAIN)
     print(f'Built Ren\'Py {RELEASE} iOS prototype and desktop variant in {output.relative_to(ROOT)}')
 
 
