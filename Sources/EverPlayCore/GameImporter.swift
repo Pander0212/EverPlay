@@ -19,6 +19,24 @@ public struct PreparedGame: Sendable {
     public let fingerprint: String
 }
 
+/// How far the running extraction is, for the import indicator (one import runs at a time).
+public final class ImportProgress: @unchecked Sendable {
+    public static let shared = ImportProgress()
+    private let lock = NSLock()
+    private var done: UInt64 = 0
+    private var total: UInt64 = 0
+
+    /// 0...1 while files are extracted, nil otherwise.
+    public var fraction: Double? {
+        lock.lock(); defer { lock.unlock() }
+        return total > 0 ? min(1, Double(done) / Double(total)) : nil
+    }
+
+    func start(total: UInt64) { lock.lock(); done = 0; self.total = total; lock.unlock() }
+    func advance(by bytes: UInt64) { lock.lock(); done += bytes; lock.unlock() }
+    func finish() { lock.lock(); done = 0; total = 0; lock.unlock() }
+}
+
 public struct GameImporter: Sendable {
     public var limits: ImportLimits
     public init(limits: ImportLimits = .init()) { self.limits = limits }
@@ -92,6 +110,8 @@ public struct GameImporter: Sendable {
             }
         }
         try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
+        ImportProgress.shared.start(total: total)
+        defer { ImportProgress.shared.finish() }
         var files: [(path: String, size: UInt64)] = []
         var actualTotal: UInt64 = 0
         for (entry, path) in entries {
@@ -113,6 +133,7 @@ public struct GameImporter: Sendable {
                 guard actual <= entry.uncompressedSize, actual <= limits.maximumFileBytes,
                       actualTotal <= limits.maximumExpandedBytes else { throw EverPlayError.limitExceeded("decompressed bytes") }
                 try file.write(contentsOf: data)
+                ImportProgress.shared.advance(by: UInt64(data.count))
             }
             guard actual == entry.uncompressedSize, checksum == entry.checksum else { throw EverPlayError.invalidArchive }
             files.append((path, entry.uncompressedSize))

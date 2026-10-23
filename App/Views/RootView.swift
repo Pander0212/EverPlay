@@ -348,6 +348,15 @@ private struct ImportToast: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Importing").font(.subheadline.weight(.semibold))
                 Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(2).shimmer()
+                TimelineView(.periodic(from: .now, by: 0.3)) { _ in
+                    if let fraction = ImportProgress.shared.fraction {
+                        HStack(spacing: 8) {
+                            ProgressView(value: fraction).tint(Theme.accent)
+                            Text(fraction, format: .percent.precision(.fractionLength(0)))
+                                .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                        }
+                    }
+                }
             }
             Spacer(minLength: 0)
         }

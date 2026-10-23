@@ -44,7 +44,7 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [ ] Back to the library after quitting instead of closing EverPlay (Ren'Py quit hook, hide SDL window). A second Ren'Py game in the same process failed in CI case C, so starting another Ren'Py game will still need a fresh app start
 - [x] Ren'Py ZIP import (safe extraction straight into Documents/Ren'Py)
 - [x] Memory: Ren'Py's image cache (400 MB by default on every platform) is limited by device memory (Settings › Image memory); memory warnings and available memory go to the diagnostics log
-- [ ] Copy/extract progress bar
+- [x] Extraction progress in the import indicator
 - [x] Text input: SDL keyboard retry plus a native "Type" button when the iOS keyboard does not appear (simulator fixture Input85)
 - [x] Per-game runtime choice on the game page
 - [x] Error reports: traceback.txt, errors.txt and log.txt on the game page (view, share); after an error or an unexpected end EverPlay says so on its next start
