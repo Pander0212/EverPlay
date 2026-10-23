@@ -157,6 +157,9 @@ jobs:
     permissions:
       contents: write  # the "nightly" pre-release that Feather/AltStore sources point to
     env:
+      # Pinned copy in the libretro-cores release (empty: build without RPG Maker 2000/2003).
+      EASYRPG_CORE: ''
+      EASYRPG_CORE_SHA256: ''
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -223,6 +226,18 @@ jobs:
           mkdir -p "$app/Frameworks"
           cp -R build/runtimes/Frameworks/. "$app/Frameworks/"
           cp -R build/runtimes/Runtimes "$app/"
+          # RPG Maker 2000/2003: the EasyRPG Player libretro core (GPL-3.0), vendored by vendor-cores.yml.
+          if [[ -n "$EASYRPG_CORE" ]]; then
+            curl --fail --location --show-error --retry 2 --max-time 300 \
+              "https://github.com/${GITHUB_REPOSITORY}/releases/download/libretro-cores/$EASYRPG_CORE" --output easyrpg.zip
+            echo "$EASYRPG_CORE_SHA256  easyrpg.zip" | shasum -a 256 -c -
+            core="$app/Frameworks/easyrpg_libretro.framework"
+            mkdir -p "$core"
+            unzip -p easyrpg.zip easyrpg_libretro.dylib > "$core/easyrpg_libretro"
+            chmod 755 "$core/easyrpg_libretro"
+            install_name_tool -id @rpath/easyrpg_libretro.framework/easyrpg_libretro "$core/easyrpg_libretro"
+            python3 -c 'import plistlib,sys; plistlib.dump({"CFBundleExecutable": "easyrpg_libretro", "CFBundleIdentifier": "app.everplay.core.easyrpg", "CFBundleName": "easyrpg_libretro", "CFBundlePackageType": "FMWK", "CFBundleShortVersionString": "0.8.1", "CFBundleVersion": "1", "MinimumOSVersion": "17.0", "CFBundleSupportedPlatforms": ["iPhoneOS"]}, open(sys.argv[1], "wb"))' "$core/Info.plist"
+          fi
           # Ad-hoc placeholder signatures; sideloading tools re-sign every framework and the app.
           for framework in "$app"/Frameworks/*.framework; do codesign --force --sign - --timestamp=none "$framework"; done
           codesign --force --sign - --timestamp=none "$app"
