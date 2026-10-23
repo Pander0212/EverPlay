@@ -158,8 +158,8 @@ jobs:
       contents: write  # the "nightly" pre-release that Feather/AltStore sources point to
     env:
       # Pinned copy in the libretro-cores release (empty: build without RPG Maker 2000/2003).
-      EASYRPG_CORE: ''
-      EASYRPG_CORE_SHA256: ''
+      EASYRPG_CORE: easyrpg_libretro_ios-arm64-2026-10-23.dylib.zip  # EasyRPG Player 0.8.1.1-git+21@a3fbb7c
+      EASYRPG_CORE_SHA256: 8e9e3aa210580f4f4874a752807a9daebff40e3e0457f45d3cb751aa6e42d2af
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
