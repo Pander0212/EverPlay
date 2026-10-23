@@ -70,7 +70,8 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [ ] 2000/2003 via EasyRPG Player as a runtime framework
 
 **B2. Japanese / DLsite engines**
-- [ ] TyranoScript / TyranoBuilder: HTML5 game in WKWebView like MV/MZ, plus NW.js/Electron shims and packed-EXE extraction (JoiPlay supports it the same way)
+- [x] TyranoScript / TyranoBuilder and other NW.js builds: browser exports run as HTML5; desktop builds with a package.nw next to Game.exe are unpacked on import
+- [ ] Games packed into the .exe itself (zip appended to nw.exe), Electron app.asar
 - [ ] KiriKiri 2 / Z (KAG): research native players. Kirikiroid2 (Android) is the established player for commercial games; krkrsdl2 is SDL2-based but targets macOS/Linux and not unmodified commercial games. Check licences and iOS buildability, XP3 archives, common plugin DLL replacements; games with custom XP3 encryption stay unsupported
 - [ ] Wolf RPG Editor: closed engine without a known open-source player; long-term research item (would need a reimplementation)
 - [ ] NScripter / ONScripter games via the open-source ONScripter family

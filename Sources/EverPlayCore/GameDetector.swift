@@ -41,7 +41,7 @@ public enum GameDetector {
             if pageExtension, try url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true {
                 if url.lastPathComponent == "index.html" {
                     entries.append(relative)
-                } else {
+                } else if url.lastPathComponent.lowercased() != "credits.html" {  // NW.js's own licence page
                     let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
                     pages.append((relative, size))
                 }

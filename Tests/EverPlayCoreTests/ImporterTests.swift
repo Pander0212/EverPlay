@@ -156,6 +156,13 @@ final class ImporterTests: FixtureTestCase {
             XCTAssertEqual($0 as? EverPlayError, .limitExceeded("compression ratio"))
         }
     }
+    func testNWJSPackageNextToTheExecutable() throws {
+        let inner = try zip([("index.html", html), ("tyrano/tyrano.js", Data("tyrano".utf8))], name: "inner")
+        let game = try prepare([("MyTyranoGame/Game.exe", Data("MZ".utf8)), ("MyTyranoGame/package.nw", try Data(contentsOf: inner))])
+        XCTAssertEqual(game.validation.entryPoint, "MyTyranoGame/package_nw/index.html")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: game.directory.appendingPathComponent("MyTyranoGame/package_nw/tyrano/tyrano.js").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: game.directory.appendingPathComponent("MyTyranoGame/package.nw").path))
+    }
     func testSingleFileHTMLGameWithoutIndex() throws {
         let story = Data(("<!doctype html><title>Story</title>" + String(repeating: "x", count: 4000)).utf8)
         let game = try prepare([("DoL/Degrees of Lewdity 0.5.html", story), ("DoL/credits.html", html),

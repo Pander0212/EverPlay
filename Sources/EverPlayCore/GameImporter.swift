@@ -45,7 +45,22 @@ public struct GameImporter: Sendable {
     public func prepare(zip: URL, stagingParent: URL) throws -> PreparedGame {
         let staging = stagingParent.appendingPathComponent(UUID().uuidString, isDirectory: true)
         do {
-            let entries = try extractArchive(zip: zip, into: staging)
+            var entries = try extractArchive(zip: zip, into: staging)
+            // NW.js desktop builds (TyranoBuilder, many DLsite HTML games) keep the game in a
+            // package.nw ZIP next to Game.exe; it passes the same checks as the outer archive.
+            let name = { (path: String) in (path as NSString).lastPathComponent.lowercased() }
+            if !entries.contains(where: { name($0.path) == "index.html" }),
+               let packed = entries.first(where: { name($0.path) == "package.nw" }) {
+                let packedURL = staging.appendingPathComponent(packed.path)
+                let parent = (packed.path as NSString).deletingLastPathComponent
+                let folder = (parent.isEmpty ? "" : parent + "/") + "package_nw"
+                guard !FileManager.default.fileExists(atPath: staging.appendingPathComponent(folder).path) else {
+                    throw EverPlayError.unsafePath(folder)
+                }
+                let unpacked = try extractArchive(zip: packedURL, into: staging.appendingPathComponent(folder, isDirectory: true))
+                try FileManager.default.removeItem(at: packedURL)
+                entries = entries.filter { $0.path != packed.path } + unpacked.map { (path: folder + "/" + $0.path, size: $0.size) }
+            }
             let validation = try GameDetector.detect(at: staging)
             // Hash extracted files and their paths, not ZIP metadata. Repacked duplicates are rejected too.
             var hash = SHA256()
