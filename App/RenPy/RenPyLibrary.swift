@@ -23,12 +23,16 @@ struct RenPyRuntime: Identifiable, Hashable {
         .sorted { $0.version.compare($1.version, options: .numeric) == .orderedDescending }
     }
 
-    /// The exact version first (games may ship a modified engine of that version), otherwise the
-    /// newest runtime of the same major version; Ren'Py 6 games run on 7.x.
+    /// The exact version first (games may ship a modified engine of that version), then the same
+    /// minor version (8.3.2 runs on 8.3.7, closest to what it was made for), otherwise the newest
+    /// runtime of the same major version; Ren'Py 6 games run on 7.x.
     static func best(for version: String?, among runtimes: [RenPyRuntime]) -> RenPyRuntime? {
         guard let version else { return runtimes.first { $0.major == 8 } ?? runtimes.first }
-        let exact = version.split(separator: ".").prefix(3).joined(separator: ".")
+        let parts = version.split(separator: ".")
+        let exact = parts.prefix(3).joined(separator: ".")
         if let match = runtimes.first(where: { $0.version == exact }) { return match }
+        let minor = parts.prefix(2).joined(separator: ".") + "."
+        if let match = runtimes.first(where: { $0.version.hasPrefix(minor) }) { return match }
         let major = max(Int(version.prefix(1)) ?? 8, 7)
         return runtimes.first { $0.major == major }
     }

@@ -19,7 +19,8 @@ concurrency:
   group: allinone-${{ github.ref }}
   cancel-in-progress: true
 env:
-  RUNTIMES: '8.5.3 8.4.1 7.8.7'
+  # 8.5.3 first: it provides the MetalANGLE every runtime shares.
+  RUNTIMES: '8.5.3 8.4.1 8.3.7 8.2.3 8.1.3 7.8.7'
 jobs:
   simulator:
     runs-on: macos-15-intel
@@ -38,6 +39,21 @@ jobs:
         with:
           path: .build-tools/renpy-8.4
           key: renpy-8.4.1-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Reuse Ren'Py 8.3.7 downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-8.3
+          key: renpy-8.3.7-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Reuse Ren'Py 8.2.3 downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-8.2
+          key: renpy-8.2.3-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Reuse Ren'Py 8.1.3 downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-8.1
+          key: renpy-8.1.3-renios-${{ runner.os }}-${{ runner.arch }}-v1
       - name: Reuse Ren'Py 7.8.7 downloads
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
@@ -102,12 +118,15 @@ jobs:
           mkdir -p "$data/Documents/Ren'Py"
           cp -R build/fixtures/. "$data/Documents/Ren'Py/"
           # Probe (Gold: 37) per runtime; Engine84 ships its own engine copy (Gold: 99); Input85 waits for text; Menu78 opens the variable editor.
-          for game in Probe85 Probe84 Probe78 Engine84 Input85 Menu78; do
-            xcrun simctl launch --stdout="$PWD/artifacts/$game-stdout.log" --stderr="$PWD/artifacts/$game-stderr.log" \
-              "$udid" "$bundle" -EverPlayAutoplayRenPy "$game"
+          # A hanging simulator command must not stall the whole job.
+          limited() { python3 -c 'import subprocess,sys; sys.exit(subprocess.run(sys.argv[2:], timeout=float(sys.argv[1])).returncode)' "$@"; }
+          for game in Probe85 Probe84 Probe83 Probe82 Probe81 Probe78 Engine84 Input85 Menu78; do
+            echo "== $game $(date -u +%T)"
+            limited 60 xcrun simctl launch --stdout="$PWD/artifacts/$game-stdout.log" --stderr="$PWD/artifacts/$game-stderr.log" \
+              "$udid" "$bundle" -EverPlayAutoplayRenPy "$game" || echo "launch of $game failed or timed out"
             sleep 75
-            xcrun simctl io "$udid" screenshot "artifacts/$game.png"
-            xcrun simctl terminate "$udid" "$bundle" || true
+            limited 60 xcrun simctl io "$udid" screenshot "artifacts/$game.png" || echo "screenshot of $game failed or timed out"
+            limited 60 xcrun simctl terminate "$udid" "$bundle" || true
             echo "== $game"; grep -hE 'EverPlay|Error|Traceback' "artifacts/$game-stdout.log" "artifacts/$game-stderr.log" | head -n 20 || true
           done
           ls "$data/Documents/Saves" || true
@@ -142,6 +161,21 @@ jobs:
         with:
           path: .build-tools/renpy-8.4
           key: renpy-8.4.1-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Reuse Ren'Py 8.3.7 downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-8.3
+          key: renpy-8.3.7-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Reuse Ren'Py 8.2.3 downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-8.2
+          key: renpy-8.2.3-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Reuse Ren'Py 8.1.3 downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-8.1
+          key: renpy-8.1.3-renios-${{ runner.os }}-${{ runner.arch }}-v1
       - name: Reuse Ren'Py 7.8.7 downloads
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:

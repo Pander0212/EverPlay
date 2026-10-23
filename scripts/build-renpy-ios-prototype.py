@@ -23,6 +23,25 @@ import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIMES = {
+    # Exact and same-minor matches for games made with 8.1-8.3 (modified engines, behaviour changes).
+    '8.3.7': {
+        'renpy-8.3.7-sdk.tar.bz2': ('https://www.renpy.org/dl/8.3.7/renpy-8.3.7-sdk.tar.bz2',
+                                    '13a221c1e2ac6730e7d369fef93153b79940fa8ae3ec3660abd94c67dea58f4e'),
+        'renpy-8.3.7-renios.zip': ('https://www.renpy.org/dl/8.3.7/renpy-8.3.7-renios.zip',
+                                   '5b36af73640f2cb9ec68b5c2d90fc34ab2ac6832af45fd97c4c852e316ac779d'),
+    },
+    '8.2.3': {
+        'renpy-8.2.3-sdk.tar.bz2': ('https://www.renpy.org/dl/8.2.3/renpy-8.2.3-sdk.tar.bz2',
+                                    '0043c0110654d9c526ddf6419c800fc99ddf35dea8993ebf2126c4b2f16c90c2'),
+        'renpy-8.2.3-renios.zip': ('https://www.renpy.org/dl/8.2.3/renpy-8.2.3-renios.zip',
+                                   '7c0e81566873d737ebf48fc88af5df89c097d173e325a86dc98e9546d3bfed3e'),
+    },
+    '8.1.3': {
+        'renpy-8.1.3-sdk.tar.bz2': ('https://www.renpy.org/dl/8.1.3/renpy-8.1.3-sdk.tar.bz2',
+                                    'b15fdaf1322f18aaa1a588761f52543683aefd1a3c9e45c5bf045e3a4ad468b7'),
+        'renpy-8.1.3-renios.zip': ('https://www.renpy.org/dl/8.1.3/renpy-8.1.3-renios.zip',
+                                   '27988dc672b2753683f64211dfe39cf87f90aed64948cd9ce2d9be7756fe01cc'),
+    },
     '8.2.0': {
         'renpy-8.2.0-sdk.tar.bz2': ('https://github.com/renpy/renpy/releases/download/8.2.0.24012702/renpy-8.2.0-sdk.tar.bz2',
                                     'e79ec1014bad6adba69336f90802e89ae7a70172c1bb9c15301267390e9d7b38'),
@@ -519,13 +538,20 @@ EMPTY_WINDOW_SAFE = (
 )
 
 
+# Ren'Py 8.1/8.2 do not call narrator.empty_window yet, so they need no fallback.
+PATCH_EMPTY_WINDOW = RELEASE not in ('8.1.3', '8.2.0', '8.2.3')
+
+
 def harden_common(sdk):
     """Make engine code that shares the game's namespace robust against older games' habits."""
     library = sdk / 'renpy/common/00library.rpy'
     source = library.read_text(encoding='utf-8')
-    assert source.count(EMPTY_WINDOW) == 1, 'empty window code changed; review the fallback'
-    library.write_text(source.replace(EMPTY_WINDOW, EMPTY_WINDOW_SAFE), encoding='utf-8')
-    library.with_suffix('.rpyc').unlink()
+    if PATCH_EMPTY_WINDOW:
+        assert source.count(EMPTY_WINDOW) == 1, 'empty window code changed; review the fallback'
+        library.write_text(source.replace(EMPTY_WINDOW, EMPTY_WINDOW_SAFE), encoding='utf-8')
+        library.with_suffix('.rpyc').unlink()
+    else:
+        assert source.count(EMPTY_WINDOW) == 0, f'Ren\'Py {RELEASE} calls empty_window; enable the fallback'
 
     bubble = sdk / 'renpy/common/00speechbubble.rpy'
     source = bubble.read_text(encoding='utf-8')
@@ -545,7 +571,7 @@ def verify_common(xcode):
     library = list(xcode.rglob('renpy/common/00library.rpyc'))
     assert library, 'bundled engine has no library code'
     assert list(xcode.rglob('renpy/common/00everplay.rpyc')), 'bundled engine lacks the EverPlay menu'
-    for path in compiled + library:
+    for path in compiled + (library if PATCH_EMPTY_WINDOW else []):
         data = path.read_bytes()
         assert data.startswith(b'RENPY RPC2'), f'unexpected format {path}'
         position, slots = 10, []
