@@ -85,6 +85,10 @@ jobs:
           cp -R build/fixtures/Probe78 build/fixtures/Menu78
           printf 'init 2000 python:\n    config.overlay_screens.append("zz_menu_test")\nscreen zz_menu_test():\n    timer 20.0 action Show("_everplay_cheats")\n' \
             > build/fixtures/Menu78/game/zz_menu.rpy
+          # Python 2 opens a link the way desktop games do; EverPlay-log.txt should record it (runtime bridge).
+          cp -R build/fixtures/Probe78 build/fixtures/Link78
+          printf 'label splashscreen:\n    $ import os\n    $ os.system("start https://example.com/everplay-link-test")\n    return\n' \
+            > build/fixtures/Link78/game/zz_link.rpy
           du -sh build/runtimes/Frameworks/* build/runtimes/Runtimes/*
       - name: Build EverPlay for the simulator and embed the runtimes
         run: |
@@ -120,7 +124,7 @@ jobs:
           # Probe (Gold: 37) per runtime; Engine84 ships its own engine copy (Gold: 99); Input85 waits for text; Menu78 opens the variable editor.
           # A hanging simulator command must not stall the whole job.
           limited() { python3 -c 'import subprocess,sys; sys.exit(subprocess.run(sys.argv[2:], timeout=float(sys.argv[1])).returncode)' "$@"; }
-          for game in Probe85 Probe84 Probe83 Probe82 Probe81 Probe78 Engine84 Input85 Menu78; do
+          for game in Probe85 Probe84 Probe83 Probe82 Probe81 Probe78 Engine84 Input85 Menu78 Link78; do
             echo "== $game $(date -u +%T)"
             limited 60 xcrun simctl launch --stdout="$PWD/artifacts/$game-stdout.log" --stderr="$PWD/artifacts/$game-stderr.log" \
               "$udid" "$bundle" -EverPlayAutoplayRenPy "$game" || echo "launch of $game failed or timed out"

@@ -366,7 +366,24 @@ def everplay_patch_translations():
 
 
 def everplay_open_url(url):
-    # Opens a link in Safari through UIKit (pyobjus is what Ren'Py itself uses on iOS).
+    # Opens a link in Safari: through EverPlay's loopback bridge in the all-in-one app (works on
+    # Python 2, where pyobjus fails to load), otherwise through UIKit with pyobjus.
+    port = os.environ.get("EVERPLAY_BRIDGE_PORT")
+    token = os.environ.get("EVERPLAY_BRIDGE_TOKEN")
+    if port and token:
+        try:
+            try:
+                import http.client as client
+            except ImportError:
+                import httplib as client
+            connection = client.HTTPConnection("127.0.0.1", int(port), timeout=5)
+            connection.request("POST", "/%s/open" % token, url.encode("utf-8"), {"Content-Type": "text/plain; charset=utf-8"})
+            ok = connection.getresponse().status == 200
+            connection.close()
+            print("EverPlay: opened %r" % (url,))
+            return ok
+        except Exception as e:
+            print("EverPlay: could not open %r through EverPlay: %r" % (url, e))
     try:
         from pyobjus import autoclass, objc_str
     except ImportError:

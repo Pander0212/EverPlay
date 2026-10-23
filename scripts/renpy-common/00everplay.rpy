@@ -225,10 +225,32 @@ init -1500 python:
             return text.encode("utf-8")  # Python 2: pyobjus takes UTF-8 byte strings
         return text
 
+    def _everplay_bridge(kind, text):
+        """POSTs to EverPlay's loopback endpoint (RuntimeBridge.swift); None when it is not there."""
+        import os
+        port = os.environ.get("EVERPLAY_BRIDGE_PORT")
+        token = os.environ.get("EVERPLAY_BRIDGE_TOKEN")
+        if not port or not token:
+            return None
+        try:
+            import http.client as _everplay_http
+        except ImportError:
+            import httplib as _everplay_http
+        connection = _everplay_http.HTTPConnection("127.0.0.1", _everplay_b.int(port), timeout=10)
+        try:
+            connection.request("POST", "/%s/%s" % (token, kind), text.encode("utf-8"),
+                               {"Content-Type": "text/plain; charset=utf-8"})
+            return connection.getresponse().read().decode("utf-8")
+        finally:
+            connection.close()
+
     def _everplay_backend(kind, text):
         # kind: "translate" (may wait briefly), "cached" (never waits) or "prefetch".
         if _everplay_translation["backend"] is not None:
             return _everplay_translation["backend"](kind, text)
+        reply = _everplay_bridge(kind, text)
+        if reply is not None:
+            return reply
         if not _everplay_translation["checked"]:
             _everplay_translation["checked"] = True
             try:

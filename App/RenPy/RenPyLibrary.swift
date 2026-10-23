@@ -64,6 +64,7 @@ final class RenPyLibrary: ObservableObject {
     private let defaults = UserDefaults.standard
 
     init() {
+        RuntimeBridge.shared.start()
         // Playtime of the last session: the game wrote its start time and EverPlay closes with it.
         if let start = defaults.object(forKey: "renpy.sessionStart") as? Double,
            let folder = defaults.string(forKey: "renpy.sessionGame") {
@@ -257,6 +258,7 @@ final class RenPyLibrary: ObservableObject {
             let translate = translation.provider != .off && TranslationPreferences.isEnabled(for: game.folder)
             TranslationEngine.shared.start(game: game.folder, settings: translate ? translation : nil)
             setenv("EVERPLAY_TRANSLATE", translate ? "1" : "0", 1)
+            RuntimeBridge.shared.export()
             // Ren'Py's image cache defaults to 400 MB; iOS ends apps that use too much memory.
             let cache = RenPyLibrary.imageCacheLimit()
             setenv("EVERPLAY_IMAGE_CACHE_MB", String(cache), 1)

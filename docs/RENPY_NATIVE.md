@@ -51,3 +51,11 @@ Free sideloading allows only three apps, so separate runtime apps (JoiPlay-style
 - One Python per process: quitting a Ren'Py game currently closes EverPlay.
 
 The standalone runtime apps (with `everplay-renpyNN://play?game=` URL start, CI case F) remain test builds.
+
+## Runtime bridge (all-in-one app)
+
+The embedded runtime reaches EverPlay through a loopback-only HTTP endpoint (`App/RenPy/RuntimeBridge.swift`,
+random port and token per app run, passed as `EVERPLAY_BRIDGE_PORT`/`EVERPLAY_BRIDGE_TOKEN`). Python's standard
+library talks to it on Python 2 and 3: machine translation (`translate`, `cached`, `prefetch`) and opening links in
+Safari (`open`). pyobjus remains the fallback; under Ren'Py 7.8 (Python 2) it fails to import
+(`type() argument 1 must be string, not unicode` in `objc_py_types`).
