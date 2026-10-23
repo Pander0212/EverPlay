@@ -27,13 +27,13 @@ SHARED_ANGLE_SHA256 = '5f861cec64bf298eafff3b698b5af4fd6a9d8d3786ba43b9af3a0804b
 
 ENTRY = r'''#include <dlfcn.h>
 #include <limits.h>
-#include <mach-o/dyld.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 int launcher_main(int argc, char **argv);
 void SDL_SetMainReady(void);
+void everplay_attach_sdl_windows(void);
 
 /* Runs one game. `runtime` holds base/ (engine, Python library, EverPlay's main.py);
    `game` is the desktop game folder that contains game/. */
@@ -50,12 +50,41 @@ int everplay_renpy_main(const char *runtime, const char *game) {
     void *symbol = dlsym(RTLD_DEFAULT, "glGetString");
     fprintf(stderr, "EverPlay: glGetString resolves to %s\n",
             symbol && dladdr(symbol, &info) ? info.dli_fname : "nothing");
-    for (uint32_t i = 0; i < _dyld_image_count(); i++) {
-        const char *image = _dyld_get_image_name(i);
-        if (strstr(image, "GLES") || strstr(image, "ANGLE")) fprintf(stderr, "EverPlay: loaded %u %s\n", i, image);
-    }
+    everplay_attach_sdl_windows();
     char *argv[] = { program, (char *) game, NULL };
     return launcher_main(2, argv);
+}
+'''
+
+# EverPlay is a SwiftUI app with a UIWindowScene; a window created without a scene (as SDL does)
+# never appears. Attach SDL's window to the app's scene right before SDL shows it.
+SCENE_BRIDGE = r'''@import UIKit;
+#import <objc/runtime.h>
+
+static IMP everplay_original_show;
+
+static void everplay_show(UIWindow *self, SEL command) {
+    if (self.windowScene == nil) {
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            if ([scene isKindOfClass:UIWindowScene.class]) {
+                self.windowScene = (UIWindowScene *) scene;
+                self.frame = self.windowScene.coordinateSpace.bounds;
+                break;
+            }
+        }
+    }
+    ((void (*)(id, SEL)) everplay_original_show)(self, command);
+}
+
+void everplay_attach_sdl_windows(void) {
+    Class window = objc_getClass("SDL_uikitwindow");
+    if (window == Nil || everplay_original_show != NULL) return;
+    SEL show = @selector(makeKeyAndVisible);
+    Method inherited = class_getInstanceMethod(window, show);
+    everplay_original_show = method_getImplementation(inherited);
+    if (!class_addMethod(window, show, (IMP) everplay_show, method_getTypeEncoding(inherited))) {
+        everplay_original_show = method_setImplementation(class_getInstanceMethod(window, show), (IMP) everplay_show);
+    }
 }
 '''
 
@@ -139,9 +168,10 @@ def main():
     with tempfile.TemporaryDirectory() as temporary:
         work = Path(temporary)
         (work / 'entry.c').write_text(ENTRY)
+        (work / 'scene.m').write_text(SCENE_BRIDGE)
         command = ['xcrun', '-sdk', sdk, 'clang', '-dynamiclib', '-arch', arch, version_flag,
                    '-fobjc-arc', '-fmodules', '-O2',
-                   work / 'entry.c', *objective_c_sources(work),
+                   work / 'entry.c', work / 'scene.m', *objective_c_sources(work),
                    '-L', prebuilt, *libraries, '-lc++',
                    '-F', angle_path.parent, '-framework', angle_name,
                    *[part for item in frameworks for part in ('-framework', item)],
