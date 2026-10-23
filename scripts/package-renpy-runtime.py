@@ -65,6 +65,34 @@ SCENE_BRIDGE = r'''@import UIKit;
 #import <objc/runtime.h>
 
 int SDL_SendKeyboardText(const char *text);
+void SDL_OnApplicationWillResignActive(void);
+void SDL_OnApplicationDidEnterBackground(void);
+void SDL_OnApplicationWillEnterForeground(void);
+void SDL_OnApplicationDidBecomeActive(void);
+void SDL_OnApplicationDidReceiveMemoryWarning(void);
+void SDL_OnApplicationWillTerminate(void);
+
+/* SDL's own app delegate normally forwards these; EverPlay's app delegate belongs to SwiftUI.
+   Without them Ren'Py keeps rendering in the background, which iOS forbids, and the game hangs
+   after the player returns. Delivered synchronously while the game pumps events. */
+static void everplay_forward_lifecycle(void) {
+    static BOOL done;
+    if (done) return;
+    done = YES;
+    NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+    [center addObserverForName:UIApplicationWillResignActiveNotification object:nil queue:nil
+                    usingBlock:^(NSNotification *note) { SDL_OnApplicationWillResignActive(); }];
+    [center addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil queue:nil
+                    usingBlock:^(NSNotification *note) { SDL_OnApplicationDidEnterBackground(); }];
+    [center addObserverForName:UIApplicationWillEnterForegroundNotification object:nil queue:nil
+                    usingBlock:^(NSNotification *note) { SDL_OnApplicationWillEnterForeground(); }];
+    [center addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:nil
+                    usingBlock:^(NSNotification *note) { SDL_OnApplicationDidBecomeActive(); }];
+    [center addObserverForName:UIApplicationDidReceiveMemoryWarningNotification object:nil queue:nil
+                    usingBlock:^(NSNotification *note) { SDL_OnApplicationDidReceiveMemoryWarning(); }];
+    [center addObserverForName:UIApplicationWillTerminateNotification object:nil queue:nil
+                    usingBlock:^(NSNotification *note) { SDL_OnApplicationWillTerminate(); }];
+}
 int SDL_SendKeyboardKey(unsigned char state, int scancode);
 unsigned char SDL_EventState(unsigned int type, int state);
 
@@ -228,6 +256,7 @@ static void everplay_show(UIWindow *self, SEL command) {
         }
     }
     ((void (*)(id, SEL)) everplay_original_show)(self, command);
+    everplay_forward_lifecycle();
     [[EverPlayKeyboard shared] attachTo:self];
 }
 
