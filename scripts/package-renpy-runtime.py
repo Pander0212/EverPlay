@@ -113,6 +113,8 @@ def main():
     arch = 'arm64' if sdk == 'iphoneos' else os.environ.get('EVERPLAY_SIMULATOR_ARCH', 'x86_64')
     prebuilt = XCODE / 'prebuilt' / ('release' if sdk == 'iphoneos' else 'debug')
     libraries, frameworks = link_flags()
+    # The app link drops unused objects; a dynamic library must resolve everything it keeps.
+    libraries += [f'-l{lib}' for lib in ('sharpyuv',) if (prebuilt / f'lib{lib}.a').exists()]
     name = f'RenPy{PLUGIN}'
     framework = output / 'Frameworks' / f'{name}.framework'
     if framework.exists():
@@ -130,7 +132,7 @@ def main():
                    '-F', angle_path.parent, '-framework', angle_name,
                    *[part for item in frameworks for part in ('-framework', item)],
                    '-install_name', f'@rpath/{name}.framework/{name}',
-                   '-Wl,-exported_symbol,_everplay_renpy_main',
+                   '-Wl,-exported_symbol,_everplay_renpy_main', '-Wl,-dead_strip',
                    '-o', framework / name]
         run(*command)
     plistlib.dump({'CFBundleExecutable': name, 'CFBundleIdentifier': f'app.everplay.runtime.renpy{PLUGIN}',
