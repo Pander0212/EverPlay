@@ -89,12 +89,14 @@ public struct ControlButton: Codable, Equatable, Sendable, Identifiable {
         self.x = x; self.y = y; self.scale = scale; self.toggles = toggles
     }
 
+    /// Fixed identities, so the default layout is the same set of controls every time it is built.
     public static func defaultLayout(dpadX: Double = 0.18, dpadY: Double = 0.74) -> [ControlButton] {
-        [ControlButton(kind: .dpad, key: "", label: "D-pad", x: dpadX, y: dpadY),
-         ControlButton(key: "z", label: "A", x: 0.88, y: 0.70),
-         ControlButton(key: "x", label: "B", x: 0.73, y: 0.76),
-         ControlButton(key: "Enter", label: "↵", x: 0.88, y: 0.84),
-         ControlButton(key: "Escape", label: "Esc", x: 0.73, y: 0.90)]
+        func id(_ number: Int) -> UUID { UUID(uuidString: "E7E7E7E7-0000-4000-8000-00000000000\(number)")! }
+        return [ControlButton(id: id(1), kind: .dpad, key: "", label: "D-pad", x: dpadX, y: dpadY),
+                ControlButton(id: id(2), key: "z", label: "A", x: 0.88, y: 0.70),
+                ControlButton(id: id(3), key: "x", label: "B", x: 0.73, y: 0.76),
+                ControlButton(id: id(4), key: "Enter", label: "↵", x: 0.88, y: 0.84),
+                ControlButton(id: id(5), key: "Escape", label: "Esc", x: 0.73, y: 0.90)]
     }
 }
 

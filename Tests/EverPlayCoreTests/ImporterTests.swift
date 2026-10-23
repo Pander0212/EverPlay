@@ -288,3 +288,17 @@ final class LibraryTests: FixtureTestCase {
         XCTAssertEqual(try String(contentsOf: manifest), "broken")
     }
 }
+
+final class ControlLayoutTests: XCTestCase {
+    func testDefaultLayoutIsStableAndOlderSettingsStillDecode() throws {
+        XCTAssertEqual(ControlButton.defaultLayout().map(\.id), ControlButton.defaultLayout().map(\.id))
+        let old = Data(#"{"visible":true,"opacity":0.5,"leftX":0.2,"leftY":0.7,"rightX":0.8,"rightY":0.7}"#.utf8)
+        let settings = try JSONDecoder().decode(ControlSettings.self, from: old)
+        XCTAssertNil(settings.buttons)
+        XCTAssertEqual(settings.layout.first?.kind, .dpad)
+        XCTAssertEqual(settings.layout.first?.x, 0.2)
+        XCTAssertEqual(ControlKey.named("a")?.keyCode, 65)
+        XCTAssertEqual(ControlKey.named(" ")?.code, "Space")
+        XCTAssertNil(ControlKey.named("<script>"))
+    }
+}
