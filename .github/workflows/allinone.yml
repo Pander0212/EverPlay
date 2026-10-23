@@ -99,6 +99,9 @@ jobs:
             echo "== $game"; grep -hE 'EverPlay|Error|Traceback' "artifacts/$game-stdout.log" "artifacts/$game-stderr.log" | head -n 20 || true
           done
           ls "$data/Documents/Saves" || true
+          # Crash reports explain an exit while Ren'Py starts inside EverPlay.
+          find ~/Library/Logs/DiagnosticReports -name 'EverPlay*' -newer "$app/Info.plist" -exec cp {} artifacts/ \; || true
+          for report in artifacts/EverPlay*.ips; do [ -f "$report" ] && head -c 6000 "$report"; done || true
       - name: Keep screenshots and logs
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
