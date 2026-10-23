@@ -124,6 +124,11 @@ jobs:
           # Probe (Gold: 37) per runtime; Engine84 ships its own engine copy (Gold: 99); Input85 waits for text; Menu78 opens the variable editor.
           # A hanging simulator command must not stall the whole job.
           limited() { python3 -c 'import subprocess,sys; sys.exit(subprocess.run(sys.argv[2:], timeout=float(sys.argv[1])).returncode)' "$@"; }
+          # A freshly booted simulator keeps migrating data for minutes; wait until it takes a screenshot.
+          for attempt in $(seq 1 20); do
+            if limited 30 xcrun simctl io "$udid" screenshot artifacts/warmup.png; then break; fi
+            sleep 15
+          done
           for game in Probe85 Probe84 Probe83 Probe82 Probe81 Probe78 Engine84 Input85 Menu78 Link78; do
             echo "== $game $(date -u +%T)"
             limited 60 xcrun simctl launch --stdout="$PWD/artifacts/$game-stdout.log" --stderr="$PWD/artifacts/$game-stderr.log" \
