@@ -156,6 +156,13 @@ final class ImporterTests: FixtureTestCase {
             XCTAssertEqual($0 as? EverPlayError, .limitExceeded("compression ratio"))
         }
     }
+    func testSingleFileHTMLGameWithoutIndex() throws {
+        let story = Data(("<!doctype html><title>Story</title>" + String(repeating: "x", count: 4000)).utf8)
+        let game = try prepare([("DoL/Degrees of Lewdity 0.5.html", story), ("DoL/credits.html", html),
+                                ("DoL/img/ui/icon.png", Data()), ("DoL/extras/notes.html", html)])
+        XCTAssertEqual(game.validation.entryPoint, "DoL/Degrees of Lewdity 0.5.html")
+        XCTAssertEqual(game.validation.engine, .html5)
+    }
     func testMultipleIndependentGamesAreAmbiguous() throws {
         XCTAssertThrowsError(try prepare([("one/index.html", html), ("two/index.html", html)])) {
             XCTAssertEqual($0 as? EverPlayError, .ambiguousEntryPoints)

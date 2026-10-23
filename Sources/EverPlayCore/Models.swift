@@ -74,7 +74,7 @@ public enum EverPlayError: Error, LocalizedError, Equatable {
         case .invalidArchive: return "The ZIP is damaged, encrypted, or not a supported ZIP archive."
         case .unsupportedEntry(let path): return "Links and special files are not supported: \(path)"
         case .limitExceeded(let reason): return "Import limit exceeded: \(reason)"
-        case .missingEntryPoint: return "No index.html was found in this game."
+        case .missingEntryPoint: return "No game page (index.html or another .html file) was found in this game."
         case .ambiguousEntryPoints: return "Several game entry points were found. Import a ZIP containing one game."
         case .incompleteEngine(let engine): return "The \(engine) export is missing data/System.json."
         case .unsupportedGame: return "This game requires an engine that EverPlay does not support yet."
