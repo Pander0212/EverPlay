@@ -66,16 +66,16 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [x] MV/MZ: NW.js stand-ins (`require('fs'|'path'|'os'|'nw.gui'|...)`, `nw.Window`; `process` left undefined so saves stay in per-game browser storage), case-insensitive file lookup in the game server (node and core tests)
 - [ ] MV/MZ: Ogg audio check, performance (WebGL, canvas size), real-game test
 - [ ] MV/MZ decryption-free play of encrypted assets (`.rpgmvp/.ogg_`) as the engine does
-- [ ] XP/VX/VX Ace via mkxp-z as a runtime framework (RTP fonts/assets handling, Win32API shims)
+- [ ] XP/VX/VX Ace via mkxp-z as a runtime framework (RTP fonts/assets handling, Win32API shims). mkxp-z has no iOS build and the libretro buildbot publishes no iOS mkxp-z core (2026-10); needs an own port (Ruby, OpenGL ES via MetalANGLE)
 - [x] 2000/2003 via the EasyRPG Player libretro core (iOS arm64 build from libretro, vendored and pinned): EverPlay's own libretro frontend (software video, audio, joypad from the control editor, saves in Files, quick save/load via serialize); device-only, the Intel simulator cannot load the core
 - [ ] 2000/2003: RTP (EasyRPG's free RTP, CC-BY 4.0), Shift-JIS file names in ZIPs, title-screen covers (XYZ images)
 
 **B2. Japanese / DLsite engines**
 - [x] TyranoScript / TyranoBuilder and other NW.js builds: browser exports run as HTML5; desktop builds with a package.nw next to Game.exe are unpacked on import
 - [ ] Games packed into the .exe itself (zip appended to nw.exe), Electron app.asar
-- [ ] KiriKiri 2 / Z (KAG): research native players. Kirikiroid2 (Android) is the established player for commercial games; krkrsdl2 is SDL2-based but targets macOS/Linux and not unmodified commercial games. Check licences and iOS buildability, XP3 archives, common plugin DLL replacements; games with custom XP3 encryption stay unsupported
+- [ ] KiriKiri 2 / Z (KAG): research native players (2026-10: krkrsdl2 states it does not support unmodified commercial games; no iOS libretro core). Kirikiroid2 (Android) is the established player for commercial games; krkrsdl2 is SDL2-based but targets macOS/Linux and not unmodified commercial games. Check licences and iOS buildability, XP3 archives, common plugin DLL replacements; games with custom XP3 encryption stay unsupported
 - [ ] Wolf RPG Editor: closed engine without a known open-source player; long-term research item (would need a reimplementation)
-- [ ] NScripter / ONScripter games via the open-source ONScripter family
+- [ ] NScripter / ONScripter games via the open-source ONScripter family. No iOS libretro core exists (buildbot, 2026-10); plan: port ONScripter-jh against the SDL2, SDL2_image, FreeType, libpng/jpeg and bzip2 static libraries the renios download already ships, adding SDL2_ttf and SDL2_mixer (built-in stb_vorbis/dr_mp3), packaged like the Ren'Py runtimes
 
 **C. Translation (MTool-style)**
 - [x] Provider layer: Google (free, unofficial endpoint), DeepL (free/pro key), OpenAI-compatible BYOK (OpenAI, OpenRouter, local servers), Claude BYOK; keys in the Keychain; markup kept via placeholders (unit tested)
