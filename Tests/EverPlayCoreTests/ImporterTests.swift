@@ -28,6 +28,18 @@ class FixtureTestCase: XCTestCase {
 }
 
 final class ImporterTests: FixtureTestCase {
+    func testPickedFolderImportsLikeAZIPWithStablePortBelowEphemeralRange() async throws {
+        let folder = temporary.appendingPathComponent("My Game/www", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try html.write(to: folder.appendingPathComponent("index.html"))
+        let packed = temporary.appendingPathComponent("packed.zip")
+        try GameImporter.packFolder(temporary.appendingPathComponent("My Game"), to: packed)
+        let store = try LibraryStore(root: temporary.appendingPathComponent("library"))
+        let game = try await store.importZIP(at: packed, title: "My Game")
+        XCTAssertEqual(game.entryPoint, "www/index.html")
+        XCTAssertTrue((30000...39999).contains(game.port))
+    }
+
     func testBundledDemoZIPImportsAndServesModuleAndJSON() throws {
         let project = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let zip = project.appendingPathComponent("App/Resources/EverPlayDemo.zip")

@@ -17,7 +17,7 @@ struct RootView: View {
             NavigationStack { SettingsView() }.tabItem { Label("Settings", systemImage: "slider.horizontal.3") }
         }
         .task { await library.refresh() }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.zip], allowsMultipleSelection: false) { result in
+        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.zip, .folder], allowsMultipleSelection: false) { result in
             switch result {
             case .success(let urls): if let url = urls.first { Task { await library.importZIP(url) } }
             case .failure(let error): library.error = error.localizedDescription
@@ -197,7 +197,7 @@ private struct EmptyLibrary: View {
             .frame(height: 210)
             VStack(spacing: 8) {
                 Text("Make room for play").font(.title2.weight(.bold))
-                Text("Import a game ZIP from Files, or start with the original demo.")
+                Text("Import a game folder or ZIP from Files, or start with the original demo.")
                     .multilineTextAlignment(.center).foregroundStyle(.secondary)
             }
             VStack(spacing: 12) {
@@ -321,8 +321,8 @@ private struct ImportView: View {
                     Text("Games are checked and stored privately on this device.").foregroundStyle(.secondary)
                 }
                 .padding(.top, 8)
-                ImportOption(icon: "folder.fill", title: "Choose a ZIP from Files",
-                             detail: "One game with its index.html. Nested folders are fine.") { showImporter = true }
+                ImportOption(icon: "folder.fill", title: "Choose a folder or ZIP",
+                             detail: "One game with its index.html, from Files or On My iPhone › EverPlay.") { showImporter = true }
                 ImportOption(icon: "leaf.fill", title: "Lantern Garden demo",
                              detail: "An original sample game to try the controls.") { Task { await library.importDemo() } }
                 if library.importing { ImportToast().padding(.horizontal, -20) }

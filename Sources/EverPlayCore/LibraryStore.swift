@@ -24,7 +24,7 @@ public actor LibraryStore {
             var ports: Set<UInt16> = []
             for game in document.games {
                 guard ids.insert(game.id).inserted, ports.insert(game.port).inserted,
-                      (49152...65535).contains(game.port), UUID(uuidString: game.resourceToken) != nil,
+                      (1024...65535).contains(game.port), UUID(uuidString: game.resourceToken) != nil,
                       game.fingerprint.count == 64,
                       (try? SafePath.components(game.entryPoint)) != nil else { throw EverPlayError.invalidLibrary }
             }
@@ -67,7 +67,9 @@ public actor LibraryStore {
         defer { try? manager.removeItem(at: prepared.directory) }
         guard !document.games.contains(where: { $0.fingerprint == prepared.fingerprint }) else { throw EverPlayError.duplicateGame }
         let used = Set(document.games.map(\.port))
-        guard let port = (UInt16(49152)...UInt16(65535)).first(where: { !used.contains($0) }) else { throw EverPlayError.noAvailablePort }
+        // Stay below iOS's ephemeral range (49152+), where system services such as device pairing
+        // already listen on a real iPhone; the port is the game's storage origin, so it never changes.
+        guard let port = (UInt16(30000)...UInt16(39999)).first(where: { !used.contains($0) }) else { throw EverPlayError.noAvailablePort }
         let game = GameRecord(id: UUID(), title: String((title ?? zip.deletingPathExtension().lastPathComponent).prefix(120)),
                               engine: prepared.validation.engine, entryPoint: prepared.validation.entryPoint,
                               fingerprint: prepared.fingerprint, importedAt: Date(), port: port,

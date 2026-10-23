@@ -108,3 +108,10 @@ public struct GameImporter: Sendable {
         }
     }
 }
+
+extension GameImporter {
+    /// Packs a picked game folder into a ZIP so it passes exactly the same checks as a ZIP import.
+    public static func packFolder(_ folder: URL, to zip: URL) throws {
+        try FileManager.default.zipItem(at: folder, to: zip, shouldKeepParent: false)
+    }
+}

@@ -34,7 +34,14 @@ final class LibraryModel: ObservableObject {
                 var copyError: Error?
                 coordinator.coordinate(readingItemAt: url, options: .withoutChanges, error: &coordinationError) { readable in
                     do {
-                        let values = try readable.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey])
+                        let values = try readable.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey, .isDirectoryKey])
+                        if values.isDirectory == true && values.isSymbolicLink != true {
+                            // A game folder is packed into a private ZIP and then passes the same importer checks.
+                            try GameImporter.packFolder(readable, to: copy)
+                            let packed = try copy.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? .max
+                            guard packed <= Int(ImportLimits().maximumArchiveBytes) else { throw EverPlayError.limitExceeded("archive size") }
+                            return
+                        }
                         guard values.isRegularFile == true, values.isSymbolicLink != true else {
                             throw EverPlayError.unsupportedEntry(readable.lastPathComponent)
                         }
