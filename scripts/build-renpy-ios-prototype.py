@@ -56,6 +56,7 @@ if RELEASE not in RUNTIMES:
     raise SystemExit(f'Unsupported runtime {RELEASE!r}; choose one of {", ".join(RUNTIMES)}')
 HASHES = RUNTIMES[RELEASE]
 PYTHON = 'py2' if RELEASE.startswith('7.') else 'py3'
+PLUGIN = ''.join(RELEASE.split('.')[:2])  # 8.5.3 -> 85: plugin id and URL scheme everplay-renpy85
 # renios.create.create_project expects a reporting interface; the launcher normally takes it
 # from the Android tooling, which iOS does not need.
 CREATE = '''
@@ -69,6 +70,75 @@ class Interface:
     def fail(self, message): raise SystemExit(message)
 renios.create.create_project(Interface(), dest, name, version)
 '''
+# Appended to the prototype's Log.m (already compiled Objective-C). EverPlay, the library app,
+# starts a game with everplay-renpyNN://play?game=<folder in Documents>; when Ren'Py exits, the
+# plugin opens everplay://library so the player lands back in the library.
+URL_BRIDGE = r'''
+
+@import UIKit;
+#import <objc/runtime.h>
+
+static NSString *everplay_requested;
+static IMP everplay_original_open;
+static IMP everplay_original_finish;
+
+static void everplay_capture(NSURL *url) {
+    if (![url.scheme hasPrefix:@"everplay-renpy"] || ![url.host isEqualToString:@"play"]) return;
+    for (NSURLQueryItem *item in [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO].queryItems) {
+        if ([item.name isEqualToString:@"game"] && item.value.length > 0) everplay_requested = [item.value copy];
+    }
+}
+
+static BOOL everplay_open(id self, SEL command, UIApplication *application, NSURL *url, NSDictionary *options) {
+    everplay_capture(url);
+    if (everplay_original_open) {
+        return ((BOOL (*)(id, SEL, UIApplication *, NSURL *, NSDictionary *)) everplay_original_open)(
+            self, command, application, url, options);
+    }
+    return YES;
+}
+
+static BOOL everplay_finish(id self, SEL command, UIApplication *application, NSDictionary *options) {
+    NSURL *url = options[UIApplicationLaunchOptionsURLKey];
+    if (url) everplay_capture(url);
+    return ((BOOL (*)(id, SEL, UIApplication *, NSDictionary *)) everplay_original_finish)(
+        self, command, application, options);
+}
+
+__attribute__((constructor)) static void everplay_install_url_hooks(void) {
+    Class delegate = objc_getClass("SDLUIKitDelegate");
+    if (!delegate) return;
+    SEL open = @selector(application:openURL:options:);
+    Method method = class_getInstanceMethod(delegate, open);
+    if (method) everplay_original_open = method_setImplementation(method, (IMP) everplay_open);
+    else class_addMethod(delegate, open, (IMP) everplay_open, "B@:@@@");
+    method = class_getInstanceMethod(delegate, @selector(application:didFinishLaunchingWithOptions:));
+    if (method) everplay_original_finish = method_setImplementation(method, (IMP) everplay_finish);
+}
+
+/* The requested game folder name, or NULL. A launch URL can arrive just after launch. */
+const char *everplay_requested_game(void) {
+    for (int i = 0; i < 20 && everplay_requested == nil; i++) {
+        [[NSRunLoop mainRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+    }
+    return everplay_requested.UTF8String;
+}
+
+void everplay_return_to_library(void) {
+    NSURL *library = [NSURL URLWithString:@"everplay://library"];
+    __block BOOL done = NO;
+    NSLog(@"EverPlay: returning to the library");
+    [[UIApplication sharedApplication] openURL:library options:@{} completionHandler:^(BOOL success) {
+        NSLog(@"EverPlay: library opened: %d", success);
+        done = YES;
+    }];
+    for (int i = 0; i < 20 && !done; i++) {
+        [[NSRunLoop mainRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+    }
+}
+'''
+
+
 # Replaces the prototype's main.c. Launch arguments are game directories, run one after another
 # in the same process (to test re-initialising Python and SDL). Without arguments, the first
 # folder in Documents (visible in the Files app) that contains game/ is started; the bundled
@@ -132,9 +202,29 @@ static int find_game(char *found, size_t size) {
     return 1;
 }
 
+const char *everplay_requested_game(void);
+void everplay_return_to_library(void);
+
+/* A game folder requested by EverPlay: a plain name directly inside Documents. */
+static int requested_game(char *found, size_t size) {
+    const char *name = everplay_requested_game();
+    const char *home = getenv("HOME");
+    char candidate[PATH_MAX];
+    if (!name || !home || !*name || name[0] == '.' || strchr(name, '/')) return 0;
+    snprintf(found, size, "%s/Documents/%s", home, name);
+    snprintf(candidate, sizeof candidate, "%s/game", found);
+    return is_directory(candidate);
+}
+
 static int everplay_main(int argc, char **argv) {
     if (argc < 2) {
         char game[PATH_MAX];
+        if (requested_game(game, sizeof game)) {
+            char *arguments[] = { argv[0], game, NULL };
+            fprintf(stderr, "EverPlay: starting requested %s\n", game);
+            atexit(everplay_return_to_library);
+            return launcher_main(2, arguments);
+        }
         if (find_game(game, sizeof game)) {
             char *arguments[] = { argv[0], game, NULL };
             fprintf(stderr, "EverPlay: starting %s\n", game);
@@ -167,7 +257,10 @@ def configure(xcode):
     with plist.open('rb') as stream:
         info = plistlib.load(stream)
     info.update(CFBundleDisplayName=f'EverPlay RenPy {RELEASE[:3]}', UIFileSharingEnabled=True,
-                LSSupportsOpeningDocumentsInPlace=True, UIApplicationSupportsIndirectInputEvents=True)
+                LSSupportsOpeningDocumentsInPlace=True, UIApplicationSupportsIndirectInputEvents=True,
+                CFBundleURLTypes=[{'CFBundleURLName': f'app.everplay.renpy{PLUGIN}',
+                                   'CFBundleURLSchemes': [f'everplay-renpy{PLUGIN}']}],
+                LSApplicationQueriesSchemes=['everplay'])
     with plist.open('wb') as stream:
         plistlib.dump(info, stream)
     if PYTHON == 'py2':
@@ -547,6 +640,8 @@ def main():
             '    "EverPlay link test"\n'
             '    return\n')
         (xcode / 'main.c').write_text(MAIN)
+        log = xcode / 'Log.m'
+        log.write_text(log.read_text() + URL_BRIDGE)
         configure(xcode)
         add_game_packages(xcode / 'base/main.py')
     print(f'Built Ren\'Py {RELEASE} iOS prototype and desktop variant in {output.relative_to(ROOT)}')

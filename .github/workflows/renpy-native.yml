@@ -105,6 +105,16 @@ jobs:
           xcrun simctl io "$udid" screenshot artifacts/e-game-engine.png
           xcrun simctl terminate "$udid" "$bundle" || true
           grep -E 'EverPlay:|Error|Traceback' artifacts/e-stderr.log || true
+
+          # F: plugin mode. EverPlay starts a game by URL; it must win over the folder that the
+          # no-argument fallback would pick first (aaa, Gold: 99). Expected: Gold: 37.
+          plugin="$(echo '${{ matrix.runtime }}' | cut -d. -f1,2 | tr -d .)"
+          cp -R build/renpy-ios/engine "$data/Documents/aaa"
+          cp -R build/renpy-ios/variant "$data/Documents/urlgame"
+          xcrun simctl openurl "$udid" "everplay-renpy${plugin}://play?game=urlgame"
+          sleep 60
+          xcrun simctl io "$udid" screenshot artifacts/f-url-launch.png
+          xcrun simctl terminate "$udid" "$bundle" || true
           tail -n 40 artifacts/a-stderr.log artifacts/b-stderr.log || true
           grep -E 'EverPlay:|Interface start|Error|Traceback' artifacts/c-stderr.log || true
       - name: Keep screenshots and logs
