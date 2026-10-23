@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import os
 import EverPlayCore
 
 /// A Ren'Py runtime bundled in the app: Frameworks/RenPyNN.framework plus Runtimes/NN/base.
@@ -190,6 +191,22 @@ final class RenPyLibrary: ObservableObject {
 
     func folder(of game: RenPyTitle) -> URL { root.appendingPathComponent(game.folder) }
 
+    /// MB of decoded images Ren'Py may keep: less on devices with less memory (Settings can override).
+    static func imageCacheLimit() -> Int {
+        let chosen = UserDefaults.standard.integer(forKey: "renpy.imageCacheMB")
+        return chosen > 0 ? chosen : automaticImageCacheLimit()
+    }
+
+    static func automaticImageCacheLimit() -> Int {
+        let gigabytes = Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824
+        switch gigabytes {
+        case ..<3.5: return 120
+        case ..<5.5: return 200
+        case ..<7.5: return 300
+        default: return 400
+        }
+    }
+
     private func addPlaytime(_ seconds: Double, to folder: String) {
         var all = defaults.dictionary(forKey: "renpy.playSeconds") as? [String: Double] ?? [:]
         all[folder, default: 0] += seconds
@@ -240,12 +257,21 @@ final class RenPyLibrary: ObservableObject {
             let translate = translation.provider != .off && TranslationPreferences.isEnabled(for: game.folder)
             TranslationEngine.shared.start(game: game.folder, settings: translate ? translation : nil)
             setenv("EVERPLAY_TRANSLATE", translate ? "1" : "0", 1)
+            // Ren'Py's image cache defaults to 400 MB; iOS ends apps that use too much memory.
+            let cache = RenPyLibrary.imageCacheLimit()
+            setenv("EVERPLAY_IMAGE_CACHE_MB", String(cache), 1)
+            EverPlayLog.write("Device memory \(ProcessInfo.processInfo.physicalMemory / 1_048_576) MB, available \(os_proc_available_memory() / 1_048_576) MB, image cache limit \(cache) MB")
+            let warnings = NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification,
+                                                                  object: nil, queue: .main) { _ in
+                EverPlayLog.write("Memory warning while playing \(game.folder): \(os_proc_available_memory() / 1_048_576) MB still available")
+            }
             UIApplication.shared.isIdleTimerDisabled = true
             let status = runtime.directory.path.withCString { runtimePath in
                 folder.path.withCString { gamePath in entry(runtimePath, gamePath) }
             }
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "renpy.sessionEnd")
             TranslationEngine.shared.flush()
+            NotificationCenter.default.removeObserver(warnings)
             EverPlayLog.write("Ren'Py returned with status \(status) for \(game.folder)")
             exit(status)
         }
@@ -329,9 +355,14 @@ enum RenPyGame {
 struct RenPySettingsSection: View {
     @EnvironmentObject private var renpy: RenPyLibrary
     @AppStorage("renpy.menuButton") private var menuButton = true
+    @AppStorage("renpy.imageCacheMB") private var imageCache = 0
     var body: some View {
         Section {
             Toggle("In-game menu button", isOn: $menuButton)
+            Picker("Image memory", selection: $imageCache) {
+                Text("Automatic (\(RenPyLibrary.automaticImageCacheLimit()) MB)").tag(0)
+                ForEach([100, 200, 300, 400], id: \.self) { Text("\($0) MB").tag($0) }
+            }
             if renpy.runtimes.isEmpty {
                 Text("Not included in this build.").foregroundStyle(.secondary)
             }

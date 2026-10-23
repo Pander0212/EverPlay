@@ -288,6 +288,26 @@ init -1500 python:
 init 1999 python:
     if _everplay_enabled() and "_everplay_overlay" not in config.overlay_screens:
         config.overlay_screens.append("_everplay_overlay")
+    # Image cache (decoded images in memory; their textures use the same memory on iPhone).
+    # Ren'Py keeps up to 400 MB on every platform; EverPlay passes a limit that fits the device.
+    def _everplay_limit_image_cache():
+        import os
+        try:
+            limit = _everplay_b.int(os.environ.get("EVERPLAY_IMAGE_CACHE_MB", "0"))
+        except ValueError:
+            return
+        if limit <= 0:
+            return
+        if config.image_cache_size is not None:
+            current = 2 * config.image_cache_size * config.screen_width * config.screen_height * 4 // (1024 * 1024)
+        else:
+            current = config.image_cache_size_mb or 0
+        if current > limit:
+            config.image_cache_size = None
+            config.image_cache_size_mb = limit
+            print("EverPlay: image cache limited to %d MB (game asked for %d MB)" % (limit, current))
+
+    _everplay_limit_image_cache()
     if _everplay_translation_on() and config.say_menu_text_filter is not _everplay_translate_filter:
         _everplay_translation["previous"] = config.say_menu_text_filter
         config.say_menu_text_filter = _everplay_translate_filter
