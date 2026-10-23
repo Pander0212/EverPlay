@@ -22,12 +22,12 @@ EverPlay is an **iOS alternative to JoiPlay**: play existing Windows/Linux deskt
 
 ## Competitive position (2026-10-23)
 
-ZScripter (App Store, zscripter.com) already ships Ren'Py 6.15–8.6 with exact per-game runtimes, ONScripter family, KiriKiri, RealLive, Artemis, AI5, RPG Maker MV/MZ (WebKit) and XP/VX/VX Ace (own Ruby runtime), LLM translation for Ren'Py only, and a touch-control editor. Its support page lists RPG Maker 2000/2003 as unsupported and does not mention Wolf RPG, TyranoBuilder, cheats or a save editor; the owner reports that a modified-engine game (School) fails there.
+ZScripter (App Store, zscripter.com) already ships Ren'Py 6.15–8.6 with exact per-game runtimes, ONScripter family, KiriKiri, RealLive, Artemis, AI5, RPG Maker MV/MZ (WebKit) and XP/VX/VX Ace (own Ruby runtime), LLM translation (MTool-style, per the owner's use of the app), a save editor and a touch-control editor. Its support page lists RPG Maker 2000/2003 as unsupported and does not mention Wolf RPG or TyranoBuilder; the owner reports that a modified-engine game (School) fails there.
 
 EverPlay differentiates by:
 1. Games that ship a modified engine (runs the game's own engine scripts on the exact runtime).
-2. Cheats, variable editor and save editor for every supported engine.
-3. Translation for all engines (RPG Maker included, MTool-style), with free on-device Apple translation.
+2. Live cheats on top of save editing: in-game variable browser/search, speed-up, gallery unlock, developer console.
+3. Translation that is free out of the box (Apple on-device) in addition to BYOK models.
 4. Engines ZScripter lacks: RPG Maker 2000/2003 (EasyRPG), TyranoBuilder, Wolf RPG (research), HTML/Twine, Godot, Flash.
 5. Community features for F95zone players: updates that keep saves, mods, crowd-sourced compatibility reports.
 6. Sideloaded distribution without App Store review limits.
