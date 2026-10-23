@@ -250,9 +250,17 @@ jobs:
           json.dump(source, open('release-source.json', 'w'), indent=2)
           PYTHON
           gh release delete nightly --yes --cleanup-tag || true
-          gh release create nightly --prerelease --target "$GITHUB_SHA" --title "EverPlay nightly $VERSION" \
-            --notes "Unsigned test build from $GITHUB_SHA. Feather/AltStore source: $base/release-source.json" \
-            release-EverPlay.ipa release-icon.png release-source.json
+          # The releases API sometimes answers 403/5xx for a moment; the source must not stay empty.
+          for attempt in 1 2 3 4; do
+            if gh release create nightly --prerelease --target "$GITHUB_SHA" --title "EverPlay nightly $VERSION" \
+                 --notes "Unsigned test build from $GITHUB_SHA. Feather/AltStore source: $base/release-source.json" \
+                 release-EverPlay.ipa release-icon.png release-source.json; then
+              exit 0
+            fi
+            gh release delete nightly --yes --cleanup-tag || true
+            sleep $((attempt * 15))
+          done
+          exit 1
       - name: Keep the IPA
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
