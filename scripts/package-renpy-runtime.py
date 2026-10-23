@@ -58,10 +58,162 @@ int everplay_renpy_main(const char *runtime, const char *game) {
 
 # EverPlay is a SwiftUI app with a UIWindowScene; a window created without a scene (as SDL does)
 # never appears. Attach SDL's window to the app's scene right before SDL shows it.
+# Text input: Ren'Py asks SDL for the on-screen keyboard, which SDL shows through a hidden text
+# field. If that keyboard does not come up, a "Type" button appears while the game waits for
+# text; it opens an iOS text field and sends the result to the game as typed keys.
 SCENE_BRIDGE = r'''@import UIKit;
 #import <objc/runtime.h>
 
+int SDL_SendKeyboardText(const char *text);
+int SDL_SendKeyboardKey(unsigned char state, int scancode);
+unsigned char SDL_EventState(unsigned int type, int state);
+
+enum { EVERPLAY_TEXTINPUT = 0x303, EVERPLAY_RETURN = 40, EVERPLAY_BACKSPACE = 42 };
+
 static IMP everplay_original_show;
+
+/* Appends to EverPlay's diagnostics log (Documents/EverPlay-log.txt). */
+static void everplay_note(NSString *message) {
+    fprintf(stderr, "EverPlay: %s\n", message.UTF8String);
+    NSURL *file = [[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject
+                   URLByAppendingPathComponent:@"EverPlay-log.txt"];
+    NSString *line = [NSString stringWithFormat:@"%@  %@\n", [[NSISO8601DateFormatter new] stringFromDate:NSDate.date], message];
+    NSFileHandle *handle = [NSFileHandle fileHandleForWritingToURL:file error:nil];
+    if (handle == nil) {
+        [line writeToURL:file atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        return;
+    }
+    [handle seekToEndOfFile];
+    [handle writeData:[line dataUsingEncoding:NSUTF8StringEncoding]];
+    [handle closeFile];
+}
+
+static void everplay_press(int scancode) {
+    SDL_SendKeyboardKey(1, scancode);
+    SDL_SendKeyboardKey(0, scancode);
+}
+
+/* Sends text as if typed; `submit` first clears the game's field and presses Return after. */
+static void everplay_type(NSString *text, BOOL submit) {
+    /* Dismissing the iOS keyboard makes SDL stop text events; the game still wants them. */
+    SDL_EventState(EVERPLAY_TEXTINPUT, 1);
+    if (submit) {
+        for (int i = 0; i < 64; i++) everplay_press(EVERPLAY_BACKSPACE);
+    }
+    [text enumerateSubstringsInRange:NSMakeRange(0, text.length) options:NSStringEnumerationByComposedCharacterSequences
+                          usingBlock:^(NSString *character, NSRange range, NSRange enclosing, BOOL *stop) {
+        if (character.length) SDL_SendKeyboardText(character.UTF8String);
+    }];
+    if (submit) everplay_press(EVERPLAY_RETURN);
+    everplay_note([NSString stringWithFormat:@"Typed %lu characters into the game%@", (unsigned long) text.length, submit ? @" and pressed Return" : @""]);
+}
+
+@interface EverPlayKeyboard : NSObject
+@property (nonatomic, weak) UIWindow *window;
+@property (nonatomic, strong) UIButton *button;
+@property (nonatomic) BOOL systemKeyboardShown, wanted;
+@property (nonatomic) int waiting;
+@end
+
+@implementation EverPlayKeyboard
+
++ (instancetype)shared {
+    static EverPlayKeyboard *shared;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ shared = [EverPlayKeyboard new]; });
+    return shared;
+}
+
+- (void)attachTo:(UIWindow *)window {
+    if (self.window == window) return;
+    self.window = window;
+    if (self.button == nil) {
+        UIButtonConfiguration *style = [UIButtonConfiguration filledButtonConfiguration];
+        style.image = [UIImage systemImageNamed:@"keyboard"];
+        style.title = @"Type";
+        style.imagePadding = 8;
+        style.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
+        style.baseBackgroundColor = [UIColor colorWithWhite:0 alpha:0.62];
+        style.baseForegroundColor = UIColor.whiteColor;
+        self.button = [UIButton buttonWithConfiguration:style primaryAction:nil];
+        self.button.accessibilityIdentifier = @"everplayTypeButton";
+        [self.button addTarget:self action:@selector(ask) forControlEvents:UIControlEventTouchUpInside];
+        NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+        [center addObserver:self selector:@selector(keyboardShown) name:UIKeyboardDidShowNotification object:nil];
+        [center addObserver:self selector:@selector(keyboardHidden) name:UIKeyboardDidHideNotification object:nil];
+        NSTimer *timer = [NSTimer timerWithTimeInterval:0.25 target:self selector:@selector(tick) userInfo:nil repeats:YES];
+        [NSRunLoop.mainRunLoop addTimer:timer forMode:NSRunLoopCommonModes];
+    }
+    self.button.hidden = YES;
+    self.button.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.button removeFromSuperview];
+    [window addSubview:self.button];
+    [NSLayoutConstraint activateConstraints:@[
+        [self.button.topAnchor constraintEqualToAnchor:window.safeAreaLayoutGuide.topAnchor constant:12],
+        [self.button.trailingAnchor constraintEqualToAnchor:window.safeAreaLayoutGuide.trailingAnchor constant:-16],
+    ]];
+}
+
+- (void)keyboardShown { self.systemKeyboardShown = YES; }
+- (void)keyboardHidden { self.systemKeyboardShown = NO; }
+
+/* SDL's view controller keeps `keyboardVisible` set while the game wants text input. */
+- (void)tick {
+    UIViewController *controller = self.window.rootViewController;
+    BOOL wanted = NO;
+    @try {
+        wanted = [[controller valueForKey:@"keyboardVisible"] boolValue];
+    } @catch (NSException *error) {
+        wanted = NO;
+    }
+    if (wanted != self.wanted) {
+        self.wanted = wanted;
+        self.waiting = 0;
+        everplay_note(wanted ? @"Game asks for text input" : @"Game finished text input");
+    }
+    BOOL missing = wanted && !self.systemKeyboardShown && controller.presentedViewController == nil;
+    self.waiting = missing ? self.waiting + 1 : 0;
+    if (self.waiting == 2) {
+        /* SDL's hidden text field should own the keyboard by now; ask it once more. */
+        @try {
+            UITextField *field = [controller valueForKey:@"textField"];
+            BOOL focused = [field becomeFirstResponder];
+            everplay_note([NSString stringWithFormat:@"iOS keyboard missing; text field in window: %d, focus retry: %d, key window: %d",
+                           field.window != nil, focused, self.window.isKeyWindow]);
+        } @catch (NSException *error) {
+            everplay_note(@"iOS keyboard missing; SDL text field not found");
+        }
+    }
+    BOOL show = self.waiting >= 4;
+    if (show && self.button.hidden) [self.window bringSubviewToFront:self.button];
+    self.button.hidden = !show;
+}
+
+- (void)ask {
+    UIViewController *controller = self.window.rootViewController;
+    if (controller == nil || controller.presentedViewController != nil) return;
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Text for the game"
+                                                                   message:@"Enter replaces the game's text field and confirms it."
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addTextFieldWithConfigurationHandler:^(UITextField *field) {
+        field.autocapitalizationType = UITextAutocapitalizationTypeWords;
+        field.returnKeyType = UIReturnKeyDone;
+    }];
+    __weak UIAlertController *weakAlert = alert;
+    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Add without Enter" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        everplay_type(weakAlert.textFields.firstObject.text ?: @"", NO);
+    }]];
+    UIAlertAction *enter = [UIAlertAction actionWithTitle:@"Enter" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        everplay_type(weakAlert.textFields.firstObject.text ?: @"", YES);
+    }];
+    [alert addAction:enter];
+    alert.preferredAction = enter;
+    self.button.hidden = YES;
+    [controller presentViewController:alert animated:YES completion:nil];
+}
+
+@end
 
 static void everplay_show(UIWindow *self, SEL command) {
     if (self.windowScene == nil) {
@@ -74,6 +226,7 @@ static void everplay_show(UIWindow *self, SEL command) {
         }
     }
     ((void (*)(id, SEL)) everplay_original_show)(self, command);
+    [[EverPlayKeyboard shared] attachTo:self];
 }
 
 void everplay_attach_sdl_windows(void) {

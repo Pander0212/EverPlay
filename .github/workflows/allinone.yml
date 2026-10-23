@@ -59,6 +59,10 @@ jobs:
             cp -R build/renpy-ios/variant "build/fixtures/Probe$id"
             cp -R build/renpy-ios/engine "build/fixtures/Engine$id"
           done
+          # Asks for a name before the main menu; the screenshot shows the keyboard or EverPlay's Type button.
+          cp -R build/fixtures/Probe85 build/fixtures/Input85
+          printf 'label splashscreen:\n    $ typed_name = renpy.input("What is your name?", default="Probe")\n    return\n' \
+            > build/fixtures/Input85/game/zz_input.rpy
           du -sh build/runtimes/Frameworks/* build/runtimes/Runtimes/*
       - name: Build EverPlay for the simulator and embed the runtimes
         run: |
@@ -91,8 +95,8 @@ jobs:
           data="$(xcrun simctl get_app_container "$udid" "$bundle" data)"
           mkdir -p "$data/Documents/Ren'Py"
           cp -R build/fixtures/. "$data/Documents/Ren'Py/"
-          # Probe (Gold: 37) per runtime; Engine84 ships its own engine copy (Gold: 99).
-          for game in Probe85 Probe84 Probe78 Engine84; do
+          # Probe (Gold: 37) per runtime; Engine84 ships its own engine copy (Gold: 99); Input85 waits for text.
+          for game in Probe85 Probe84 Probe78 Engine84 Input85; do
             xcrun simctl launch --stdout="$PWD/artifacts/$game-stdout.log" --stderr="$PWD/artifacts/$game-stderr.log" \
               "$udid" "$bundle" -EverPlayAutoplayRenPy "$game"
             sleep 75
@@ -101,6 +105,7 @@ jobs:
             echo "== $game"; grep -hE 'EverPlay|Error|Traceback' "artifacts/$game-stdout.log" "artifacts/$game-stderr.log" | head -n 20 || true
           done
           ls "$data/Documents/Saves" || true
+          echo "== EverPlay-log.txt"; cat "$data/Documents/EverPlay-log.txt" || true
           # Crash reports explain an exit while Ren'Py starts inside EverPlay.
           find ~/Library/Logs/DiagnosticReports -name 'EverPlay*' -newer "$app/Info.plist" -exec cp {} artifacts/ \; || true
           for report in artifacts/EverPlay*.ips; do [ -f "$report" ] && head -c 6000 "$report"; done || true
