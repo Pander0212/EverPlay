@@ -38,11 +38,14 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 
 **A. All-in-one Ren'Py (in progress)**
 - [x] Runtimes 8.5.3 / 8.4.1 / 7.8.7 as private frameworks inside EverPlay
-- [ ] Ren'Py renders inside EverPlay (simulator: Gold 37 per runtime, Gold 99 with a game's own engine)
+- [x] Ren'Py renders inside EverPlay (simulator: Gold 37 per runtime, Gold 99 with a game's own engine)
 - [ ] All-in-one IPA tested on iPhone (School Game, Contract Demon, Another Chance, FET)
 - [ ] Engine data (`Runtimes/NN/base`) downloaded on first use from a GitHub release, SHA-256 pinned in the app; native frameworks stay in the IPA
-- [ ] Back to the library after quitting instead of closing EverPlay (Ren'Py quit hook, hide SDL window)
-- [ ] Ren'Py ZIP import (safe extraction straight into Documents/Ren'Py) and a copy progress bar
+- [ ] Back to the library after quitting instead of closing EverPlay (Ren'Py quit hook, hide SDL window). A second Ren'Py game in the same process failed in CI case C, so starting another Ren'Py game will still need a fresh app start
+- [x] Ren'Py ZIP import (safe extraction straight into Documents/Ren'Py)
+- [ ] Copy/extract progress bar
+- [x] Text input: SDL keyboard retry plus a native "Type" button when the iOS keyboard does not appear (simulator fixture Input85)
+- [x] Per-game runtime choice on the game page
 - [ ] Crash screen: show `traceback.txt`, copy/share, "report" button
 - [ ] More runtimes measured against real games: 7.4.11, 7.3.5, 8.1.3, 8.2.3, 8.3.7
 - [ ] Ren'Py controls overlay: rollback, skip, auto, hide UI, quick save/load; gamepad
@@ -80,7 +83,8 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [ ] Save editor: MV/MZ saves (LZString JSON) in a native editor; Ren'Py saves edited only inside the running game; automatic backups
 
 **E. Comfort and discretion**
-- [ ] Cover art from the game (icon, `gui/main_menu.png`), playtime, per-game settings
+- [x] Cover art from the game (`gui/main_menu.png`, window icon, RPG Maker title), playtime, last played, game page
+- [ ] More per-game settings (controls profile, translation, cheats) on the game page
 - [ ] Face ID lock, blurred app switcher, alternate icons, hidden games
 - [ ] Save sync folder via Files (iCloud Drive etc.)
 
