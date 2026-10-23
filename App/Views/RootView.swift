@@ -462,6 +462,7 @@ struct SettingsView: View {
                      : "Liquid Glass needs iOS 26; on this device a frosted material is used instead.")
             }
             RenPySettingsSection()
+            TranslationSettingsSection()
             Section("While playing") {
                 Toggle("Keep screen awake", isOn: $preventSleep)
                 Text("Virtual controls, their layout and transparency are saved separately for each game in the player menu.")

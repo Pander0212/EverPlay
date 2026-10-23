@@ -11,6 +11,7 @@ struct GameDetailView: View {
     let play: () -> Void
     let remove: () -> Void
     @State private var size: Int64?
+    @State private var translate = false
 
     /// The current version from the library, so a changed runtime shows right away.
     private var current: LibraryItem {
@@ -32,7 +33,10 @@ struct GameDetailView: View {
                 .buttonStyle(GlowButtonStyle())
                 .accessibilityIdentifier("detailPlay")
                 facts
-                if case .renpy(let game) = current { runtimeOptions(game) }
+                if case .renpy(let game) = current {
+                    translationOptions(game)
+                    runtimeOptions(game)
+                }
                 storage
                 Button(role: .destructive) {
                     remove()
@@ -100,6 +104,23 @@ struct GameDetailView: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 6)
         .surface(cornerRadius: 22)
+    }
+
+    private func translationOptions(_ game: RenPyTitle) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Toggle(isOn: Binding(get: { translate }, set: { translate = $0; TranslationPreferences.setEnabled($0, for: game.folder) })) {
+                Label("Translate this game", systemImage: "character.bubble").font(.headline)
+            }
+            .tint(Theme.accent)
+            .accessibilityIdentifier("translateGame")
+            Text(TranslationPreferences.settings.provider == .off
+                 ? "Choose a translation service in Settings › Translation first."
+                 : "Dialogue and choices are translated with \(TranslationPreferences.settings.provider.title) into “\(TranslationPreferences.settings.targetLanguage)” while you play; each line is translated once and remembered. The in-game menu switches between original and translation.")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .surface(cornerRadius: 22)
+        .onAppear { translate = TranslationPreferences.isEnabled(for: game.folder) }
     }
 
     private func runtimeOptions(_ game: RenPyTitle) -> some View {

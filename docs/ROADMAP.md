@@ -72,9 +72,12 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [ ] NScripter / ONScripter games via the open-source ONScripter family
 
 **C. Translation (MTool-style)**
-- [ ] Provider layer: Apple on-device Translation (iOS 18, free, offline), OpenAI-compatible BYOK, DeepL Free; keys in Keychain
-- [ ] Translation memory per game (each line once), glossary for names, export/import
-- [ ] Ren'Py: live say/menu text hook in our `main.py` layer, plus batch pre-translation of dialogue
+- [x] Provider layer: Google (free, unofficial endpoint), DeepL (free/pro key), OpenAI-compatible BYOK (OpenAI, OpenRouter, local servers), Claude BYOK; keys in the Keychain; markup kept via placeholders (unit tested)
+- [ ] Apple on-device Translation (iOS 18+, offline) as a further free provider
+- [x] Translation memory per game and language (each line once, Application Support/Translations)
+- [ ] Glossary for names, export/import, editing single lines
+- [x] Ren'Py: live say/menu hook (config.say_menu_text_filter) with look-ahead prefetch of the next lines and choices; no waiting while skipping; "Original text" switch in the in-game menu (checked on 8.5.3 and 7.8.7 SDKs with a stand-in service)
+- [ ] Ren'Py: interface text (screens) and batch pre-translation of a whole game
 - [ ] RPG Maker MV/MZ: hook `Window_Base` text drawing and batch-translate `data/*.json`
 - [ ] Toggle original/translated in game; font fallback for CJK/Cyrillic
 

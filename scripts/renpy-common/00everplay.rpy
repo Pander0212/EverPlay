@@ -198,13 +198,99 @@ init -1500 python:
             ("Console", [Hide("_everplay_menu"), Function(_everplay_console)]),
             ("Unlock gallery", Confirm("Mark every scene and image as seen? Galleries and replays that check this unlock.",
                                        Function(_everplay_unlock))),
-            ("Button home", Function(_everplay_button_home)),
+            (("Original text", ToggleField(persistent, "_everplay_show_original", True, None)) if _everplay_translation_on()
+             else ("Button home", Function(_everplay_button_home))),
             ("Main menu", [Hide("_everplay_menu"), MainMenu()]),
         ]
+
+    # Machine translation (EVERPLAY_TRANSLATE=1): dialogue and choices go through EverPlay's
+    # EverPlayTranslator (Swift, reached with pyobjus), which caches every line per game.
+    _everplay_translation = {"checked": False, "native": None, "backend": None, "previous": None}
+
+    def _everplay_translation_on():
+        import os
+        return os.environ.get("EVERPLAY_TRANSLATE") == "1"
+
+    def _everplay_from_native(value):
+        if value is None:
+            return u""
+        if _everplay_b.hasattr(value, "UTF8String"):
+            value = value.UTF8String()
+        if _everplay_b.isinstance(value, _everplay_b.bytes):
+            value = value.decode("utf-8", "replace")
+        return value
+
+    def _everplay_to_native(text):
+        if _everplay_b.str is _everplay_b.bytes and not _everplay_b.isinstance(text, _everplay_b.bytes):
+            return text.encode("utf-8")  # Python 2: pyobjus takes UTF-8 byte strings
+        return text
+
+    def _everplay_backend(kind, text):
+        # kind: "translate" (may wait briefly), "cached" (never waits) or "prefetch".
+        if _everplay_translation["backend"] is not None:
+            return _everplay_translation["backend"](kind, text)
+        if not _everplay_translation["checked"]:
+            _everplay_translation["checked"] = True
+            try:
+                from pyobjus import autoclass, objc_str
+                _everplay_translation["native"] = (autoclass("EverPlayTranslator"), objc_str)
+            except Exception as error:
+                print("EverPlay: translation unavailable (%r)" % (error,))
+        native = _everplay_translation["native"]
+        if native is None:
+            return u""
+        translator, objc_str = native
+        value = objc_str(_everplay_to_native(text))
+        if kind == "prefetch":
+            translator.prefetch_(value)
+            return u""
+        if kind == "translate":
+            return _everplay_from_native(translator.translate_(value))
+        return _everplay_from_native(translator.cached_(value))
+
+    def _everplay_upcoming(limit=12):
+        """Dialogue and choices that follow the current statement, to translate ahead."""
+        texts = []
+        try:
+            import renpy.game as _everplay_game
+            node = _everplay_game.script.lookup(_everplay_game.context().current)
+            steps = 0
+            while node is not None and steps < 80 and _everplay_b.len(texts) < limit:
+                node = _everplay_b.getattr(node, "next", None)
+                steps += 1
+                what = _everplay_b.getattr(node, "what", None)
+                if _everplay_b.isinstance(what, _everplay_text_types):
+                    texts.append(what)
+                for item in _everplay_b.getattr(node, "items", None) or []:
+                    if item and _everplay_b.isinstance(item[0], _everplay_text_types):
+                        texts.append(item[0])
+        except Exception:
+            pass
+        return texts
+
+    def _everplay_translate_filter(text):
+        previous = _everplay_translation["previous"]
+        if previous is not None:
+            text = previous(text)
+        if persistent._everplay_show_original or not text or not _everplay_b.isinstance(text, _everplay_text_types):
+            return text
+        try:
+            upcoming = _everplay_upcoming()
+            if upcoming:
+                _everplay_backend("prefetch", u"\x1e".join(upcoming))
+            skipping = renpy.is_skipping() if _everplay_b.hasattr(renpy, "is_skipping") else config.skipping
+            translated = _everplay_backend("cached" if skipping else "translate", text)
+        except Exception as error:
+            print("EverPlay: translation failed (%r)" % (error,))
+            return text
+        return translated or text
 
 init 1999 python:
     if _everplay_enabled() and "_everplay_overlay" not in config.overlay_screens:
         config.overlay_screens.append("_everplay_overlay")
+    if _everplay_translation_on() and config.say_menu_text_filter is not _everplay_translate_filter:
+        _everplay_translation["previous"] = config.say_menu_text_filter
+        config.say_menu_text_filter = _everplay_translate_filter
 
 screen _everplay_overlay():
     zorder 1900

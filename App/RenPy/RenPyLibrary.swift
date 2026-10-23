@@ -223,11 +223,17 @@ final class RenPyLibrary: ObservableObject {
             // The in-game EverPlay button (quick actions, variable editor) in renpy/common.
             let menu = UserDefaults.standard.object(forKey: "renpy.menuButton") as? Bool ?? true
             setenv("EVERPLAY_MENU", menu ? "1" : "0", 1)
+            // Machine translation of dialogue and choices (game page › Translate), see TranslationEngine.
+            let translation = TranslationPreferences.settings
+            let translate = translation.provider != .off && TranslationPreferences.isEnabled(for: game.folder)
+            TranslationEngine.shared.start(game: game.folder, settings: translate ? translation : nil)
+            setenv("EVERPLAY_TRANSLATE", translate ? "1" : "0", 1)
             UIApplication.shared.isIdleTimerDisabled = true
             let status = runtime.directory.path.withCString { runtimePath in
                 folder.path.withCString { gamePath in entry(runtimePath, gamePath) }
             }
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "renpy.sessionEnd")
+            TranslationEngine.shared.flush()
             EverPlayLog.write("Ren'Py returned with status \(status) for \(game.folder)")
             exit(status)
         }
