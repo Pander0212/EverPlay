@@ -41,6 +41,12 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [ ] XP/VX/VX Ace via mkxp-z as a runtime framework (RTP fonts/assets handling, Win32API shims)
 - [ ] 2000/2003 via EasyRPG Player as a runtime framework
 
+**B2. Japanese / DLsite engines**
+- [ ] TyranoScript / TyranoBuilder: HTML5 game in WKWebView like MV/MZ, plus NW.js/Electron shims and packed-EXE extraction (JoiPlay supports it the same way)
+- [ ] KiriKiri 2 / Z (KAG): research native players. Kirikiroid2 (Android) is the established player for commercial games; krkrsdl2 is SDL2-based but targets macOS/Linux and not unmodified commercial games. Check licences and iOS buildability, XP3 archives, common plugin DLL replacements; games with custom XP3 encryption stay unsupported
+- [ ] Wolf RPG Editor: closed engine without a known open-source player; long-term research item (would need a reimplementation)
+- [ ] NScripter / ONScripter games via the open-source ONScripter family
+
 **C. Translation (MTool-style)**
 - [ ] Provider layer: Apple on-device Translation (iOS 18, free, offline), OpenAI-compatible BYOK, DeepL Free; keys in Keychain
 - [ ] Translation memory per game (each line once), glossary for names, export/import
