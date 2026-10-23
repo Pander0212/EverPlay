@@ -16,8 +16,10 @@ import plistlib
 import shutil
 import subprocess
 import sys
+import struct
 import tempfile
 import zipfile
+import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIMES = {
@@ -271,6 +273,45 @@ def add_game_packages(main_py):
     main_py.write_text(source)
 
 
+BUBBLE_LOOP = '    for k in sorted(bubble.properties):\n'
+# Ren'Py runs this common code in the game's store, so a game variable named "sorted" breaks it
+# (seen in a real 8.4 game whose developer patched their own engine copy the same way).
+BUBBLE_SAFE = (
+    '    try:\n'
+    '        import builtins as _everplay_builtins\n'
+    '    except ImportError:\n'
+    '        import __builtin__ as _everplay_builtins\n'
+    '    for k in _everplay_builtins.sorted(bubble.properties):\n'
+)
+
+
+def harden_common(sdk):
+    """Make engine code that shares the game's namespace immune to games shadowing builtins."""
+    bubble = sdk / 'renpy/common/00speechbubble.rpy'
+    source = bubble.read_text(encoding='utf-8')
+    assert source.count(BUBBLE_LOOP) == 1, 'speech bubble code changed; review the shadowing guard'
+    bubble.write_text(source.replace(BUBBLE_LOOP, BUBBLE_SAFE), encoding='utf-8')
+    # Recompiled by the SDK's own launcher run below, before ios_populate copies the engine.
+    bubble.with_suffix('.rpyc').unlink()
+
+
+def verify_common(xcode):
+    """The app ships only compiled common code; read its zlib slots (no unpickling) for the guard."""
+    compiled = list(xcode.rglob('renpy/common/00speechbubble.rpyc'))
+    assert compiled, 'bundled engine has no speech bubble code'
+    for path in compiled:
+        data = path.read_bytes()
+        assert data.startswith(b'RENPY RPC2'), f'unexpected format {path}'
+        position, slots = 10, []
+        while position + 12 <= len(data):
+            slot, start, length = struct.unpack('<III', data[position:position + 12])
+            position += 12
+            if slot == 0:
+                break
+            slots.append(zlib.decompress(data[start:start + length]))
+        assert slots and all(b'_everplay_builtins' in blob for blob in slots), f'unpatched {path}'
+
+
 def fetch(cache):
     for name, (url, expected) in HASHES.items():
         archive = cache / name
@@ -300,6 +341,7 @@ def main():
         sdk = work / f'renpy-{RELEASE}-sdk'
         with zipfile.ZipFile(cache / f'renpy-{RELEASE}-renios.zip') as archive:
             archive.extractall(sdk)
+        harden_common(sdk)
         source = (ROOT / 'Experiments/RenPyProbe/game/script.rpy').read_text()
         assert source.count('default gold = 10') == 1
         assert source.count('    call screen probe\n') == 1
@@ -321,6 +363,7 @@ def main():
                         'EverPlay RenPy Probe', '0.1'], check=True)
         subprocess.run([str(sdk / 'renpy.sh'), str(sdk / 'launcher'), 'ios_populate',
                         str(work / 'probe'), str(xcode)], env=env, check=True)
+        verify_common(xcode)
 
         subprocess.run([str(sdk / 'renpy.sh'), str(sdk / 'launcher'), 'distribute', str(work / 'variant'),
                         '--package', 'pc', '--no-update', '--destination', str(work / 'desktop')],
@@ -343,6 +386,8 @@ def main():
         packages.mkdir(parents=True)
         (packages / 'everplay_desktop_extra.py').write_text('from os import environ, system\n')
         (output / 'variant/game/desktop_extra.rpy').write_text('init python:\n    import everplay_desktop_extra\n')
+        # A game variable that shadows a builtin used by Ren'Py's own common code.
+        (output / 'variant/game/shadowed_builtin.rpy').write_text('define sorted = "newest"\n')
         shutil.copytree(work / 'quit/game', output / 'quit/game')
         # Opens a link via os.system the way desktop games do; CI expects Safari to show it.
         (output / 'link/game').mkdir(parents=True)
