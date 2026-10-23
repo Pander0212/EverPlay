@@ -123,6 +123,10 @@ final class RenPyLibrary: ObservableObject {
                 folder.path.withCString { gamePath in entry(runtimePath, gamePath) }
             }
             print("EverPlay: Ren'Py exited with status \(status)")
+            // Leave a note next to the game: a quiet exit (no traceback, no crash report) is
+            // otherwise indistinguishable from iOS ending the app for memory.
+            let note = "Ren'Py returned with status \(status) at \(Date()).\n"
+            try? Data(note.utf8).write(to: folder.appendingPathComponent("everplay-exit.txt"), options: .atomic)
             exit(status)
         }
     }
