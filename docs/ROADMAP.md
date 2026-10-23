@@ -80,7 +80,8 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [ ] Glossary for names, export/import, editing single lines
 - [x] Ren'Py: live say/menu hook (config.say_menu_text_filter) with look-ahead prefetch of the next lines and choices; no waiting while skipping; "Original text" switch in the in-game menu (checked on 8.5.3 and 7.8.7 SDKs with a stand-in service)
 - [ ] Ren'Py: interface text (screens) and batch pre-translation of a whole game
-- [ ] RPG Maker MV/MZ: hook `Window_Base` text drawing and batch-translate `data/*.json`
+- [x] RPG Maker MV/MZ: messages, scrolling text, choices and MZ speaker names are translated before their window opens (the event waits up to 4 s); the rest of the event is requested ahead; original-text switch in the game menu (node test against an interpreter stand-in)
+- [ ] RPG Maker MV/MZ: item/skill names and descriptions, map names, batch translation of `data/*.json`
 - [ ] Toggle original/translated in game; font fallback for CJK/Cyrillic
 
 **D. Cheats and save editor**

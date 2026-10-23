@@ -10,6 +10,7 @@ struct GamePlayerView: View {
     @State private var menuDetent: PresentationDetent = .large
     @State private var editingLayout = false
     @State private var selectedControl: UUID?
+    @State private var showOriginal = false
     @State private var storageError: String?
     @State private var closing = false
     @AppStorage("preventSleep") private var preventSleep = true
@@ -78,6 +79,13 @@ struct GamePlayerView: View {
                             Button("Edit controls", systemImage: "hand.draw") { editingLayout = true; menuVisible = false }
                                 .accessibilityIdentifier("arrangeControls")
                             Button("Reset layout") { controls = ControlSettings(); controls.visible = true }
+                        }
+                    }
+                    if TranslationPreferences.settings.provider != .off,
+                       TranslationPreferences.isEnabled(for: GameSession.translationKey(game)) {
+                        Section("Translation") {
+                            Toggle("Show original text", isOn: Binding(get: { showOriginal },
+                                                                       set: { showOriginal = $0; session.showOriginalText($0) }))
                         }
                     }
                     if game.engine == .rpgMakerMV || game.engine == .rpgMakerMZ {

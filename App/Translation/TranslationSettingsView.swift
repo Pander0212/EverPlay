@@ -55,7 +55,7 @@ struct TranslationSettingsSection: View {
     private var footer: String {
         switch settings.provider {
         case .off:
-            return "Translate games while you play, MTool-style. Turn it on per game on the game's page (Ren'Py for now)."
+            return "Translate games while you play, MTool-style. Turn it on per game on the game's page (Ren'Py and RPG Maker MV/MZ)."
         case .google:
             return "Free and without a key, through Google Translate's public web endpoint (unofficial; it may limit heavy use). Game text is sent to Google."
         case .deepL:

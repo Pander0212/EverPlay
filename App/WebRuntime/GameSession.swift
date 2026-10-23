@@ -25,7 +25,16 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         if game.engine == .rpgMakerMV || game.engine == .rpgMakerMZ {
             // Shims first, before the game's plugins run; cheats once the page is loaded.
-            for (name, time) in [("RPGMakerShims", WKUserScriptInjectionTime.atDocumentStart), ("RPGMakerCheats", .atDocumentEnd)] {
+            var scripts = [("RPGMakerShims", WKUserScriptInjectionTime.atDocumentStart), ("RPGMakerCheats", .atDocumentEnd)]
+            // Machine translation, when switched on for this game (game page › Translate).
+            let translation = TranslationPreferences.settings
+            if translation.provider != .off, TranslationPreferences.isEnabled(for: Self.translationKey(game)) {
+                TranslationEngine.shared.start(game: Self.translationKey(game), settings: translation)
+                configuration.userContentController.addScriptMessageHandler(TranslationBridge(), contentWorld: .page,
+                                                                            name: "everplayTranslate")
+                scripts.append(("RPGMakerTranslate", .atDocumentEnd))
+            }
+            for (name, time) in scripts {
                 guard let url = Bundle.main.url(forResource: name, withExtension: "js"),
                       let source = try? String(contentsOf: url, encoding: .utf8) else { continue }
                 configuration.userContentController.addUserScript(WKUserScript(source: source, injectionTime: time, forMainFrameOnly: true))
@@ -65,6 +74,7 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
         trace("stop requested")
         guard !stopped else { return }
         stopped = true
+        TranslationEngine.shared.flush()
         webView.stopLoading()
         webView.navigationDelegate = nil
         webView.uiDelegate = nil
@@ -87,6 +97,15 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
         })();
         """
         webView.evaluateJavaScript(script, completionHandler: nil)
+    }
+
+    /// The key a web game's translation setting and memory are stored under.
+    static func translationKey(_ game: GameRecord) -> String { "web-\(game.id.uuidString)" }
+
+    /// Shows the game's original text (true) or the translation again.
+    func showOriginalText(_ on: Bool) {
+        webView.evaluateJavaScript("window.__everplayTranslation && window.__everplayTranslation.setOriginal(\(on))",
+                                   completionHandler: nil)
     }
 
     /// Methods of window.__everplayCheats (App/Resources/RPGMakerCheats.js) the cheat screen may call.
@@ -136,4 +155,22 @@ struct GameWebView: UIViewRepresentable {
     let session: GameSession
     func makeUIView(context: Context) -> WKWebView { session.webView }
     func updateUIView(_ view: WKWebView, context: Context) {}
+}
+
+/// Answers RPGMakerTranslate.js: a list of lines in, their translations out (the line itself when
+/// none arrives in time). Waits off the main thread, where the requests finish too.
+final class TranslationBridge: NSObject, WKScriptMessageHandlerWithReply {
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage,
+                               replyHandler: @escaping (Any?, String?) -> Void) {
+        guard let lines = message.body as? [String], lines.count <= 100 else {
+            replyHandler(nil, "Expected up to 100 lines of text")
+            return
+        }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let engine = TranslationEngine.shared
+            engine.prefetch(lines)
+            let results = lines.map { engine.translate($0, timeout: 6) ?? $0 }
+            DispatchQueue.main.async { replyHandler(results, nil) }
+        }
+    }
 }
