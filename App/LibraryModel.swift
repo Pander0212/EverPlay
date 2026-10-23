@@ -98,7 +98,11 @@ final class LibraryModel: ObservableObject {
             let game = try await store.importZIP(at: local, title: title ?? url.deletingPathExtension().lastPathComponent)
             await refresh()
             importMessage = "\(game.title) is ready in your library."
-        } catch { self.error = error.localizedDescription }
+            EverPlayLog.write("Imported \(game.engine.title) game \(game.title)")
+        } catch {
+            EverPlayLog.write("Import of \(url.lastPathComponent) failed: \(error)")
+            self.error = error.localizedDescription
+        }
     }
     func importDemo() async {
         guard let url = Bundle.main.url(forResource: "EverPlayDemo", withExtension: "zip") else {

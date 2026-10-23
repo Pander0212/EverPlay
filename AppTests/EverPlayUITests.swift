@@ -17,21 +17,27 @@ final class EverPlayUITests: XCTestCase {
         }
         XCTAssertTrue(game.waitForExistence(timeout: 20))
         snapshot(app, "Library")
-        app.tabBars.buttons["Import"].tap()
+        let add = app.buttons["addGame"]
+        XCTAssertTrue(add.waitForExistence(timeout: 5))
+        add.tap()
         snapshot(app, "Import")
-        app.tabBars.buttons["Settings"].tap()
+        // Close the menu without choosing anything.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).tap()
+        app.buttons["openSettings"].tap()
         let glass = app.buttons["Liquid Glass"]
         XCTAssertTrue(glass.waitForExistence(timeout: 5))
         snapshot(app, "Settings standard")
         glass.tap()
         snapshot(app, "Settings liquid glass")
-        app.tabBars.buttons["Library"].tap()
+        app.buttons["doneSettings"].tap()
         XCTAssertTrue(game.waitForExistence(timeout: 5))
         snapshot(app, "Library liquid glass")
         // Leave the default style for the acceptance tests that follow.
-        app.tabBars.buttons["Settings"].tap()
+        app.buttons["openSettings"].tap()
+        XCTAssertTrue(app.buttons["Standard"].waitForExistence(timeout: 5))
         app.buttons["Standard"].tap()
-        app.tabBars.buttons["Library"].tap()
+        app.buttons["doneSettings"].tap()
+        XCTAssertTrue(game.waitForExistence(timeout: 5))
     }
 
     @MainActor

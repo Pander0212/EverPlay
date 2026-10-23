@@ -12,10 +12,7 @@ struct EverPlayApp: App {
                 // library, everything else through the checked ZIP importer.
                 .onOpenURL { url in
                     guard url.isFileURL else { return }
-                    Task {
-                        if await renpy.install(folder: url) { return }
-                        await library.importZIP(url)
-                    }
+                    Task { await GameImport.run(url, library: library, renpy: renpy) }
                 }
         }
     }

@@ -28,6 +28,22 @@ class FixtureTestCase: XCTestCase {
 }
 
 final class ImporterTests: FixtureTestCase {
+    func testRecognisesRenPyArchivesWithoutExtracting() throws {
+        XCTAssertTrue(GameImporter.archiveContainsRenPyGame(try zip([("MyGame-1.0-pc/game/archive.rpa", Data())])))
+        XCTAssertTrue(GameImporter.archiveContainsRenPyGame(try zip([("game/script.rpyc", Data())])))
+        XCTAssertTrue(GameImporter.archiveContainsRenPyGame(try zip([("Big/renpy/__init__.py", Data())])))
+        XCTAssertFalse(GameImporter.archiveContainsRenPyGame(try zip([("www/index.html", html), ("game/readme.txt", Data())])))
+    }
+
+    func testExtractArchiveWritesFilesAndRejectsEscapes() throws {
+        let target = temporary.appendingPathComponent("out")
+        let files = try GameImporter().extractArchive(zip: try zip([("Game/game/script.rpy", Data("label start:".utf8))]), into: target)
+        XCTAssertEqual(files.map(\.path), ["Game/game/script.rpy"])
+        XCTAssertEqual(try String(contentsOf: target.appendingPathComponent("Game/game/script.rpy"), encoding: .utf8), "label start:")
+        XCTAssertThrowsError(try GameImporter().extractArchive(zip: try zip([("../escape.txt", Data())]),
+                                                               into: temporary.appendingPathComponent("bad")))
+    }
+
     func testPickedFolderImportsLikeAZIPWithStablePortBelowEphemeralRange() async throws {
         let folder = temporary.appendingPathComponent("My Game/www", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

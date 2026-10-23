@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import EverPlayCore
 
 /// A Ren'Py runtime bundled in the app: Frameworks/RenPyNN.framework plus Runtimes/NN/base.
 /// Several versions ship side by side; each framework hides its own Python, SDL and FFmpeg,
@@ -35,10 +36,13 @@ struct RenPyRuntime: Identifiable, Hashable {
 
 struct RenPyTitle: Identifiable, Hashable {
     let folder: String
+    let title: String
     let engineVersion: String?
     let runtime: RenPyRuntime?
+    let cover: URL?
+    let lastPlayed: Date?
+    let playSeconds: Double
     var id: String { folder }
-    var title: String { folder }
 }
 
 @MainActor
@@ -50,15 +54,35 @@ final class RenPyLibrary: ObservableObject {
     /// Visible in Files under On My iPhone › EverPlay › Ren'Py.
     let root = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Ren'Py", isDirectory: true)
     private var saves: URL { root.deletingLastPathComponent().appendingPathComponent("Saves", isDirectory: true) }
+    private let defaults = UserDefaults.standard
+
+    init() {
+        // Playtime of the last session: the game wrote its start time and EverPlay closes with it.
+        if let start = defaults.object(forKey: "renpy.sessionStart") as? Double,
+           let folder = defaults.string(forKey: "renpy.sessionGame") {
+            let end = defaults.object(forKey: "renpy.sessionEnd") as? Double
+            if let end, end > start { addPlaytime(end - start, to: folder) }
+            EverPlayLog.write("Ren'Py session of \(folder) ended " + (end == nil ? "without returning to EverPlay (closed by iOS or killed)" : "normally"))
+            defaults.removeObject(forKey: "renpy.sessionStart")
+            defaults.removeObject(forKey: "renpy.sessionEnd")
+            defaults.removeObject(forKey: "renpy.sessionGame")
+        }
+    }
 
     func refresh() {
         guard !runtimes.isEmpty else { games = []; return }
         try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let names = (try? FileManager.default.contentsOfDirectory(atPath: root.path)) ?? []
+        let played = defaults.dictionary(forKey: "renpy.lastPlayed") as? [String: Double] ?? [:]
+        let seconds = defaults.dictionary(forKey: "renpy.playSeconds") as? [String: Double] ?? [:]
         games = names.filter { !$0.hasPrefix(".") && RenPyGame.isGame(root.appendingPathComponent($0)) }
             .map { name in
-                let version = RenPyGame.version(of: root.appendingPathComponent(name))
-                return RenPyTitle(folder: name, engineVersion: version, runtime: RenPyRuntime.best(for: version, among: runtimes))
+                let folder = root.appendingPathComponent(name)
+                let version = RenPyGame.version(of: folder)
+                return RenPyTitle(folder: name, title: RenPyGame.title(of: folder), engineVersion: version,
+                                  runtime: RenPyRuntime.best(for: version, among: runtimes),
+                                  cover: RenPyGame.cover(of: folder), lastPlayed: played[name].map(Date.init(timeIntervalSince1970:)),
+                                  playSeconds: seconds[name] ?? 0)
             }
             .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     }
@@ -67,7 +91,10 @@ final class RenPyLibrary: ObservableObject {
     func install(folder source: URL) async -> Bool {
         let accessed = source.startAccessingSecurityScopedResource()
         defer { if accessed { source.stopAccessingSecurityScopedResource() } }
-        guard RenPyGame.isGame(source) else { return false }
+        guard RenPyGame.isGame(source) else {
+            EverPlayLog.write("Not a Ren'Py folder: \(source.lastPathComponent) (access granted: \(accessed))")
+            return false
+        }
         guard !runtimes.isEmpty else {
             message = "This build of EverPlay does not include Ren'Py."
             return true
@@ -76,6 +103,7 @@ final class RenPyLibrary: ObservableObject {
         guard source.standardizedFileURL != destination.standardizedFileURL else { refresh(); return true }
         installing = source.lastPathComponent
         defer { installing = nil }
+        EverPlayLog.write("Copying Ren'Py folder \(source.lastPathComponent)")
         do {
             try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             // Games can be gigabytes; copy away from the main thread.
@@ -84,9 +112,60 @@ final class RenPyLibrary: ObservableObject {
                 try FileManager.default.copyItem(at: source, to: destination)
             }.value
             refresh()
+            EverPlayLog.write("Ren'Py folder ready: \(source.lastPathComponent)")
             message = "\(source.lastPathComponent) is ready in your library."
-        } catch { message = "The game could not be copied: \(error.localizedDescription)" }
+        } catch {
+            EverPlayLog.write("Ren'Py folder copy failed: \(error)")
+            message = "The game could not be copied: \(error.localizedDescription)"
+        }
         return true
+    }
+
+    /// Extracts a Ren'Py game ZIP (safely, as every import) into the library.
+    func install(zip source: URL) async {
+        guard !runtimes.isEmpty else { message = "This build of EverPlay does not include Ren'Py."; return }
+        let accessed = source.startAccessingSecurityScopedResource()
+        defer { if accessed { source.stopAccessingSecurityScopedResource() } }
+        let name = source.deletingPathExtension().lastPathComponent
+        installing = name
+        defer { installing = nil }
+        EverPlayLog.write("Extracting Ren'Py ZIP \(source.lastPathComponent)")
+        let root = self.root
+        do {
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            let installed = try await Task.detached(priority: .userInitiated) { () -> String in
+                let staging = root.appendingPathComponent(".import-\(UUID().uuidString)", isDirectory: true)
+                defer { try? FileManager.default.removeItem(at: staging) }
+                try GameImporter().extractArchive(zip: source, into: staging)
+                guard let game = RenPyGame.findGame(in: staging) else { throw EverPlayError.unsupportedGame }
+                // A ZIP usually holds one top folder ("Game-1.0-pc"); otherwise name it after the ZIP.
+                let folderName = game == staging ? name : game.lastPathComponent
+                let destination = root.appendingPathComponent(folderName, isDirectory: true)
+                guard !FileManager.default.fileExists(atPath: destination.path) else { throw CocoaError(.fileWriteFileExists) }
+                try FileManager.default.moveItem(at: game, to: destination)
+                return folderName
+            }.value
+            refresh()
+            EverPlayLog.write("Ren'Py ZIP ready: \(installed)")
+            message = "\(installed) is ready in your library."
+        } catch {
+            EverPlayLog.write("Ren'Py ZIP import failed: \(error)")
+            message = "The game could not be imported: \(error.localizedDescription)"
+        }
+    }
+
+    func delete(_ game: RenPyTitle) {
+        do {
+            try FileManager.default.removeItem(at: root.appendingPathComponent(game.folder))
+            EverPlayLog.write("Deleted Ren'Py game \(game.folder); saves kept in Saves/\(game.folder)")
+        } catch { message = "The game could not be deleted: \(error.localizedDescription)" }
+        refresh()
+    }
+
+    private func addPlaytime(_ seconds: Double, to folder: String) {
+        var all = defaults.dictionary(forKey: "renpy.playSeconds") as? [String: Double] ?? [:]
+        all[folder, default: 0] += seconds
+        defaults.set(all, forKey: "renpy.playSeconds")
     }
 
     /// Starts the game in this process. Ren'Py takes over the screen until the game quits,
@@ -98,6 +177,12 @@ final class RenPyLibrary: ObservableObject {
         }
         let folder = root.appendingPathComponent(game.folder)
         let saveDirectory = saves.appendingPathComponent(game.folder)
+        var played = defaults.dictionary(forKey: "renpy.lastPlayed") as? [String: Double] ?? [:]
+        played[game.folder] = Date().timeIntervalSince1970
+        defaults.set(played, forKey: "renpy.lastPlayed")
+        defaults.set(Date().timeIntervalSince1970, forKey: "renpy.sessionStart")
+        defaults.set(game.folder, forKey: "renpy.sessionGame")
+        EverPlayLog.write("Starting \(game.folder) (made with \(game.engineVersion ?? "unknown")) on \(runtime.title) \(runtime.version)")
         // Desktop Ren'Py games are landscape. Rotate before SDL creates its window, which keeps the
         // size it starts with, and keep SDL's own view controller in landscape afterwards.
         setenv("SDL_IOS_ORIENTATIONS", "LandscapeLeft LandscapeRight", 1)
@@ -112,6 +197,7 @@ final class RenPyLibrary: ObservableObject {
             guard let handle = dlopen(binary.path, RTLD_NOW | RTLD_GLOBAL),
                   let symbol = dlsym(handle, "everplay_renpy_main") else {
                 let reason = dlerror().map { String(cString: $0) } ?? "unknown"
+                EverPlayLog.write("\(runtime.title) could not be loaded: \(reason)")
                 self?.message = "\(runtime.title) could not be loaded: \(reason)"
                 return
             }
@@ -122,11 +208,8 @@ final class RenPyLibrary: ObservableObject {
             let status = runtime.directory.path.withCString { runtimePath in
                 folder.path.withCString { gamePath in entry(runtimePath, gamePath) }
             }
-            print("EverPlay: Ren'Py exited with status \(status)")
-            // Leave a note next to the game: a quiet exit (no traceback, no crash report) is
-            // otherwise indistinguishable from iOS ending the app for memory.
-            let note = "Ren'Py returned with status \(status) at \(Date()).\n"
-            try? Data(note.utf8).write(to: folder.appendingPathComponent("everplay-exit.txt"), options: .atomic)
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "renpy.sessionEnd")
+            EverPlayLog.write("Ren'Py returned with status \(status) for \(game.folder)")
             exit(status)
         }
     }
@@ -143,6 +226,25 @@ enum RenPyGame {
         return names.contains { $0.hasSuffix(".rpa") || $0.hasSuffix(".rpyc") || $0.hasSuffix(".rpy") }
     }
 
+    /// The game folder itself or one nested up to two levels deep (ZIPs add a top folder).
+    static func findGame(in folder: URL) -> URL? {
+        if isGame(folder) { return folder }
+        var level = [folder]
+        for _ in 0..<2 {
+            var next: [URL] = []
+            for directory in level {
+                let children = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey],
+                                                                            options: [.skipsHiddenFiles])) ?? []
+                for child in children where (try? child.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                    if isGame(child) { return child }
+                    next.append(child)
+                }
+            }
+            level = next
+        }
+        return nil
+    }
+
     /// "8.4.1" from renpy/vc_version.py, else from game/script_version.txt ("(8, 4, 1)").
     static func version(of folder: URL) -> String? {
         if let text = try? String(contentsOf: folder.appendingPathComponent("renpy/vc_version.py"), encoding: .utf8),
@@ -155,52 +257,33 @@ enum RenPyGame {
         }
         return nil
     }
-}
 
-/// Library section for Ren'Py games.
-struct RenPyGamesSection: View {
-    @EnvironmentObject private var renpy: RenPyLibrary
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Ren'Py").font(.title3.weight(.semibold))
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 22) {
-                ForEach(renpy.games) { game in
-                    Button { renpy.play(game) } label: { RenPyGameCard(game: game) }
-                        .buttonStyle(PressableStyle())
-                        .accessibilityIdentifier("renpy-\(game.title)")
-                }
-            }
+    /// config.name from game/options.rpy when the source ships, else a cleaned folder name
+    /// ("School-0.981-win" → "School").
+    static func title(of folder: URL) -> String {
+        if let text = try? String(contentsOf: folder.appendingPathComponent("game/options.rpy"), encoding: .utf8),
+           let match = text.firstMatch(of: #/config\.name\s*=\s*_?\(?\s*u?["']([^"'\n]+)["']/#) {
+            let name = String(match.1).trimmingCharacters(in: .whitespaces)
+            if !name.isEmpty { return name }
         }
+        let platforms: Set<String> = ["pc", "win", "windows", "mac", "linux", "market", "all", "android", "ios"]
+        let words = folder.lastPathComponent.split(whereSeparator: { $0 == "-" || $0 == "_" || $0 == " " })
+            .filter { word in
+                let lower = word.lowercased()
+                if platforms.contains(lower) { return false }
+                if lower.first?.isNumber == true { return false }
+                if lower.hasPrefix("v"), lower.dropFirst().first?.isNumber == true { return false }
+                return true
+            }
+        let cleaned = words.joined(separator: " ")
+        return cleaned.isEmpty ? folder.lastPathComponent : cleaned
     }
-}
 
-private struct RenPyGameCard: View {
-    let game: RenPyTitle
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ZStack {
-                Theme.cover(for: game.title)
-                LinearGradient(colors: [.white.opacity(0.10), .clear], startPoint: .top, endPoint: .center)
-                Text(Theme.initials(game.title))
-                    .font(.system(size: 44, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.88))
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .aspectRatio(0.78, contentMode: .fit)
-            .overlay(alignment: .topLeading) {
-                Text(game.runtime?.title ?? "Ren'Py").font(.caption2.weight(.semibold))
-                    .padding(.horizontal, 9).padding(.vertical, 5)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .padding(10)
-            }
-            .shadow(color: .black.opacity(0.35), radius: 14, y: 8)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(game.title).font(.headline).lineLimit(2).foregroundStyle(.primary)
-                Text(game.engineVersion.map { "Made with Ren'Py \($0)" } ?? "Ren'Py game")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 2)
-        }
+    /// A picture shipped as a loose file: the window icon or main menu background.
+    static func cover(of folder: URL) -> URL? {
+        let candidates = ["game/gui/window_icon.png", "game/gui/main_menu.png", "game/gui/main_menu.jpg",
+                          "game/gui/main_menu.webp", "game/gui/game_menu.png", "game/images/main_menu.png", "game/icon.png"]
+        return candidates.map { folder.appendingPathComponent($0) }.first { FileManager.default.fileExists(atPath: $0.path) }
     }
 }
 
