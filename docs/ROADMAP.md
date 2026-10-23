@@ -47,6 +47,14 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [ ] More runtimes measured against real games: 7.4.11, 7.3.5, 8.1.3, 8.2.3, 8.3.7
 - [ ] Ren'Py controls overlay: rollback, skip, auto, hide UI, quick save/load; gamepad
 
+**A2. Control profiles (for every engine)**
+- [ ] Profile model: per engine defaults (built-in "Compact" and "Standard"), user profiles, per-game override, separate iPhone/iPad and portrait/landscape layouts, import/export
+- [ ] Touch layout editor: add, edit, select, duplicate, delete, snap-to-grid, opacity/size, live preview; builds on the existing HTML virtual-controls arrange mode
+- [ ] Element types: button (key, mouse click, action), D-pad, analog stick, swipe area, toggle buttons (skip, auto, hide UI), menu button
+- [ ] Input injection: WebKit games via key events (existing), SDL engines (Ren'Py, mkxp-z, EasyRPG, ONScripter) via SDL_PushEvent from the runtime framework
+- [ ] Hardware controllers (GameController framework), keyboard and mouse/trackpad mapping, mouse mode (relative cursor)
+- [ ] Gestures: swipe for rollback/skip, two-finger tap for menu, long press for right click, pinch to zoom
+
 **B. RPG Maker**
 - [ ] MV/MZ: NW.js shims (`require('fs'|'path')`, `nw.Window`, `process`), saves in per-game storage, case-insensitive files, Ogg audio check, performance (WebGL, canvas size)
 - [ ] MV/MZ decryption-free play of encrypted assets (`.rpgmvp/.ogg_`) as the engine does
