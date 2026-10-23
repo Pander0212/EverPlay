@@ -567,6 +567,13 @@ init -1500 python:
         # Keep the text being typed visible: dock above it when it sits in the lower half.
         return bool(rect) and rect[1] + rect[3] > config.screen_height * 0.5
 
+    # 8.1/8.2 have no config.interface_layer, and their config store raises instead of letting
+    # getattr fall back.
+    try:
+        _everplay_kb_layer = config.interface_layer
+    except Exception:
+        _everplay_kb_layer = "screens"
+
     _everplay_rows = {
         "letters": ["qwertzuiopü", "asdfghjklöä", "yxcvbnm"],
         "numbers": ["1234567890", "-/:;()€&@\"", ".,?!'#%*+="],
@@ -574,7 +581,7 @@ init -1500 python:
 
 init 1600:
     screen _touch_keyboard():
-        layer config.interface_layer
+        layer _everplay_kb_layer
         zorder 3000  # above EverPlay's own windows (variable editor, edit dialog)
         default shift = False
         default mode = "letters"
