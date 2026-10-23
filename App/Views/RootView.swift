@@ -17,11 +17,9 @@ struct RootView: View {
             NavigationStack { SettingsView() }.tabItem { Label("Settings", systemImage: "slider.horizontal.3") }
         }
         .task { await library.refresh() }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.zip, .folder], allowsMultipleSelection: false) { result in
-            switch result {
-            case .success(let urls): if let url = urls.first { Task { await library.importZIP(url) } }
-            case .failure(let error): library.error = error.localizedDescription
-            }
+        .sheet(isPresented: $showImporter) {
+            DocumentPicker(types: [.zip, .archive, .data]) { url in Task { await library.importZIP(url) } }
+                .ignoresSafeArea()
         }
         .alert("EverPlay", isPresented: Binding(get: { library.error != nil }, set: { if !$0 { library.error = nil } })) {
             Button("OK") { library.error = nil }
@@ -312,7 +310,9 @@ private struct ImportToast: View {
 
 private struct ImportView: View {
     @EnvironmentObject private var library: LibraryModel
+    @Environment(\.scenePhase) private var scenePhase
     @Binding var showImporter: Bool
+    @State private var showFolderPicker = false
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -321,8 +321,11 @@ private struct ImportView: View {
                     Text("Games are checked and stored privately on this device.").foregroundStyle(.secondary)
                 }
                 .padding(.top, 8)
-                ImportOption(icon: "folder.fill", title: "Choose a folder or ZIP",
-                             detail: "One game with its index.html, from Files or On My iPhone › EverPlay.") { showImporter = true }
+                if !library.inbox.isEmpty { inboxSection }
+                ImportOption(icon: "doc.zipper", title: "Choose a ZIP",
+                             detail: "One game with its index.html, from Files or iCloud Drive.") { showImporter = true }
+                ImportOption(icon: "folder.fill", title: "Choose a game folder",
+                             detail: "Or place it in On My iPhone › EverPlay; it then appears here.") { showFolderPicker = true }
                 ImportOption(icon: "leaf.fill", title: "Lantern Garden demo",
                              detail: "An original sample game to try the controls.") { Task { await library.importDemo() } }
                 if library.importing { ImportToast().padding(.horizontal, -20) }
@@ -344,6 +347,49 @@ private struct ImportView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Import")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { library.refreshInbox() }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { library.refreshInbox() } }
+        .sheet(isPresented: $showFolderPicker) {
+            DocumentPicker(types: [.folder]) { url in Task { await library.importZIP(url) } }
+                .ignoresSafeArea()
+        }
+    }
+
+    private var inboxSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("In your EverPlay folder").font(.headline)
+            ForEach(library.inbox, id: \.self) { url in
+                let folder = url.pathExtension.lowercased() != "zip"
+                ImportOption(icon: folder ? "folder.fill" : "doc.zipper",
+                             title: url.deletingPathExtension().lastPathComponent,
+                             detail: folder ? "Folder · tap to import" : "ZIP · tap to import") {
+                    Task { await library.importZIP(url) }
+                }
+            }
+        }
+    }
+}
+
+/// UIKit's document picker: SwiftUI's fileImporter did not react to taps on some sideloaded installs.
+private struct DocumentPicker: UIViewControllerRepresentable {
+    let types: [UTType]
+    let onPick: (URL) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: types, asCopy: false)
+        picker.allowsMultipleSelection = false
+        picker.delegate = context.coordinator
+        return picker
+    }
+    func updateUIViewController(_ controller: UIDocumentPickerViewController, context: Context) {}
+
+    final class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let onPick: (URL) -> Void
+        init(onPick: @escaping (URL) -> Void) { self.onPick = onPick }
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            if let url = urls.first { onPick(url) }
+        }
     }
 }
 

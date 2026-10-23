@@ -9,7 +9,10 @@ final class LibraryModel: ObservableObject {
     @Published var error: String?
     @Published var selectedGame: GameRecord?
     @Published var importMessage: String?
+    /// Game folders and ZIPs the user placed in On My iPhone › EverPlay.
+    @Published var inbox: [URL] = []
     let store: LibraryStore?
+    let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
 
     init() {
         do {
@@ -17,8 +20,32 @@ final class LibraryModel: ObservableObject {
                                                        appropriateFor: nil, create: true)
             store = try LibraryStore(root: support.appendingPathComponent("EverPlay", isDirectory: true))
         } catch { store = nil; self.error = error.localizedDescription }
+        // The Files app only lists an app's folder once it contains something.
+        let readme = documents.appendingPathComponent("README.txt")
+        if !FileManager.default.fileExists(atPath: readme.path) {
+            try? Data(Self.readmeText.utf8).write(to: readme, options: .atomic)
+        }
     }
-    func refresh() async { if let store { games = await store.games() } }
+    private static let readmeText = """
+        EverPlay
+        Put a game folder or a game ZIP here, then open EverPlay › Import and tap it.
+        The game is checked and copied into EverPlay; you can delete it here afterwards.
+
+        Lege hier einen Spielordner oder eine Spiel-ZIP ab und tippe sie dann in EverPlay unter Import an.
+        Das Spiel wird geprüft und in EverPlay kopiert; danach kannst du es hier löschen.
+        """
+    func refresh() async {
+        if let store { games = await store.games() }
+        refreshInbox()
+    }
+    func refreshInbox() {
+        let items = (try? FileManager.default.contentsOfDirectory(at: documents, includingPropertiesForKeys: [.isDirectoryKey],
+                                                                  options: [.skipsHiddenFiles])) ?? []
+        inbox = items.filter { url in
+            let directory = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+            return directory || url.pathExtension.lowercased() == "zip"
+        }.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+    }
     func importZIP(_ url: URL, title: String? = nil) async {
         guard !importing, let store else { return }
         importing = true; importMessage = nil
