@@ -159,6 +159,8 @@ static void everplay_type(NSString *text, BOOL submit) {
 
 /* SDL's view controller keeps `keyboardVisible` set while the game wants text input. */
 - (void)tick {
+    // With Ren'Py's touch keyboard (EverPlay's docked keyboard) the game types by itself.
+    if (getenv("RENPY_TOUCH_KEYBOARD")) { self.button.hidden = YES; return; }
     UIViewController *controller = self.window.rootViewController;
     BOOL wanted = NO;
     @try {

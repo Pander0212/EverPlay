@@ -342,7 +342,7 @@ init 1999 python:
 
 screen _everplay_overlay():
     zorder 1900
-    if not renpy.get_screen("_everplay_menu") and not renpy.get_screen("_everplay_cheats"):
+    if not renpy.get_screen("_everplay_menu") and not renpy.get_screen("_everplay_cheats") and not renpy.get_screen("_touch_keyboard"):
         $ s = _everplay_scale
         drag:
             drag_name "_everplay_button"
@@ -380,12 +380,13 @@ screen _everplay_menu():
             spacing s(14)
             fixed:
                 ysize s(44)
-                text "EverPlay" size s(30) color "#ffffff" bold True yalign 0.5
+                text "EverPlay" size s(30) color "#ffffff" bold True yalign 0.5 font "DejaVuSans.ttf"
                 textbutton "Close":
                     xalign 1.0
                     yalign 0.5
                     action Hide("_everplay_menu")
                     text_size s(24)
+                    text_font "DejaVuSans.ttf"
                     text_color "#b8b4ff"
                     text_hover_color "#ffffff"
             grid 4 4:
@@ -400,6 +401,7 @@ screen _everplay_menu():
                         selected_hover_background Solid("#6b66d6")
                         insensitive_background Solid("#1b1d24")
                         text_size s(23)
+                        text_font "DejaVuSans.ttf"
                         text_color "#ffffff"
                         text_insensitive_color "#6b6f7b"
                         text_xalign 0.5
@@ -428,35 +430,39 @@ screen _everplay_cheats():
             spacing s(10)
             hbox:
                 spacing s(12)
-                text "Variables" size s(28) color "#ffffff" bold True yalign 0.5
+                text "Variables" size s(28) color "#ffffff" bold True yalign 0.5 font "DejaVuSans.ttf"
                 frame:
                     background Solid("#262a36")
                     xsize s(380)
                     ysize s(50)
                     padding (s(12), s(8))
                     yalign 0.5
-                    input value ScreenVariableInputValue("query") size s(23) color "#ffffff" yalign 0.5
+                    input value ScreenVariableInputValue("query") size s(23) color "#ffffff" yalign 0.5 font "DejaVuSans.ttf"
                 textbutton ("All variables" if everything else "Changed by the game"):
                     action ToggleScreenVariable("everything")
                     background Solid("#262a36")
                     hover_background Solid("#3a3f52")
                     padding (s(14), s(10))
                     text_size s(20)
+                    text_font "DejaVuSans.ttf"
                     text_color "#ffffff"
                     yalign 0.5
                 textbutton "Close":
                     action Hide("_everplay_cheats")
                     padding (s(14), s(10))
                     text_size s(22)
+                    text_font "DejaVuSans.ttf"
                     text_color "#b8b4ff"
                     text_hover_color "#ffffff"
                     yalign 0.5
-            text "Type a name to search, or =value (for example =250) to find a variable by its value. On iPhone, the Type button opens the keyboard.":
+            text "Tap the search field and type a name, or =value (for example =250) to find a variable by its value.":
                 size s(17)
+                font "DejaVuSans.ttf"
                 color "#8f93a3"
             if _everplay_b.len(entries) > _everplay_limit:
                 text ("Showing %d of %d. Search to narrow the list." % (_everplay_limit, _everplay_b.len(entries))):
                     size s(17)
+                    font "DejaVuSans.ttf"
                     color "#d9b45a"
             # No scrollbars: they would take the game's own scrollbar style.
             viewport:
@@ -474,8 +480,8 @@ screen _everplay_cheats():
                             padding (s(12), s(6))
                             hbox:
                                 spacing s(8)
-                                text _everplay_quote(label) size s(20) color "#d8d6ff" min_width name_width xmaximum name_width yalign 0.5
-                                text _everplay_quote(_everplay_show(value)) size s(20) color "#ffffff" min_width value_width xmaximum value_width yalign 0.5
+                                text _everplay_quote(label) size s(20) color "#d8d6ff" min_width name_width xmaximum name_width yalign 0.5 font "DejaVuSans.ttf"
+                                text _everplay_quote(_everplay_show(value)) size s(20) color "#ffffff" min_width value_width xmaximum value_width yalign 0.5 font "DejaVuSans.ttf"
                                 if kind == "bool":
                                     textbutton "Toggle":
                                         action Function(_everplay_toggle, container, key, item)
@@ -483,6 +489,7 @@ screen _everplay_cheats():
                                         hover_background Solid("#454b60")
                                         padding (s(12), s(8))
                                         text_size s(19)
+                                        text_font "DejaVuSans.ttf"
                                         text_color "#ffffff"
                                 elif kind == "number":
                                     for delta in (-100, -10, -1, 1, 10, 100):
@@ -492,6 +499,7 @@ screen _everplay_cheats():
                                             hover_background Solid("#454b60")
                                             padding (s(10), s(8))
                                             text_size s(19)
+                                            text_font "DejaVuSans.ttf"
                                             text_color "#ffffff"
                                 textbutton "Edit":
                                     action Show("_everplay_edit", label=label, container=container, key=key, item=item)
@@ -499,9 +507,10 @@ screen _everplay_cheats():
                                     hover_background Solid("#5a55c8")
                                     padding (s(12), s(8))
                                     text_size s(19)
+                                    text_font "DejaVuSans.ttf"
                                     text_color "#ffffff"
                     if not entries:
-                        text "No matching variables." size s(20) color "#8f93a3"
+                        text "No matching variables." size s(20) color "#8f93a3" font "DejaVuSans.ttf"
 
 screen _everplay_edit(label, container, key, item):
     modal True
@@ -518,12 +527,12 @@ screen _everplay_edit(label, container, key, item):
         padding (s(22), s(18))
         vbox:
             spacing s(14)
-            text _everplay_quote(label) size s(24) color "#d8d6ff"
+            text _everplay_quote(label) size s(24) color "#d8d6ff" font "DejaVuSans.ttf"
             frame:
                 background Solid("#262a36")
                 xfill True
                 padding (s(12), s(10))
-                input value ScreenVariableInputValue("buffer") size s(26) color "#ffffff"
+                input value ScreenVariableInputValue("buffer") size s(26) color "#ffffff" font "DejaVuSans.ttf"
             hbox:
                 spacing s(14)
                 xalign 1.0
@@ -531,6 +540,7 @@ screen _everplay_edit(label, container, key, item):
                     action Hide("_everplay_edit")
                     padding (s(16), s(10))
                     text_size s(22)
+                    text_font "DejaVuSans.ttf"
                     text_color "#b8b4ff"
                 textbutton "Set":
                     action [Function(_everplay_apply, container, key, item, buffer), Hide("_everplay_edit")]
@@ -538,4 +548,118 @@ screen _everplay_edit(label, container, key, item):
                     hover_background Solid("#6b66d6")
                     padding (s(22), s(10))
                     text_size s(22)
+                    text_font "DejaVuSans.ttf"
                     text_color "#ffffff"
+
+# EverPlay's on-screen keyboard. iOS's own keyboard does not reach the embedded game window, so
+# EverPlay turns on Ren'Py's touch keyboard (RENPY_TOUCH_KEYBOARD) and replaces its screen with
+# this docked QWERTZ layout. It reuses Ren'Py's own key actions from 00touchkeyboard.rpy.
+init -1500 python:
+
+    _everplay_font = "DejaVuSans.ttf"
+
+    def _everplay_keyboard_at_top():
+        try:
+            import renpy.game as _everplay_game
+            rect = _everplay_game.interface.text_rect
+        except Exception:
+            rect = None
+        # Keep the text being typed visible: dock above it when it sits in the lower half.
+        return bool(rect) and rect[1] + rect[3] > config.screen_height * 0.5
+
+    _everplay_rows = {
+        "letters": ["qwertzuiopü", "asdfghjklöä", "yxcvbnm"],
+        "numbers": ["1234567890", "-/:;()€&@\"", ".,?!'#%*+="],
+    }
+
+init 1600:
+    screen _touch_keyboard():
+        layer config.interface_layer
+        zorder 3000  # above EverPlay's own windows (variable editor, edit dialog)
+        default shift = False
+        default mode = "letters"
+        $ s = _everplay_scale
+        $ width = config.screen_width
+        $ gap = s(8)
+        $ key = (width - s(24) - 10 * gap) // 11
+        $ tall = s(62)
+        $ rows = _everplay_rows[mode]
+        frame:
+            background Solid("#16161ceb")
+            xfill True
+            yalign (0.0 if _everplay_keyboard_at_top() else 1.0)
+            padding (s(12), s(12))
+            vbox:
+                spacing gap
+                xalign 0.5
+                for index, row in enumerate(rows):
+                    hbox:
+                        spacing gap
+                        xalign 0.5
+                        if index == 2 and mode == "letters":
+                            textbutton ("⇧" if not shift else "⬆"):
+                                action ToggleScreenVariable("shift")
+                                xysize (key * 3 // 2, tall)
+                                background Solid("#2b2b33")
+                                selected_background Solid("#e8e8ee")
+                                text_selected_color "#16161c"
+                                text_font _everplay_font
+                                text_size s(28)
+                                text_color "#ffffff"
+                                text_xalign 0.5
+                                text_yalign 0.5
+                        for character in row:
+                            $ typed = character.upper() if shift else character
+                            textbutton typed:
+                                action [_TouchKeyboardTextInput(typed), SetScreenVariable("shift", False)]
+                                xysize (key, tall)
+                                background Solid("#3e3e48")
+                                hover_background Solid("#5a5a66")
+                                text_font _everplay_font
+                                text_size s(28)
+                                text_color "#ffffff"
+                                text_xalign 0.5
+                                text_yalign 0.5
+                        if index == 2:
+                            textbutton "⌫":
+                                action _TouchKeyboardBackspace()
+                                xysize (key * 3 // 2, tall)
+                                background Solid("#2b2b33")
+                                hover_background Solid("#45454f")
+                                text_font _everplay_font
+                                text_size s(28)
+                                text_color "#ffffff"
+                                text_xalign 0.5
+                                text_yalign 0.5
+                hbox:
+                    spacing gap
+                    xalign 0.5
+                    textbutton ("123" if mode == "letters" else "ABC"):
+                        action SetScreenVariable("mode", "numbers" if mode == "letters" else "letters")
+                        xysize (key * 2, tall)
+                        background Solid("#2b2b33")
+                        text_font _everplay_font
+                        text_size s(24)
+                        text_color "#ffffff"
+                        text_xalign 0.5
+                        text_yalign 0.5
+                    textbutton "space":
+                        action _TouchKeyboardTextInput(" ")
+                        xysize (key * 6 + gap * 5, tall)
+                        background Solid("#3e3e48")
+                        hover_background Solid("#5a5a66")
+                        text_font _everplay_font
+                        text_size s(24)
+                        text_color "#ffffff"
+                        text_xalign 0.5
+                        text_yalign 0.5
+                    textbutton "Enter":
+                        action _TouchKeyboardReturn()
+                        xysize (key * 3 + gap * 2, tall)
+                        background Solid("#5a55c8")
+                        hover_background Solid("#6b66d6")
+                        text_font _everplay_font
+                        text_size s(24)
+                        text_color "#ffffff"
+                        text_xalign 0.5
+                        text_yalign 0.5

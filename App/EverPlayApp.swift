@@ -6,12 +6,13 @@ struct EverPlayApp: App {
     @StateObject private var renpy = RenPyLibrary()
     @StateObject private var privacy = PrivacyLock()
     @Environment(\.scenePhase) private var phase
-    @AppStorage("privacy.cover") private var cover = true
+    init() { PrivacyShield.shared.install() }
+
     var body: some Scene {
         WindowGroup {
             RootView().environmentObject(library).environmentObject(renpy)
                 .overlay {
-                    if privacy.locked || (cover && phase != .active) {
+                    if privacy.locked {
                         PrivacyCover(locked: privacy.locked) { Task { await privacy.unlock() } }
                     }
                 }

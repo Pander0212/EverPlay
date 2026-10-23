@@ -260,6 +260,9 @@ final class RenPyLibrary: ObservableObject {
             TranslationEngine.shared.start(game: game.folder, settings: translate ? translation : nil)
             setenv("EVERPLAY_TRANSLATE", translate ? "1" : "0", 1)
             RuntimeBridge.shared.export()
+            // iOS's keyboard does not come up in the embedded game window; Ren'Py draws EverPlay's
+            // docked keyboard (renpy/common/00everplay.rpy) instead.
+            setenv("RENPY_TOUCH_KEYBOARD", "1", 1)
             // Ren'Py's image cache defaults to 400 MB; iOS ends apps that use too much memory.
             let cache = RenPyLibrary.imageCacheLimit()
             setenv("EVERPLAY_IMAGE_CACHE_MB", String(cache), 1)

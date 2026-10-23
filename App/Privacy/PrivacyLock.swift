@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import LocalAuthentication
 
 /// Discretion: an optional Face ID / passcode lock and a cover over EverPlay in the app switcher.
@@ -79,5 +80,54 @@ struct PrivacySettingsSection: View {
         } footer: {
             Text("The lock asks when you return to EverPlay. Hide a game with a long press on it in the library.")
         }
+    }
+}
+
+/// Covers every window of EverPlay (library, web games and the Ren'Py window) the moment the app
+/// leaves the foreground, before iOS takes the app-switcher snapshot. SwiftUI updates arrive too
+/// late for that snapshot, so this works with UIKit views directly.
+@MainActor
+final class PrivacyShield {
+    static let shared = PrivacyShield()
+    private var covers: [UIView] = []
+
+    func install() {
+        // UIKit posts these on the main thread; handle them right away (queue nil) so the cover is
+        // in place before the snapshot, also while a Ren'Py game runs the main thread.
+        let center = NotificationCenter.default
+        center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: nil) { _ in
+            MainActor.assumeIsolated { PrivacyShield.shared.cover() }
+        }
+        center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: nil) { _ in
+            MainActor.assumeIsolated { PrivacyShield.shared.uncover() }
+        }
+    }
+
+    private func cover() {
+        guard UserDefaults.standard.object(forKey: "privacy.cover") as? Bool ?? true, covers.isEmpty else { return }
+        let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows)
+        for window in windows where !window.isHidden {
+            let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemChromeMaterialDark))
+            blur.frame = window.bounds
+            blur.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            let tint = UIView(frame: blur.bounds)
+            tint.backgroundColor = UIColor(red: 0.043, green: 0.047, blue: 0.063, alpha: 0.7)
+            tint.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            blur.contentView.addSubview(tint)
+            let icon = UIImageView(image: UIImage(systemName: "eye.slash.fill"))
+            icon.tintColor = UIColor(red: 0.56, green: 0.53, blue: 0.93, alpha: 1)
+            icon.contentMode = .scaleAspectFit
+            icon.frame = CGRect(x: 0, y: 0, width: 56, height: 56)
+            icon.center = CGPoint(x: blur.bounds.midX, y: blur.bounds.midY)
+            icon.autoresizingMask = [.flexibleLeftMargin, .flexibleRightMargin, .flexibleTopMargin, .flexibleBottomMargin]
+            blur.contentView.addSubview(icon)
+            window.addSubview(blur)
+            covers.append(blur)
+        }
+    }
+
+    private func uncover() {
+        covers.forEach { $0.removeFromSuperview() }
+        covers.removeAll()
     }
 }
