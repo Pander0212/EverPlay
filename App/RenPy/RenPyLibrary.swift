@@ -65,6 +65,14 @@ final class RenPyLibrary: ObservableObject {
             let end = defaults.object(forKey: "renpy.sessionEnd") as? Double
             if let end, end > start { addPlaytime(end - start, to: folder) }
             EverPlayLog.write("Ren'Py session of \(folder) ended " + (end == nil ? "without returning to EverPlay (closed by iOS or killed)" : "normally"))
+            let traceback = root.appendingPathComponent(folder).appendingPathComponent("traceback.txt")
+            if let changed = (try? traceback.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate,
+               changed.timeIntervalSince1970 >= start {
+                EverPlayLog.write("\(folder) reported an error (traceback.txt)")
+                message = "\(folder) stopped with an error. Its page shows the report (traceback.txt) to read or share."
+            } else if end == nil {
+                message = "\(folder) closed without an error report: it was swiped away or iOS ended it (usually for memory)."
+            }
             defaults.removeObject(forKey: "renpy.sessionStart")
             defaults.removeObject(forKey: "renpy.sessionEnd")
             defaults.removeObject(forKey: "renpy.sessionGame")

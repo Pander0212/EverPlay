@@ -46,7 +46,7 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [ ] Copy/extract progress bar
 - [x] Text input: SDL keyboard retry plus a native "Type" button when the iOS keyboard does not appear (simulator fixture Input85)
 - [x] Per-game runtime choice on the game page
-- [ ] Crash screen: show `traceback.txt`, copy/share, "report" button
+- [x] Error reports: traceback.txt, errors.txt and log.txt on the game page (view, share); after an error or an unexpected end EverPlay says so on its next start
 - [ ] More runtimes measured against real games: 7.4.11, 7.3.5, 8.1.3, 8.2.3, 8.3.7
 - [x] Ren'Py in-game menu (draggable button): quick save/load, rollback, skip, skip unseen, auto, hide UI, instant text, save/load/settings, main menu (checked on 8.5.3 and 7.8.7 desktop SDKs; simulator fixture Menu78)
 - [ ] Gamepad and keyboard shortcuts for the in-game menu

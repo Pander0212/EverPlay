@@ -12,6 +12,7 @@ struct GameDetailView: View {
     let remove: () -> Void
     @State private var size: Int64?
     @State private var translate = false
+    @State private var reportText: String?
 
     /// The current version from the library, so a changed runtime shows right away.
     private var current: LibraryItem {
@@ -37,6 +38,7 @@ struct GameDetailView: View {
                     translationOptions(game)
                     runtimeOptions(game)
                 }
+                if case .renpy(let game) = current { reports(game) }
                 storage
                 Button(role: .destructive) {
                     remove()
@@ -55,6 +57,16 @@ struct GameDetailView: View {
             ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
         }
         .task { size = await Self.measure(folder) }
+        .sheet(isPresented: Binding(get: { reportText != nil }, set: { if !$0 { reportText = nil } })) {
+            NavigationStack {
+                ScrollView {
+                    Text(reportText ?? "").font(.system(.footnote, design: .monospaced)).textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding()
+                }
+                .navigationTitle("Error report").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { reportText = nil } } }
+            }
+        }
     }
 
     private var header: some View {
@@ -139,6 +151,40 @@ struct GameDetailView: View {
         }
         .padding(16)
         .surface(cornerRadius: 22)
+    }
+
+    /// Ren'Py writes traceback.txt (errors while playing), errors.txt (script errors) and log.txt
+    /// into the game folder on iOS.
+    @ViewBuilder
+    private func reports(_ game: RenPyTitle) -> some View {
+        let folder = renpy.folder(of: game)
+        let files = ["traceback.txt", "errors.txt", "log.txt"].map { folder.appendingPathComponent($0) }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+        if !files.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Reports from Ren'Py", systemImage: "doc.text.magnifyingglass").font(.headline)
+                ForEach(files, id: \.self) { file in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(file.lastPathComponent).font(.subheadline.weight(.semibold))
+                            if let date = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate {
+                                Text(date, format: .relative(presentation: .named)).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Button("View") { reportText = (try? String(contentsOf: file, encoding: .utf8)) ?? "" }
+                            .buttonStyle(.bordered)
+                        ShareLink(item: file) { Image(systemName: "square.and.arrow.up") }
+                            .buttonStyle(.bordered)
+                    }
+                }
+                Text("traceback.txt explains the last error while playing; send it when a game stops with an error.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .surface(cornerRadius: 22)
+        }
     }
 
     private var storage: some View {
