@@ -48,7 +48,8 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [x] Per-game runtime choice on the game page
 - [ ] Crash screen: show `traceback.txt`, copy/share, "report" button
 - [ ] More runtimes measured against real games: 7.4.11, 7.3.5, 8.1.3, 8.2.3, 8.3.7
-- [ ] Ren'Py controls overlay: rollback, skip, auto, hide UI, quick save/load; gamepad
+- [x] Ren'Py in-game menu (draggable button): quick save/load, rollback, skip, skip unseen, auto, hide UI, instant text, save/load/settings, main menu (checked on 8.5.3 and 7.8.7 desktop SDKs; simulator fixture Menu78)
+- [ ] Gamepad and keyboard shortcuts for the in-game menu
 
 **A2. Control profiles (for every engine)**
 - [ ] Profile model: per engine defaults (built-in "Compact" and "Standard"), user profiles, per-game override, separate iPhone/iPad and portrait/landscape layouts, import/export
@@ -78,7 +79,8 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [ ] Toggle original/translated in game; font fallback for CJK/Cyrillic
 
 **D. Cheats and save editor**
-- [ ] Ren'Py: in-game overlay with store variable browser/editor, search by value, developer console toggle, gallery/replay unlock
+- [x] Ren'Py: variable editor in the in-game menu (game-changed or all variables, one level into objects and dicts, search by name or =value, ±1/10/100, edit), developer console, gallery/replay unlock
+- [ ] Ren'Py: freeze values, saved cheat presets per game, search for changed/unchanged values between scans
 - [ ] RPG Maker MV/MZ: gold, items, party stats, switches/variables, speed-up (×2/×4), noclip
 - [ ] Save editor: MV/MZ saves (LZString JSON) in a native editor; Ren'Py saves edited only inside the running game; automatic backups
 

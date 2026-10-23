@@ -9,6 +9,8 @@ on:
       - .github/workflows/allinone.yml
       - scripts/build-renpy-ios-prototype.py
       - scripts/package-renpy-runtime.py
+      - scripts/renpy-common/**
+      - Sources/**
       - App/**
       - project.yml
 permissions:
@@ -63,6 +65,10 @@ jobs:
           cp -R build/fixtures/Probe85 build/fixtures/Input85
           printf 'label splashscreen:\n    $ typed_name = renpy.input("What is your name?", default="Probe")\n    return\n' \
             > build/fixtures/Input85/game/zz_input.rpy
+          # Opens EverPlay's variable editor after 20 s; the screenshot should list gold = 37.
+          cp -R build/fixtures/Probe78 build/fixtures/Menu78
+          printf 'init 2000 python:\n    config.overlay_screens.append("zz_menu_test")\nscreen zz_menu_test():\n    timer 20.0 action Show("_everplay_cheats")\n' \
+            > build/fixtures/Menu78/game/zz_menu.rpy
           du -sh build/runtimes/Frameworks/* build/runtimes/Runtimes/*
       - name: Build EverPlay for the simulator and embed the runtimes
         run: |
@@ -95,8 +101,8 @@ jobs:
           data="$(xcrun simctl get_app_container "$udid" "$bundle" data)"
           mkdir -p "$data/Documents/Ren'Py"
           cp -R build/fixtures/. "$data/Documents/Ren'Py/"
-          # Probe (Gold: 37) per runtime; Engine84 ships its own engine copy (Gold: 99); Input85 waits for text.
-          for game in Probe85 Probe84 Probe78 Engine84 Input85; do
+          # Probe (Gold: 37) per runtime; Engine84 ships its own engine copy (Gold: 99); Input85 waits for text; Menu78 opens the variable editor.
+          for game in Probe85 Probe84 Probe78 Engine84 Input85 Menu78; do
             xcrun simctl launch --stdout="$PWD/artifacts/$game-stdout.log" --stderr="$PWD/artifacts/$game-stderr.log" \
               "$udid" "$bundle" -EverPlayAutoplayRenPy "$game"
             sleep 75

@@ -534,6 +534,9 @@ def harden_common(sdk):
     # Recompiled by the SDK's own launcher run below, before ios_populate copies the engine.
     bubble.with_suffix('.rpyc').unlink()
 
+    # EverPlay's in-game menu (quick actions, variable editor) for every game on this runtime.
+    shutil.copy(ROOT / 'scripts/renpy-common/00everplay.rpy', sdk / 'renpy/common/00everplay.rpy')
+
 
 def verify_common(xcode):
     """The app ships only compiled common code; read its zlib slots (no unpickling) for the guard."""
@@ -541,6 +544,7 @@ def verify_common(xcode):
     assert compiled, 'bundled engine has no speech bubble code'
     library = list(xcode.rglob('renpy/common/00library.rpyc'))
     assert library, 'bundled engine has no library code'
+    assert list(xcode.rglob('renpy/common/00everplay.rpyc')), 'bundled engine lacks the EverPlay menu'
     for path in compiled + library:
         data = path.read_bytes()
         assert data.startswith(b'RENPY RPC2'), f'unexpected format {path}'

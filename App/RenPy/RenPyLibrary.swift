@@ -220,6 +220,9 @@ final class RenPyLibrary: ObservableObject {
             typealias Entry = @convention(c) (UnsafePointer<CChar>, UnsafePointer<CChar>) -> Int32
             let entry = unsafeBitCast(symbol, to: Entry.self)
             setenv("EVERPLAY_SAVE_DIR", saveDirectory.path, 1)
+            // The in-game EverPlay button (quick actions, variable editor) in renpy/common.
+            let menu = UserDefaults.standard.object(forKey: "renpy.menuButton") as? Bool ?? true
+            setenv("EVERPLAY_MENU", menu ? "1" : "0", 1)
             UIApplication.shared.isIdleTimerDisabled = true
             let status = runtime.directory.path.withCString { runtimePath in
                 folder.path.withCString { gamePath in entry(runtimePath, gamePath) }
@@ -307,8 +310,10 @@ enum RenPyGame {
 /// Settings: which Ren'Py versions this build carries.
 struct RenPySettingsSection: View {
     @EnvironmentObject private var renpy: RenPyLibrary
+    @AppStorage("renpy.menuButton") private var menuButton = true
     var body: some View {
         Section {
+            Toggle("In-game menu button", isOn: $menuButton)
             if renpy.runtimes.isEmpty {
                 Text("Not included in this build.").foregroundStyle(.secondary)
             }
@@ -318,7 +323,7 @@ struct RenPySettingsSection: View {
         } header: {
             Text("Ren'Py")
         } footer: {
-            Text("Games use the exact Ren'Py version they were made with when it is included, otherwise the newest of the same major version. Quitting a Ren'Py game currently closes EverPlay.")
+            Text("The in-game menu button (drag it anywhere) offers quick save and load, rollback, skip, auto, hiding the interface, a variable editor for cheats and unlocking galleries. Games use the exact Ren'Py version they were made with when it is included, otherwise the newest of the same major version; change it on a game's page. Quitting a Ren'Py game currently closes EverPlay.")
         }
     }
 }

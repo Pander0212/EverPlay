@@ -1,0 +1,407 @@
+# EverPlay in-game menu: a small draggable button that opens quick actions (quick save/load,
+# rollback, skip, auto, hide interface, ...) and a variable editor for cheating.
+#
+# EverPlay's iOS runtimes compile this file into renpy/common, so it runs in every game's
+# store. Games may define variables named like builtins (seen: "sorted"), so the code below
+# only uses builtins through _everplay_b and keeps every name it defines under _everplay.
+
+init -1500 python:
+
+    # Python 2 first: there, "builtins" is the future package's wrapper with its own int type.
+    try:
+        import __builtin__ as _everplay_b
+    except ImportError:
+        import builtins as _everplay_b
+
+    try:
+        _everplay_text_types = (_everplay_b.str, _everplay_b.unicode)
+    except AttributeError:
+        _everplay_text_types = (_everplay_b.str,)
+    try:
+        _everplay_number_types = (_everplay_b.int, _everplay_b.long, _everplay_b.float)
+    except AttributeError:
+        _everplay_number_types = (_everplay_b.int, _everplay_b.float)
+
+    _everplay_limit = 150
+
+    def _everplay_enabled():
+        import os
+        return os.environ.get("EVERPLAY_MENU", "1") != "0"
+
+    def _everplay_scale(value):
+        return _everplay_b.int(value * config.screen_height / 720.0)
+
+    def _everplay_kind(value):
+        if _everplay_b.isinstance(value, _everplay_b.bool):
+            return "bool"
+        if _everplay_b.isinstance(value, _everplay_number_types):
+            return "number"
+        if _everplay_b.isinstance(value, _everplay_text_types):
+            return "text"
+        return None
+
+    def _everplay_quote(text):
+        # Shown as plain text: no Ren'Py substitutions or text tags from game data.
+        return text.replace("[", "[[").replace("{", "{{")
+
+    def _everplay_show(value):
+        kind = _everplay_kind(value)
+        if kind == "text":
+            text = value if _everplay_b.len(value) <= 60 else value[:57] + u"..."
+            return u'"%s"' % text
+        if kind == "number" and _everplay_b.isinstance(value, _everplay_b.float):
+            return u"%g" % value
+        return u"%s" % (value,)
+
+    def _everplay_get(container, key, item):
+        if item:
+            return container[key]
+        return _everplay_b.getattr(container, key)
+
+    def _everplay_set(container, key, item, value):
+        if item:
+            container[key] = value
+        else:
+            _everplay_b.setattr(container, key, value)
+        renpy.restart_interaction()
+
+    def _everplay_add(container, key, item, delta):
+        _everplay_set(container, key, item, _everplay_get(container, key, item) + delta)
+
+    def _everplay_toggle(container, key, item):
+        _everplay_set(container, key, item, not _everplay_get(container, key, item))
+
+    def _everplay_apply(container, key, item, text):
+        old = _everplay_get(container, key, item)
+        kind = _everplay_kind(old)
+        text = text.strip() if kind != "text" else text
+        try:
+            if kind == "bool":
+                new = text.lower() in ("1", "true", "yes", "on", "an", "ja")
+            elif _everplay_b.isinstance(old, _everplay_b.float):
+                new = _everplay_b.float(text.replace(",", "."))
+            elif kind == "number":
+                new = _everplay_b.int(_everplay_b.float(text.replace(",", ".")))
+            else:
+                new = text
+        except ValueError:
+            renpy.notify("Enter a number")
+            return
+        _everplay_set(container, key, item, new)
+
+    def _everplay_simple_items(name, value):
+        """Entries (label, container, key, item) for a store variable and one level inside it."""
+        kind = _everplay_kind(value)
+        if kind is not None:
+            return [(name, store, name, False)]
+        found = []
+        if _everplay_b.isinstance(value, _everplay_b.dict):
+            keys = [k for k in value.keys() if _everplay_b.isinstance(k, _everplay_text_types)]
+            for key in _everplay_b.sorted(keys)[:200]:
+                if _everplay_kind(value[key]) is not None:
+                    found.append((u'%s["%s"]' % (name, key), value, key, True))
+            return found
+        module = _everplay_b.getattr(_everplay_b.type(value), "__module__", "") or ""
+        if module.startswith("store") and _everplay_b.hasattr(value, "__dict__") and not _everplay_b.isinstance(value, _everplay_b.type):
+            try:
+                fields = _everplay_b.vars(value)
+            except TypeError:
+                return found
+            for attribute in _everplay_b.sorted(fields):
+                if attribute.startswith("_"):
+                    continue
+                if _everplay_kind(fields[attribute]) is not None:
+                    found.append((u"%s.%s" % (name, attribute), value, attribute, False))
+        return found
+
+    def _everplay_entries(query, everything):
+        namespace = store.__dict__
+        names = None
+        if not everything:
+            try:
+                import renpy.python as _everplay_python
+                names = _everplay_python.store_dicts["store"].ever_been_changed
+            except Exception:
+                names = None
+        candidates = namespace.keys() if names is None else [n for n in names if n in namespace]
+        query = (query or u"").strip().lower()
+        by_value = query.startswith("=")
+        if by_value:
+            query = query[1:].strip()
+        entries = []
+        for name in _everplay_b.sorted(candidates):
+            if name.startswith("_") or name in ("config", "persistent", "style", "gui", "build", "preferences"):
+                continue
+            value = namespace[name]
+            if _everplay_b.callable(value) and not _everplay_b.hasattr(value, "__dict__"):
+                continue
+            for entry in _everplay_simple_items(name, value):
+                if query:
+                    if by_value:
+                        shown = (u"%s" % (_everplay_get(entry[1], entry[2], entry[3]),)).lower()
+                        if shown != query:
+                            continue
+                    elif query not in entry[0].lower():
+                        continue
+                entries.append(entry)
+        return entries
+
+    def _everplay_unlock():
+        labels = images = 0
+        seen = persistent._seen_ever
+        for label in renpy.get_all_labels():
+            if not label.startswith("_"):
+                seen[label] = True
+                labels += 1
+        shown = persistent._seen_images
+        for name in renpy.list_images():
+            shown[_everplay_b.tuple(name.split())] = True
+            images += 1
+        renpy.save_persistent()
+        renpy.notify("Unlocked %d scenes and %d images" % (labels, images))
+
+    def _everplay_console():
+        config.console = True
+        _console.enter()
+
+    def _everplay_button_pos():
+        size = _everplay_scale(64)
+        position = persistent._everplay_button
+        if not position:
+            return (_everplay_scale(14), _everplay_scale(14))
+        x = _everplay_b.max(0, _everplay_b.min(_everplay_b.int(position[0]), config.screen_width - size))
+        y = _everplay_b.max(0, _everplay_b.min(_everplay_b.int(position[1]), config.screen_height - size))
+        return (x, y)
+
+    def _everplay_dragged(drags, drop):
+        persistent._everplay_button = (drags[0].x, drags[0].y)
+        return None
+
+    def _everplay_button_home():
+        persistent._everplay_button = None
+        renpy.restart_interaction()
+
+    def _everplay_menu_actions():
+        return [
+            ("Quick save", QuickSave()),
+            ("Quick load", QuickLoad()),
+            ("Rollback", Rollback()),
+            ("Skip", Skip()),
+            ("Skip unseen", Preference("skip", "toggle")),
+            ("Auto", Preference("auto-forward", "toggle")),
+            ("Hide UI", [Hide("_everplay_menu"), HideInterface()]),
+            ("Instant text", Preference("text speed", 0)),
+            ("Save", [Hide("_everplay_menu"), ShowMenu("save")]),
+            ("Load", [Hide("_everplay_menu"), ShowMenu("load")]),
+            ("Settings", [Hide("_everplay_menu"), ShowMenu("preferences")]),
+            ("Variables", Show("_everplay_cheats")),
+            ("Console", [Hide("_everplay_menu"), Function(_everplay_console)]),
+            ("Unlock gallery", Confirm("Mark every scene and image as seen? Galleries and replays that check this unlock.",
+                                       Function(_everplay_unlock))),
+            ("Button home", Function(_everplay_button_home)),
+            ("Main menu", [Hide("_everplay_menu"), MainMenu()]),
+        ]
+
+init 1999 python:
+    if _everplay_enabled() and "_everplay_overlay" not in config.overlay_screens:
+        config.overlay_screens.append("_everplay_overlay")
+
+screen _everplay_overlay():
+    zorder 1900
+    if not renpy.get_screen("_everplay_menu") and not renpy.get_screen("_everplay_cheats"):
+        $ s = _everplay_scale
+        drag:
+            drag_name "_everplay_button"
+            draggable True
+            drag_offscreen False
+            pos _everplay_button_pos()
+            dragged _everplay_dragged
+            clicked Show("_everplay_menu")
+            frame:
+                background Solid("#14161ca8")
+                xysize (s(64), s(64))
+                padding (s(16), s(19))
+                vbox:
+                    spacing s(5)
+                    add Solid("#ffffffd8") xysize (s(32), s(4))
+                    add Solid("#ffffffd8") xysize (s(32), s(4))
+                    add Solid("#ffffffd8") xysize (s(32), s(4))
+
+screen _everplay_menu():
+    modal True
+    zorder 2000
+    key "game_menu" action Hide("_everplay_menu")
+    $ s = _everplay_scale
+    $ gap = s(10)
+    $ width = _everplay_b.int(config.screen_width * 0.9)
+    $ cell = (width - 2 * s(22) - 3 * gap) // 4
+    add Solid("#05060acc")
+    frame:
+        background Solid("#16181ff2")
+        xalign 0.5
+        yalign 0.5
+        xsize width
+        padding (s(22), s(18))
+        vbox:
+            spacing s(14)
+            fixed:
+                ysize s(44)
+                text "EverPlay" size s(30) color "#ffffff" bold True yalign 0.5
+                textbutton "Close":
+                    xalign 1.0
+                    yalign 0.5
+                    action Hide("_everplay_menu")
+                    text_size s(24)
+                    text_color "#b8b4ff"
+                    text_hover_color "#ffffff"
+            grid 4 4:
+                spacing gap
+                for label, action in _everplay_menu_actions():
+                    textbutton label:
+                        action action
+                        xysize (cell, s(68))
+                        background Solid("#262a36")
+                        hover_background Solid("#3a3f52")
+                        selected_background Solid("#5a55c8")
+                        selected_hover_background Solid("#6b66d6")
+                        insensitive_background Solid("#1b1d24")
+                        text_size s(23)
+                        text_color "#ffffff"
+                        text_insensitive_color "#6b6f7b"
+                        text_xalign 0.5
+                        text_yalign 0.5
+                        text_text_align 0.5
+
+screen _everplay_cheats():
+    modal True
+    zorder 2050
+    default query = ""
+    default everything = False
+    key "game_menu" action Hide("_everplay_cheats")
+    $ s = _everplay_scale
+    $ entries = _everplay_entries(query, everything)
+    $ name_width = _everplay_b.int(config.screen_width * 0.24)
+    $ value_width = _everplay_b.int(config.screen_width * 0.15)
+    add Solid("#05060af2")
+    frame:
+        background Solid("#16181f")
+        xalign 0.5
+        yalign 0.5
+        xsize _everplay_b.int(config.screen_width * 0.96)
+        ysize _everplay_b.int(config.screen_height * 0.94)
+        padding (s(18), s(14))
+        vbox:
+            spacing s(10)
+            hbox:
+                spacing s(12)
+                text "Variables" size s(28) color "#ffffff" bold True yalign 0.5
+                frame:
+                    background Solid("#262a36")
+                    xsize s(380)
+                    ysize s(50)
+                    padding (s(12), s(8))
+                    yalign 0.5
+                    input value ScreenVariableInputValue("query") size s(23) color "#ffffff" yalign 0.5
+                textbutton ("All variables" if everything else "Changed by the game"):
+                    action ToggleScreenVariable("everything")
+                    background Solid("#262a36")
+                    hover_background Solid("#3a3f52")
+                    padding (s(14), s(10))
+                    text_size s(20)
+                    text_color "#ffffff"
+                    yalign 0.5
+                textbutton "Close":
+                    action Hide("_everplay_cheats")
+                    padding (s(14), s(10))
+                    text_size s(22)
+                    text_color "#b8b4ff"
+                    text_hover_color "#ffffff"
+                    yalign 0.5
+            text "Type a name to search, or =value (for example =250) to find a variable by its value. On iPhone, the Type button opens the keyboard.":
+                size s(17)
+                color "#8f93a3"
+            if _everplay_b.len(entries) > _everplay_limit:
+                text ("Showing %d of %d. Search to narrow the list." % (_everplay_limit, _everplay_b.len(entries))):
+                    size s(17)
+                    color "#d9b45a"
+            # No scrollbars: they would take the game's own scrollbar style.
+            viewport:
+                ysize _everplay_b.int(config.screen_height * 0.94) - s(190)
+                mousewheel True
+                draggable True
+                vbox:
+                    spacing s(6)
+                    for label, container, key, item in entries[:_everplay_limit]:
+                        $ value = _everplay_get(container, key, item)
+                        $ kind = _everplay_kind(value)
+                        frame:
+                            background Solid("#1f222c")
+                            xfill True
+                            padding (s(12), s(6))
+                            hbox:
+                                spacing s(8)
+                                text _everplay_quote(label) size s(20) color "#d8d6ff" min_width name_width xmaximum name_width yalign 0.5
+                                text _everplay_quote(_everplay_show(value)) size s(20) color "#ffffff" min_width value_width xmaximum value_width yalign 0.5
+                                if kind == "bool":
+                                    textbutton "Toggle":
+                                        action Function(_everplay_toggle, container, key, item)
+                                        background Solid("#2f3342")
+                                        hover_background Solid("#454b60")
+                                        padding (s(12), s(8))
+                                        text_size s(19)
+                                        text_color "#ffffff"
+                                elif kind == "number":
+                                    for delta in (-100, -10, -1, 1, 10, 100):
+                                        textbutton ("%+d" % delta):
+                                            action Function(_everplay_add, container, key, item, delta)
+                                            background Solid("#2f3342")
+                                            hover_background Solid("#454b60")
+                                            padding (s(10), s(8))
+                                            text_size s(19)
+                                            text_color "#ffffff"
+                                textbutton "Edit":
+                                    action Show("_everplay_edit", label=label, container=container, key=key, item=item)
+                                    background Solid("#3d3a8c")
+                                    hover_background Solid("#5a55c8")
+                                    padding (s(12), s(8))
+                                    text_size s(19)
+                                    text_color "#ffffff"
+                    if not entries:
+                        text "No matching variables." size s(20) color "#8f93a3"
+
+screen _everplay_edit(label, container, key, item):
+    modal True
+    zorder 2100
+    default buffer = u"%s" % (_everplay_get(container, key, item),)
+    key "game_menu" action Hide("_everplay_edit")
+    $ s = _everplay_scale
+    add Solid("#000000b0")
+    frame:
+        background Solid("#1d2029")
+        xalign 0.5
+        yalign 0.3
+        xsize _everplay_b.int(config.screen_width * 0.6)
+        padding (s(22), s(18))
+        vbox:
+            spacing s(14)
+            text _everplay_quote(label) size s(24) color "#d8d6ff"
+            frame:
+                background Solid("#262a36")
+                xfill True
+                padding (s(12), s(10))
+                input value ScreenVariableInputValue("buffer") size s(26) color "#ffffff"
+            hbox:
+                spacing s(14)
+                xalign 1.0
+                textbutton "Cancel":
+                    action Hide("_everplay_edit")
+                    padding (s(16), s(10))
+                    text_size s(22)
+                    text_color "#b8b4ff"
+                textbutton "Set":
+                    action [Function(_everplay_apply, container, key, item, buffer), Hide("_everplay_edit")]
+                    background Solid("#5a55c8")
+                    hover_background Solid("#6b66d6")
+                    padding (s(22), s(10))
+                    text_size s(22)
+                    text_color "#ffffff"
