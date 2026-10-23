@@ -145,13 +145,17 @@ private struct LibraryView: View {
     @State private var search = ""
     @State private var webCovers: [UUID: URL] = [:]
     @State private var detail: LibraryItem?
+    @AppStorage("library.showHidden") private var showHidden = false
+    /// Changes when a game is hidden or shown, so the list updates.
+    @State private var hiddenVersion = 0
     /// Set by the details page; acted on once its sheet is gone.
     @State private var afterDetail: (() -> Void)?
 
     private var items: [LibraryItem] {
         let web = library.games.map { LibraryItem.web($0, cover: webCovers[$0.id]) }
         let renpyItems = renpy.games.map { LibraryItem.renpy($0) }
-        return (web + renpyItems).sorted { lhs, rhs in
+        _ = hiddenVersion
+        return (web + renpyItems).filter { showHidden || !HiddenGames.contains($0.id) }.sorted { lhs, rhs in
             switch (lhs.lastPlayed, rhs.lastPlayed) {
             case let (l?, r?): return l > r
             case (_?, nil): return true
@@ -243,6 +247,11 @@ private struct LibraryView: View {
             .contextMenu {
                 Button("Play", systemImage: "play.fill") { play(item) }
                 Button("Details", systemImage: "info.circle") { detail = item }
+                if HiddenGames.contains(item.id) {
+                    Button("Show in library", systemImage: "eye") { HiddenGames.set(item.id, hidden: false); hiddenVersion += 1 }
+                } else {
+                    Button("Hide from library", systemImage: "eye.slash") { HiddenGames.set(item.id, hidden: true); hiddenVersion += 1 }
+                }
                 switch item {
                 case .web:
                     Button("Archive game", systemImage: "archivebox") { remove(item) }
@@ -472,6 +481,7 @@ struct SettingsView: View {
             }
             RenPySettingsSection()
             TranslationSettingsSection()
+            PrivacySettingsSection()
             Section("While playing") {
                 Toggle("Keep screen awake", isOn: $preventSleep)
                 Text("Virtual controls, their layout and transparency are saved separately for each game in the player menu.")

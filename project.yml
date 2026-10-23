@@ -48,6 +48,7 @@ targets:
         # Documents (games, saves) visible in Files under On My iPhone › EverPlay.
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
+        NSFaceIDUsageDescription: EverPlay can lock your library with Face ID.
         # Mouse and trackpad input for games.
         UIApplicationSupportsIndirectInputEvents: true
         # Offered in "Open in…" / Share for ZIP archives (Files, Safari downloads).

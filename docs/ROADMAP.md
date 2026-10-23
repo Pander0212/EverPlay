@@ -95,7 +95,8 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 **E. Comfort and discretion**
 - [x] Cover art from the game (`gui/main_menu.png`, window icon, RPG Maker title), playtime, last played, game page
 - [ ] More per-game settings (controls profile, translation, cheats) on the game page
-- [ ] Face ID lock, blurred app switcher, alternate icons, hidden games
+- [x] Face ID/passcode lock, cover in the app switcher, hidden games (Settings › Privacy, long press in the library)
+- [ ] Alternate app icons
 - [ ] Save sync folder via Files (iCloud Drive etc.)
 
 **F. Later engines**
