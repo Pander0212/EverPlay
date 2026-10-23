@@ -1,0 +1,43 @@
+name: Vendor libretro cores
+# Copies the iOS (arm64) build of a libretro core from the libretro buildbot into this
+# repository's "libretro-cores" release under a dated name, so the all-in-one build can pin it
+# by SHA-256 (the buildbot's "latest" changes every night). Runs by hand or when this file
+# changes; then pin the printed checksum in allinone.yml.
+#
+# easyrpg: EasyRPG Player (RPG Maker 2000/2003), GPL-3.0, source https://github.com/EasyRPG/Player
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/vendor-cores.yml
+permissions:
+  contents: read
+jobs:
+  vendor:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write  # the libretro-cores release
+    steps:
+      - name: Fetch, check and publish the EasyRPG core
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          name="easyrpg_libretro_ios-arm64-$(date -u +%Y-%m-%d).dylib.zip"
+          curl --fail --location --show-error --retry 2 --max-time 300 \
+            https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/easyrpg_libretro.dylib.zip --output "$name"
+          unzip -l "$name"
+          unzip -o -q "$name" easyrpg_libretro.dylib
+          file easyrpg_libretro.dylib | grep -q 'Mach-O 64-bit.*arm64' || { echo 'not an arm64 Mach-O library'; exit 1; }
+          version="$(strings easyrpg_libretro.dylib | grep -m1 -E '^[0-9]+\.[0-9]+\.[0-9.]+-git\+[0-9]+@[0-9a-f]+$' || echo unknown)"
+          sha256sum "$name" | tee SHA256SUMS
+          echo "EasyRPG Player $version"
+          if ! gh release view libretro-cores --repo "$REPOSITORY" > /dev/null 2>&1; then
+            gh release create libretro-cores --repo "$REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+              --title "Vendored libretro cores" \
+              --notes "Pinned copies of libretro cores from buildbot.libretro.com for the all-in-one build. EasyRPG Player is GPL-3.0; source: https://github.com/EasyRPG/Player"
+          fi
+          gh release upload libretro-cores --repo "$REPOSITORY" --clobber "$name"
+          echo "Pin in allinone.yml: $name $(cut -d' ' -f1 SHA256SUMS) ($version)"
