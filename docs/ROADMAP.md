@@ -60,7 +60,8 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [ ] Gestures: swipe for rollback/skip, two-finger tap for menu, long press for right click, pinch to zoom
 
 **B. RPG Maker**
-- [ ] MV/MZ: NW.js shims (`require('fs'|'path')`, `nw.Window`, `process`), saves in per-game storage, case-insensitive files, Ogg audio check, performance (WebGL, canvas size)
+- [x] MV/MZ: NW.js stand-ins (`require('fs'|'path'|'os'|'nw.gui'|...)`, `nw.Window`; `process` left undefined so saves stay in per-game browser storage), case-insensitive file lookup in the game server (node and core tests)
+- [ ] MV/MZ: Ogg audio check, performance (WebGL, canvas size), real-game test
 - [ ] MV/MZ decryption-free play of encrypted assets (`.rpgmvp/.ogg_`) as the engine does
 - [ ] XP/VX/VX Ace via mkxp-z as a runtime framework (RTP fonts/assets handling, Win32API shims)
 - [ ] 2000/2003 via EasyRPG Player as a runtime framework

@@ -39,7 +39,12 @@ public struct HTTPResourceRouter: Sendable {
             throw EverPlayError.resourceNotFound
         }
         let relative = String(path.dropFirst(token.count + 2))
-        let file = try SafePath.destination(relative, in: root)
+        var file = try SafePath.destination(relative, in: root)
+        if !FileManager.default.fileExists(atPath: file.path) {
+            // Games made on Windows often name files with a different case than they request them;
+            // iOS file systems are case-sensitive.
+            file = CaseInsensitiveLookup.shared.resolve(relative, in: root) ?? file
+        }
         let attrs = try FileManager.default.attributesOfItem(atPath: file.path)
         guard attrs[.type] as? FileAttributeType == .typeRegular, let size = attrs[.size] as? NSNumber else {
             throw EverPlayError.resourceNotFound
@@ -86,5 +91,38 @@ public struct HTTPResourceRouter: Sendable {
          "wav": "audio/wav", "mp4": "video/mp4", "webm": "video/webm", "wasm": "application/wasm",
          "woff": "font/woff", "woff2": "font/woff2", "ttf": "font/ttf", "otf": "font/otf",
          "txt": "text/plain; charset=utf-8"][extensionName.lowercased()] ?? "application/octet-stream"
+    }
+}
+
+/// Finds a file whose path differs from the request only in letter case, one directory level at a
+/// time and only through names the directory lists, so the result stays inside the game folder.
+final class CaseInsensitiveLookup: @unchecked Sendable {
+    static let shared = CaseInsensitiveLookup()
+    private let lock = NSLock()
+    private var listings: [String: [String: String]] = [:]
+
+    func resolve(_ relative: String, in root: URL) -> URL? {
+        var current = root
+        for component in relative.split(separator: "/") where !component.isEmpty {
+            let name = String(component)
+            let exact = current.appendingPathComponent(name)
+            if FileManager.default.fileExists(atPath: exact.path) { current = exact; continue }
+            guard let match = listing(of: current)[name.lowercased()] else { return nil }
+            current = current.appendingPathComponent(match)
+            if (try? FileManager.default.destinationOfSymbolicLink(atPath: current.path)) != nil { return nil }
+        }
+        return current
+    }
+
+    private func listing(of directory: URL) -> [String: String] {
+        lock.lock(); defer { lock.unlock() }
+        if let known = listings[directory.path] { return known }
+        var names: [String: String] = [:]
+        for name in (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? [] {
+            names[name.lowercased()] = names[name.lowercased()] ?? name
+        }
+        if listings.count > 256 { listings.removeAll() }
+        listings[directory.path] = names
+        return names
     }
 }

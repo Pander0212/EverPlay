@@ -23,11 +23,13 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
         configuration.mediaTypesRequiringUserActionForPlayback = .audio
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
-        if game.engine == .rpgMakerMV || game.engine == .rpgMakerMZ,
-           let url = Bundle.main.url(forResource: "RPGMakerCheats", withExtension: "js"),
-           let source = try? String(contentsOf: url, encoding: .utf8) {
-            configuration.userContentController.addUserScript(
-                WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        if game.engine == .rpgMakerMV || game.engine == .rpgMakerMZ {
+            // Shims first, before the game's plugins run; cheats once the page is loaded.
+            for (name, time) in [("RPGMakerShims", WKUserScriptInjectionTime.atDocumentStart), ("RPGMakerCheats", .atDocumentEnd)] {
+                guard let url = Bundle.main.url(forResource: name, withExtension: "js"),
+                      let source = try? String(contentsOf: url, encoding: .utf8) else { continue }
+                configuration.userContentController.addUserScript(WKUserScript(source: source, injectionTime: time, forMainFrameOnly: true))
+            }
         }
         webView = WKWebView(frame: .zero, configuration: configuration)
         super.init()

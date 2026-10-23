@@ -35,6 +35,15 @@ final class HTTPResourceRouterTests: FixtureTestCase {
             XCTAssertThrowsError(try router.response(to: request(path)), path)
         }
     }
+    func testFileNamesInAnotherLetterCaseAreFound() throws {
+        let folder = temporary.appendingPathComponent("img/Pictures", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data("png".utf8).write(to: folder.appendingPathComponent("Hero.PNG"))
+        let response = try router.response(to: request("/test-token/img/pictures/hero.png"))
+        XCTAssertEqual(response.status, 200)
+        XCTAssertEqual(response.headers["Content-Type"], "image/png")
+        XCTAssertThrowsError(try router.response(to: request("/test-token/img/pictures/villain.png")))
+    }
     func testEncodedFileNamesAndNoDoubleDecode() throws {
         try Data().write(to: temporary.appendingPathComponent("my game.js"))
         XCTAssertEqual(try router.response(to: request("/test-token/my%20game.js")).headers["Content-Type"], "text/javascript; charset=utf-8")
