@@ -100,7 +100,10 @@ final class RenPyLibrary: ObservableObject {
         let saveDirectory = saves.appendingPathComponent(game.folder)
         // Let SwiftUI finish the tap before Ren'Py's loop takes over the main thread.
         DispatchQueue.main.async { [weak self] in
-            guard let handle = dlopen(binary.path, RTLD_NOW | RTLD_LOCAL),
+            // RTLD_GLOBAL: SDL resolves OpenGL ES entry points with dlsym(RTLD_DEFAULT), so the
+            // runtime's MetalANGLE must be visible globally. Python, SDL and FFmpeg stay private
+            // because the framework exports only everplay_renpy_main.
+            guard let handle = dlopen(binary.path, RTLD_NOW | RTLD_GLOBAL),
                   let symbol = dlsym(handle, "everplay_renpy_main") else {
                 let reason = dlerror().map { String(cString: $0) } ?? "unknown"
                 self?.message = "\(runtime.title) could not be loaded: \(reason)"
