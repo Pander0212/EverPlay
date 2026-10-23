@@ -40,3 +40,10 @@ Found with real games on an iPhone; each rule covers a class of games, not a sin
 | Game ships a **modified engine** (`renpy/` next to `game/`) | If its `vc_version.py` matches the runtime exactly, the game's own engine scripts are used with the app's compiled modules |
 
 The last rule is why exact runtimes matter: a real 8.4.1 game moved part of its game logic into `renpy/game.py` and `renpy/persistent.py` and removed engine checks (VPGrid overfull, duplicate translations). It needs the 8.4.1 runtime. CI case E proves the switch with a marked engine copy (`Gold: 99`).
+
+## Plugin model (like JoiPlay's runtime plugins)
+
+One iOS process can host only one embedded Python, and sideloading certificates rarely grant shared App Groups. Each Ren'Py runtime is therefore its own app ("EverPlay RenPy 8.5", "8.4", "7.8"), installed only when needed:
+
+- **Plugin:** its Documents folder (visible in Files) holds the games. `everplay-renpyNN://play?game=<folder>` starts a game; when Ren'Py exits, the plugin opens `everplay://library`. CI case F checks the URL start.
+- **EverPlay:** Settings › Plugins connects each plugin folder once (security-scoped bookmark). The library lists the plugin games; importing a Ren'Py folder copies it into the best plugin: the exact engine version first (for games with a modified engine), otherwise the same major version (Ren'Py 6 → 7.8).

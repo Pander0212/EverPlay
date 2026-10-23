@@ -4,6 +4,7 @@ import EverPlayCore
 
 struct RootView: View {
     @EnvironmentObject private var library: LibraryModel
+    @EnvironmentObject private var plugins: PluginStore
     @State private var showImporter = false
     @State private var archiveCandidate: GameRecord?
     var body: some View {
@@ -16,7 +17,7 @@ struct RootView: View {
             }.tabItem { Label("Import", systemImage: "plus.app") }
             NavigationStack { SettingsView() }.tabItem { Label("Settings", systemImage: "slider.horizontal.3") }
         }
-        .task { await library.refresh() }
+        .task { await library.refresh(); plugins.refresh() }
         .sheet(isPresented: $showImporter) {
             DocumentPicker(types: [.zip, .archive, .data]) { url in Task { await library.importZIP(url) } }
                 .ignoresSafeArea()
@@ -24,6 +25,9 @@ struct RootView: View {
         .alert("EverPlay", isPresented: Binding(get: { library.error != nil }, set: { if !$0 { library.error = nil } })) {
             Button("OK") { library.error = nil }
         } message: { Text(library.error ?? "") }
+        .alert("Ren'Py", isPresented: Binding(get: { plugins.message != nil }, set: { if !$0 { plugins.message = nil } })) {
+            Button("OK") { plugins.message = nil }
+        } message: { Text(plugins.message ?? "") }
         .confirmationDialog("Archive this game? Its files and browser saves will be retained; restore UI is planned.",
                             isPresented: Binding(get: { archiveCandidate != nil }, set: { if !$0 { archiveCandidate = nil } })) {
             Button("Archive game") { if let game = archiveCandidate { Task { await library.archive(game) } }; archiveCandidate = nil }
@@ -36,6 +40,7 @@ struct RootView: View {
 
 private struct LibraryView: View {
     @EnvironmentObject private var library: LibraryModel
+    @EnvironmentObject private var plugins: PluginStore
     @Binding var showImporter: Bool
     @Binding var archiveCandidate: GameRecord?
     @State private var search = ""
@@ -59,12 +64,13 @@ private struct LibraryView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 header
-                if library.games.isEmpty {
+                if library.games.isEmpty && plugins.games.isEmpty {
                     EmptyLibrary(showImporter: $showImporter)
                 } else {
                     if search.isEmpty && filter == nil && !recentGames.isEmpty { continueSection }
                     if engines.count > 1 { filterChips }
-                    gameGrid
+                    if !library.games.isEmpty { gameGrid }
+                    if !plugins.games.isEmpty && filter == nil { PluginGamesSection() }
                 }
             }
             .padding(.horizontal, 20).padding(.bottom, 120)
@@ -310,6 +316,7 @@ private struct ImportToast: View {
 
 private struct ImportView: View {
     @EnvironmentObject private var library: LibraryModel
+    @EnvironmentObject private var plugins: PluginStore
     @Environment(\.scenePhase) private var scenePhase
     @Binding var showImporter: Bool
     @State private var showFolderPicker = false
@@ -328,7 +335,7 @@ private struct ImportView: View {
                              detail: "Or place it in On My iPhone › EverPlay; it then appears here.") { showFolderPicker = true }
                 ImportOption(icon: "leaf.fill", title: "Lantern Garden demo",
                              detail: "An original sample game to try the controls.") { Task { await library.importDemo() } }
-                if library.importing { ImportToast().padding(.horizontal, -20) }
+                if library.importing || plugins.installing != nil { ImportToast().padding(.horizontal, -20) }
                 if let message = library.importMessage {
                     Label(message, systemImage: "checkmark.circle.fill").foregroundStyle(Theme.accent).font(.subheadline)
                 }
@@ -350,9 +357,15 @@ private struct ImportView: View {
         .onAppear { library.refreshInbox() }
         .onChange(of: scenePhase) { _, phase in if phase == .active { library.refreshInbox() } }
         .sheet(isPresented: $showFolderPicker) {
-            DocumentPicker(types: [.folder]) { url in Task { await library.importZIP(url) } }
+            DocumentPicker(types: [.folder]) { url in Task { await importFolderOrZIP(url) } }
                 .ignoresSafeArea()
         }
+    }
+
+    /// Ren'Py games go to their plugin app; everything else into EverPlay's own library.
+    private func importFolderOrZIP(_ url: URL) async {
+        if await plugins.install(folder: url) { return }
+        await library.importZIP(url)
     }
 
     private var inboxSection: some View {
@@ -363,7 +376,7 @@ private struct ImportView: View {
                 ImportOption(icon: folder ? "folder.fill" : "doc.zipper",
                              title: url.deletingPathExtension().lastPathComponent,
                              detail: folder ? "Folder · tap to import" : "ZIP · tap to import") {
-                    Task { await library.importZIP(url) }
+                    Task { await importFolderOrZIP(url) }
                 }
             }
         }
@@ -371,7 +384,7 @@ private struct ImportView: View {
 }
 
 /// UIKit's document picker: SwiftUI's fileImporter did not react to taps on some sideloaded installs.
-private struct DocumentPicker: UIViewControllerRepresentable {
+struct DocumentPicker: UIViewControllerRepresentable {
     let types: [UTType]
     let onPick: (URL) -> Void
 
@@ -437,6 +450,7 @@ struct SettingsView: View {
                      ? "Liquid Glass uses the system glass material of iOS 26."
                      : "Liquid Glass needs iOS 26; on this device a frosted material is used instead.")
             }
+            PluginSettingsSection()
             Section("While playing") {
                 Toggle("Keep screen awake", isOn: $preventSleep)
                 Text("Virtual controls, their layout and transparency are saved separately for each game in the player menu.")
