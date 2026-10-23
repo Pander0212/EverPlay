@@ -2,18 +2,28 @@ import Foundation
 
 public enum GameEngine: String, Codable, Sendable, CaseIterable {
     case html5, rpgMakerMV, rpgMakerMZ
+    /// RPG Maker 2000/2003, played natively by the EasyRPG Player libretro core.
+    case rpgMaker2000
 
     public var title: String {
         switch self {
         case .html5: return "HTML5"
         case .rpgMakerMV: return "RPG Maker MV"
         case .rpgMakerMZ: return "RPG Maker MZ"
+        case .rpgMaker2000: return "RPG Maker 2000/2003"
         }
     }
 
     public var compatibility: String {
-        self == .html5 ? "Web player" : "Experimental · web exports only"
+        switch self {
+        case .html5: return "Web player"
+        case .rpgMakerMV, .rpgMakerMZ: return "Experimental · web exports only"
+        case .rpgMaker2000: return "Native · EasyRPG Player"
+        }
     }
+
+    /// Runs in EverPlay's web player (WKWebView and the loopback game server).
+    public var isWeb: Bool { self != .rpgMaker2000 }
 }
 
 public struct EngineCapabilities: OptionSet, Sendable {

@@ -67,7 +67,8 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [ ] MV/MZ: Ogg audio check, performance (WebGL, canvas size), real-game test
 - [ ] MV/MZ decryption-free play of encrypted assets (`.rpgmvp/.ogg_`) as the engine does
 - [ ] XP/VX/VX Ace via mkxp-z as a runtime framework (RTP fonts/assets handling, Win32API shims)
-- [ ] 2000/2003 via EasyRPG Player as a runtime framework
+- [x] 2000/2003 via the EasyRPG Player libretro core (iOS arm64 build from libretro, vendored and pinned): EverPlay's own libretro frontend (software video, audio, joypad from the control editor, saves in Files, quick save/load via serialize); device-only, the Intel simulator cannot load the core
+- [ ] 2000/2003: RTP (EasyRPG's free RTP, CC-BY 4.0), Shift-JIS file names in ZIPs, title-screen covers (XYZ images)
 
 **B2. Japanese / DLsite engines**
 - [x] TyranoScript / TyranoBuilder and other NW.js builds: browser exports run as HTML5; desktop builds with a package.nw next to Game.exe are unpacked on import

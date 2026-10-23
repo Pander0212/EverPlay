@@ -156,6 +156,14 @@ final class ImporterTests: FixtureTestCase {
             XCTAssertEqual($0 as? EverPlayError, .limitExceeded("compression ratio"))
         }
     }
+    func testRPGMaker2000GameIsDetectedByItsDatabase() throws {
+        let game = try prepare([("Yume/RPG_RT.ldb", Data("LcfDataBase".utf8)), ("Yume/RPG_RT.lmt", Data("LcfMapTree".utf8)),
+                                ("Yume/Map0001.lmu", Data()), ("Yume/RPG_RT.exe", Data("MZ".utf8)), ("Yume/Picture/title.png", Data())])
+        XCTAssertEqual(game.validation.engine, .rpgMaker2000)
+        XCTAssertEqual(game.validation.entryPoint, "Yume/RPG_RT.ldb")
+        XCTAssertFalse(GameEngine.rpgMaker2000.isWeb)
+        XCTAssertThrowsError(try prepare([("Broken/RPG_RT.ldb", Data())]), "a database without its map tree is not a game")
+    }
     func testNWJSPackageNextToTheExecutable() throws {
         let inner = try zip([("index.html", html), ("tyrano/tyrano.js", Data("tyrano".utf8))], name: "inner")
         let game = try prepare([("MyTyranoGame/Game.exe", Data("MZ".utf8)), ("MyTyranoGame/package.nw", try Data(contentsOf: inner))])

@@ -67,7 +67,10 @@ struct RootView: View {
         .sheet(isPresented: $showLog) { NavigationStack { DiagnosticsLogView() } }
         .sheet(isPresented: $showHelp) { NavigationStack { ImportHelpView() } }
         .fullScreenCover(item: $library.selectedGame, onDismiss: { Task { await library.refresh() } }) { game in
-            if let store = library.store { GamePlayerView(game: game, store: store) }
+            if let store = library.store {
+                if game.engine.isWeb { GamePlayerView(game: game, store: store) }
+                else { LibretroPlayerView(game: game, store: store) }
+            }
         }
     }
 

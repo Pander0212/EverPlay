@@ -327,3 +327,23 @@ This product contains derivations of various scripts from Swift OpenAPI Generato
     * https://www.apache.org/licenses/LICENSE-2.0
   * HOMEPAGE:
     * https://github.com/apple/swift-openapi-generator
+
+
+EasyRPG Player (all-in-one build)
+GNU General Public License v3.0 or later
+
+The all-in-one build includes the EasyRPG Player libretro core (version 0.8.1.1, git a3fbb7c) built for iOS by the
+libretro project. EasyRPG Player is free software: you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at
+your option) any later version. It is distributed WITHOUT ANY WARRANTY; see https://www.gnu.org/licenses/gpl-3.0.html.
+Complete corresponding source: https://github.com/EasyRPG/Player (commit a3fbb7c) and https://github.com/EasyRPG/liblcf;
+the libretro build recipe: https://github.com/libretro/libretro-super. EverPlay loads the core as a separate
+library through the libretro API; EverPlay's own source is published at https://github.com/Pander0212/EverPlay.
+
+
+Ren'Py (all-in-one build)
+
+The all-in-one build includes Ren'Py runtimes (https://www.renpy.org, MIT license, with its bundled components under
+their own licenses: Python (PSF), SDL2 (zlib), FFmpeg (LGPL-2.1), MetalANGLE (BSD), libpng, libjpeg-turbo, FreeType
+and others). Their licenses are listed at https://www.renpy.org/doc/html/license.html; the matching sources are
+published by the Ren'Py project for each release (renpy-<version>-sdk and renios downloads).

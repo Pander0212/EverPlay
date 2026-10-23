@@ -26,6 +26,9 @@ public enum GameDetector {
         // Other pages, for games that are a single HTML file (Twine/SugarCube such as Degrees of Lewdity).
         var pages: [(path: String, size: Int)] = []
         var legacy = false
+        // RPG Maker 2000/2003: RPG_RT.ldb (database) next to RPG_RT.lmt (map tree).
+        var databases: [String] = []
+        var mapTrees: Set<String> = []
         let rootComponents = root.pathComponents
         for case let enumeratedURL as URL in enumerator {
             let url = enumeratedURL.standardizedFileURL.resolvingSymlinksInPath()
@@ -37,6 +40,11 @@ public enum GameDetector {
             let relative = components.dropFirst(rootComponents.count).joined(separator: "/")
             if relative.split(separator: "/").contains(where: { $0.hasPrefix(".") || $0 == "__MACOSX" }) { continue }
             if ["rxdata", "rvdata", "rvdata2", "rpa", "pck", "ldb"].contains(url.pathExtension.lowercased()) { legacy = true }
+            switch url.lastPathComponent.lowercased() {
+            case "rpg_rt.ldb": databases.append(relative)
+            case "rpg_rt.lmt": mapTrees.insert((relative as NSString).deletingLastPathComponent.lowercased())
+            default: break
+            }
             let pageExtension = ["html", "htm"].contains(url.pathExtension.lowercased())
             if pageExtension, try url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true {
                 if url.lastPathComponent == "index.html" {
@@ -48,6 +56,12 @@ public enum GameDetector {
             }
         }
         if let scanError { throw scanError }
+        let games2000 = databases.filter { mapTrees.contains(($0 as NSString).deletingLastPathComponent.lowercased()) }
+        if let database = games2000.min(by: { $0.split(separator: "/").count < $1.split(separator: "/").count }) {
+            return GameValidationResult(engine: .rpgMaker2000, entryPoint: database, warnings: [
+                "Games that need the original RTP show missing graphics until an RTP is added."
+            ])
+        }
         if entries.isEmpty, !legacy, !pages.isEmpty {
             // No index.html: take the page closest to the top, the largest if several are equally
             // close (a story file outweighs its credits or readme page).
