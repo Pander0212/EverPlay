@@ -156,6 +156,17 @@ final class ImporterTests: FixtureTestCase {
             XCTAssertEqual($0 as? EverPlayError, .limitExceeded("compression ratio"))
         }
     }
+    func testShiftJISFileNamesFromJapaneseArchives() throws {
+        // Stored ZIP whose names are Shift-JIS without the UTF-8 flag (as Japanese Windows writes them):
+        // ゲーム/RPG_RT.ldb, ゲーム/RPG_RT.lmt, ゲーム/CharSet/主人公.png
+        let base64 = "UEsDBBQAAAAAAAAAIQAovPTjAgAAAAIAAAARAAAAg1GBW4OAL1JQR19SVC5sZGJkYlBLAwQUAAAAAAAAACEA3F4+twQAAAAEAAAAEQAAAINRgVuDgC9SUEdfUlQubG10dHJlZVBLAwQUAAAAAAAAACEAAAAAAAAAAAAAAAAAGQAAAINRgVuDgC9DaGFyU2V0L47lkGyM9i5wbmdQSwECFAMUAAAAAAAAACEAKLz04wIAAAACAAAAEQAAAAAAAAAAAAAAgAEAAAAAg1GBW4OAL1JQR19SVC5sZGJQSwECFAMUAAAAAAAAACEA3F4+twQAAAAEAAAAEQAAAAAAAAAAAAAAgAExAAAAg1GBW4OAL1JQR19SVC5sbXRQSwECFAMUAAAAAAAAACEAAAAAAAAAAAAAAAAAGQAAAAAAAAAAAAAAgAFkAAAAg1GBW4OAL0NoYXJTZXQvjuWQbIz2LnBuZ1BLBQYAAAAAAwADAMUAAACbAAAAAAA="
+        let url = temporary.appendingPathComponent("japanese.zip")
+        try XCTUnwrap(Data(base64Encoded: base64)).write(to: url)
+        let game = try GameImporter().prepare(zip: url, stagingParent: temporary.appendingPathComponent("staging"))
+        XCTAssertEqual(game.validation.engine, .rpgMaker2000)
+        XCTAssertEqual(game.validation.entryPoint, "ゲーム/RPG_RT.ldb")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: game.directory.appendingPathComponent("ゲーム/CharSet/主人公.png").path))
+    }
     func testRPGMaker2000GameIsDetectedByItsDatabase() throws {
         let game = try prepare([("Yume/RPG_RT.ldb", Data("LcfDataBase".utf8)), ("Yume/RPG_RT.lmt", Data("LcfMapTree".utf8)),
                                 ("Yume/Map0001.lmu", Data()), ("Yume/RPG_RT.exe", Data("MZ".utf8)), ("Yume/Picture/title.png", Data())])

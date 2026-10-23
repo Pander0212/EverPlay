@@ -101,8 +101,9 @@ public struct GameImporter: Sendable {
         for entry in archive {
             try Task.checkCancellation()
             guard entries.count < limits.maximumEntries else { throw EverPlayError.limitExceeded("file count") }
-            guard entry.type != .symlink else { throw EverPlayError.unsupportedEntry(entry.path) }
-            let components = try SafePath.components(entry.path, directory: entry.type == .directory)
+            let name = Self.decodedPath(of: entry)
+            guard entry.type != .symlink else { throw EverPlayError.unsupportedEntry(name) }
+            let components = try SafePath.components(name, directory: entry.type == .directory)
             let path = components.joined(separator: "/")
             let canonical = path.precomposedStringWithCanonicalMapping.lowercased()
             guard seen.insert(canonical).inserted else { throw EverPlayError.unsafePath("duplicate: \(path)") }
@@ -154,6 +155,16 @@ public struct GameImporter: Sendable {
             files.append((path, entry.uncompressedSize))
         }
         return files
+    }
+
+    /// An entry's path. Archives made on Japanese Windows store Shift-JIS names without the UTF-8
+    /// flag, which ZIP readers otherwise show as DOS code page 437 (and games then miss their files):
+    /// valid UTF-8 stays UTF-8, other names are read as Shift-JIS when they decode, else as CP437.
+    static func decodedPath(of entry: Entry) -> String {
+        let utf8 = entry.path(using: .utf8)
+        if !utf8.isEmpty { return utf8 }
+        let japanese = entry.path(using: .shiftJIS)
+        return japanese.isEmpty ? entry.path : japanese
     }
 
     /// Reads only the archive's file list: a desktop Ren'Py game has game/ with scripts or
