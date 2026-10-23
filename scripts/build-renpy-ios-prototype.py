@@ -153,6 +153,9 @@ static int everplay_main(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
+    /* Games put buttons at the very bottom edge; let taps there reach the game first instead of
+       the home indicator gesture (a second swipe still goes home). */
+    setenv("SDL_IOS_HIDE_HOME_INDICATOR", "2", 0);
     return SDL_UIKitRunApp(argc, argv, everplay_main);
 }
 '''
@@ -393,8 +396,29 @@ BUBBLE_SAFE = (
 )
 
 
+EMPTY_WINDOW = '            store.narrator.empty_window(multiple=multiple)\n'
+# Games written for older Ren'Py replace narrator with their own class, which lacks empty_window
+# (and may raise KeyError for unknown attributes); older engines showed the window by calling it.
+EMPTY_WINDOW_SAFE = (
+    '            try:\n'
+    '                _everplay_empty = store.narrator.empty_window\n'
+    '            except Exception:\n'
+    '                _everplay_empty = None\n'
+    '            if _everplay_empty is not None:\n'
+    '                _everplay_empty(multiple=multiple)\n'
+    '            else:\n'
+    '                store.narrator("", interact=False)\n'
+)
+
+
 def harden_common(sdk):
-    """Make engine code that shares the game's namespace immune to games shadowing builtins."""
+    """Make engine code that shares the game's namespace robust against older games' habits."""
+    library = sdk / 'renpy/common/00library.rpy'
+    source = library.read_text(encoding='utf-8')
+    assert source.count(EMPTY_WINDOW) == 1, 'empty window code changed; review the fallback'
+    library.write_text(source.replace(EMPTY_WINDOW, EMPTY_WINDOW_SAFE), encoding='utf-8')
+    library.with_suffix('.rpyc').unlink()
+
     bubble = sdk / 'renpy/common/00speechbubble.rpy'
     source = bubble.read_text(encoding='utf-8')
     assert source.count(BUBBLE_LOOP) == 1, 'speech bubble code changed; review the shadowing guard'
@@ -407,7 +431,9 @@ def verify_common(xcode):
     """The app ships only compiled common code; read its zlib slots (no unpickling) for the guard."""
     compiled = list(xcode.rglob('renpy/common/00speechbubble.rpyc'))
     assert compiled, 'bundled engine has no speech bubble code'
-    for path in compiled:
+    library = list(xcode.rglob('renpy/common/00library.rpyc'))
+    assert library, 'bundled engine has no library code'
+    for path in compiled + library:
         data = path.read_bytes()
         assert data.startswith(b'RENPY RPC2'), f'unexpected format {path}'
         position, slots = 10, []
@@ -417,7 +443,8 @@ def verify_common(xcode):
             if slot == 0:
                 break
             slots.append(zlib.decompress(data[start:start + length]))
-        assert slots and all(b'_everplay_builtins' in blob for blob in slots), f'unpatched {path}'
+        marker = b'_everplay_builtins' if path.stem == '00speechbubble' else b'_everplay_empty'
+        assert slots and all(marker in blob for blob in slots), f'unpatched {path}'
 
 
 def fetch(cache):
