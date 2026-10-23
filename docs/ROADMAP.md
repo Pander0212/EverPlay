@@ -53,7 +53,8 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 
 **A2. Control profiles (for every engine)**
 - [ ] Profile model: per engine defaults (built-in "Compact" and "Standard"), user profiles, per-game override, separate iPhone/iPad and portrait/landscape layouts, import/export
-- [ ] Touch layout editor: add, edit, select, duplicate, delete, snap-to-grid, opacity/size, live preview; builds on the existing HTML virtual-controls arrange mode
+- [x] Touch layout editor for web games: every control movable, add any key (letters, digits, F-keys, Shift, Space, Tab, PageUp/Down, ...), size per control, hold-toggle keys, remove, reset; save a layout as the engine default
+- [ ] Snap-to-grid, duplicate, labels, separate portrait/landscape layouts, import/export
 - [ ] Element types: button (key, mouse click, action), D-pad, analog stick, swipe area, toggle buttons (skip, auto, hide UI), menu button
 - [ ] Input injection: WebKit games via key events (existing), SDL engines (Ren'Py, mkxp-z, EasyRPG, ONScripter) via SDL_PushEvent from the runtime framework
 - [ ] Hardware controllers (GameController framework), keyboard and mouse/trackpad mapping, mouse mode (relative cursor)

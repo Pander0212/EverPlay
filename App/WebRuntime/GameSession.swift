@@ -72,15 +72,15 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
     }
 
     func sendKey(_ key: String, pressed: Bool) {
-        let mapping: [String: (String, Int)] = ["ArrowUp": ("ArrowUp", 38), "ArrowDown": ("ArrowDown", 40),
-            "ArrowLeft": ("ArrowLeft", 37), "ArrowRight": ("ArrowRight", 39), "Enter": ("Enter", 13),
-            "Escape": ("Escape", 27), "z": ("KeyZ", 90), "x": ("KeyX", 88)]
-        guard let (code, number) = mapping[key] else { return }
-        // Values come solely from the fixed allowlist, never game text or arbitrary UI input.
+        // Only keys from the fixed catalog, passed as JSON; never game text or free UI input.
+        guard let entry = ControlKey.named(key),
+              let names = try? JSONSerialization.data(withJSONObject: [entry.key, entry.code]) else { return }
+        let number = entry.keyCode
         let script = """
         (() => {
+          const [key, code] = \(String(decoding: names, as: UTF8.self));
           const event = new KeyboardEvent('\(pressed ? "keydown" : "keyup")',
-            {key:'\(key)', code:'\(code)', bubbles:true, cancelable:true, keyCode:\(number), which:\(number)});
+            {key, code, bubbles:true, cancelable:true, keyCode:\(number), which:\(number)});
           Object.defineProperty(event, 'keyCode', {get:()=>\(number)});
           Object.defineProperty(event, 'which', {get:()=>\(number)});
           (document.activeElement || document.body || document).dispatchEvent(event);
