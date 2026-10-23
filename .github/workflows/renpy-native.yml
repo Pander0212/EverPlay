@@ -22,6 +22,8 @@ jobs:
         include:
           - runtime: '8.5.3'
             cache: '8.5'
+          - runtime: '8.4.1'
+            cache: '8.4'
           - runtime: '7.8.7'
             cache: '7.8'
     env:
@@ -93,6 +95,16 @@ jobs:
           xcrun simctl io "$udid" screenshot artifacts/d-link-opens-safari.png
           xcrun simctl terminate "$udid" "$bundle" || true
           grep -E 'EverPlay:' artifacts/d-stderr.log || true
+
+          # E: a game folder with its own copy of the same engine version must use it (Gold: 99).
+          mkdir -p "$data/Documents/EverPlayGames"
+          cp -R build/renpy-ios/engine "$data/Documents/EverPlayGames/engine"
+          xcrun simctl launch --stdout="$PWD/artifacts/e-stdout.log" --stderr="$PWD/artifacts/e-stderr.log" \
+            "$udid" "$bundle" "$data/Documents/EverPlayGames/engine"
+          sleep 75
+          xcrun simctl io "$udid" screenshot artifacts/e-game-engine.png
+          xcrun simctl terminate "$udid" "$bundle" || true
+          grep -E 'EverPlay:|Error|Traceback' artifacts/e-stderr.log || true
           tail -n 40 artifacts/a-stderr.log artifacts/b-stderr.log || true
           grep -E 'EverPlay:|Interface start|Error|Traceback' artifacts/c-stderr.log || true
       - name: Keep screenshots and logs

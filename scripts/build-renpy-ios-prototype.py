@@ -36,6 +36,13 @@ RUNTIMES = {
         'renpy-8.5.3-renios.zip': ('https://www.renpy.org/dl/8.5.3/renpy-8.5.3-renios.zip',
                                    'c4fae153e8276ed0faed5e84ea3e0b7c4bf337f0e3208e9130c6a41748a83b2b'),
     },
+    # Exact match for 8.4.1 games that ship a modified engine; they use their own engine scripts.
+    '8.4.1': {
+        'renpy-8.4.1-sdk.tar.bz2': ('https://www.renpy.org/dl/8.4.1/renpy-8.4.1-sdk.tar.bz2',
+                                    '7e398814f242b3c4e51b29b9edb7369d1c71434dacdeb2e83445f11addd55076'),
+        'renpy-8.4.1-renios.zip': ('https://www.renpy.org/dl/8.4.1/renpy-8.4.1-renios.zip',
+                                   'f631ccd21f6fdc22619882bf55d44653f402dfe832422d1eefa804cba1ee819f'),
+    },
     # Last Python 2 release; also the runtime for older Ren'Py 6/7 games.
     '7.8.7': {
         'renpy-7.8.7-sdk.tar.bz2': ('https://www.renpy.org/dl/7.8.7/renpy-7.8.7-sdk.tar.bz2',
@@ -156,7 +163,7 @@ def configure(xcode):
     plist = xcode / 'Info.plist'
     with plist.open('rb') as stream:
         info = plistlib.load(stream)
-    info.update(CFBundleDisplayName=f'EverPlay RenPy {RELEASE[0]}', UIFileSharingEnabled=True,
+    info.update(CFBundleDisplayName=f'EverPlay RenPy {RELEASE[:3]}', UIFileSharingEnabled=True,
                 LSSupportsOpeningDocumentsInPlace=True, UIApplicationSupportsIndirectInputEvents=True)
     with plist.open('wb') as stream:
         plistlib.dump(info, stream)
@@ -167,6 +174,34 @@ def configure(xcode):
 
 
 GAME_PACKAGES = """
+EVERPLAY_RUNTIME = "@RUNTIME@"
+
+
+def everplay_engine_override(renpy_base):
+    # EverPlay: desktop games ship Ren'Py's pure-Python engine next to game/, and some developers
+    # modify it (even moving game logic into it). When that copy is exactly our runtime's version,
+    # load it instead of the bundled one; the compiled modules still come from the app and match.
+    import re
+    if len(sys.argv) < 2 or not os.path.isdir(sys.argv[1]):
+        return renpy_base
+    base = os.path.abspath(sys.argv[1])
+    engine = os.path.join(base, "renpy")
+    if not os.path.isfile(os.path.join(engine, "__init__.py")):
+        return renpy_base
+    try:
+        with open(os.path.join(engine, "vc_version.py")) as stream:
+            found = re.search("version *= *u?['\\"]([0-9]+[.][0-9]+[.][0-9]+)", stream.read())
+    except Exception:
+        found = None
+    version = found.group(1) if found else "unknown"
+    if version != EVERPLAY_RUNTIME:
+        print("EverPlay: game engine %s differs from runtime %s; using the bundled engine" % (version, EVERPLAY_RUNTIME))
+        return renpy_base
+    print("EverPlay: using the game's own Ren'Py %s engine scripts" % version)
+    sys.path.insert(0, base)
+    return base
+
+
 def everplay_game_packages():
     # EverPlay: desktop games may ship extra pure-Python packages (in game/python-packages or
     # their lib/ folder). Make them importable *after* the runtime's own modules, so the iOS
@@ -220,6 +255,74 @@ def everplay_open_url(url):
         return False
 
 
+# Online extras some desktop games bundle (AI text, analytics, cloud saves). They often depend on
+# compiled parts built only for Windows or macOS, which iOS cannot load.
+EVERPLAY_OPTIONAL = ("openai", "anthropic", "boto3", "pymysql", "mysql.connector", "MySQLdb",
+                     "pypresence", "steamworks")
+
+
+class EverPlayMissing(object):
+    # Stands in for anything inside an extra that could not load: attribute access keeps
+    # working, calling it raises, which games already handle for offline play.
+    def __init__(self, name, reason):
+        self._everplay_name = name
+        self._everplay_reason = reason
+
+    def __getattr__(self, attribute):
+        if attribute.startswith("__"):
+            raise AttributeError(attribute)
+        return EverPlayMissing(self._everplay_name + "." + attribute, self._everplay_reason)
+
+    def __call__(self, *args, **kwargs):
+        raise RuntimeError("%s is not available on iOS (%s)" % (self._everplay_name, self._everplay_reason))
+
+    def __bool__(self):
+        return False
+    __nonzero__ = __bool__
+
+
+def everplay_shipped(top):
+    if sys.version_info[0] >= 3:
+        import importlib.util
+        return importlib.util.find_spec(top) is not None
+    import imp
+    try:
+        imp.find_module(top)
+        return True
+    except ImportError:
+        return False
+
+
+def everplay_optional_extras():
+    import types
+
+    class EverPlayMissingModule(types.ModuleType):
+        def __getattr__(self, attribute):
+            if attribute.startswith("__"):
+                raise AttributeError(attribute)
+            return EverPlayMissing(self.__name__ + "." + attribute, self._everplay_reason)
+
+    for name in EVERPLAY_OPTIONAL:
+        try:
+            if not everplay_shipped(name.split(".")[0]):
+                continue  # not shipped by this game
+            __import__(name)
+        except Exception as error:
+            reason = "%s: %s" % (type(error).__name__, error)
+            for loaded in list(sys.modules):
+                if loaded == name or loaded.startswith(name + "."):
+                    del sys.modules[loaded]
+            module = EverPlayMissingModule(name)
+            module._everplay_reason = reason
+            sys.modules[name] = module
+            parent, _, child = name.rpartition(".")
+            if parent:
+                if parent not in sys.modules:
+                    sys.modules[parent] = types.ModuleType(parent)
+                setattr(sys.modules[parent], child, module)
+            print("EverPlay: %s cannot load on iOS, replaced by a placeholder (%s)" % (name, reason))
+
+
 def everplay_compatibility():
     import re
     # Python's webbrowser module has no iOS backend here, so Ren'Py's open_url (link buttons
@@ -246,6 +349,8 @@ def everplay_compatibility():
             return 127
         os.system = system
 
+    everplay_optional_extras()
+
     # Patch only after Ren'Py has imported its own modules in its usual order; importing
     # renpy.translation any earlier fails because it needs renpy.ast.
     import renpy
@@ -264,7 +369,10 @@ def everplay_compatibility():
 def add_game_packages(main_py):
     source = main_py.read_text()
     assert source.count('def main():') == 1 and source.count('    renpy.bootstrap.bootstrap(renpy_base)') == 1
-    source = source.replace('def main():', GAME_PACKAGES.lstrip('\n') + 'def main():')
+    assert source.count('    sys.path.append(renpy_base)') == 1
+    source = source.replace('def main():', GAME_PACKAGES.lstrip('\n').replace('@RUNTIME@', RELEASE) + 'def main():')
+    source = source.replace('    sys.path.append(renpy_base)',
+                            '    renpy_base = everplay_engine_override(renpy_base)\n    sys.path.append(renpy_base)')
     source = source.replace('    renpy.bootstrap.bootstrap(renpy_base)',
                             '    everplay_game_packages()\n    everplay_compatibility()\n'
                             '    renpy.bootstrap.bootstrap(renpy_base)')
@@ -385,9 +493,23 @@ def main():
         packages = output / 'variant/game/python-packages'
         packages.mkdir(parents=True)
         (packages / 'everplay_desktop_extra.py').write_text('from os import environ, system\n')
-        (output / 'variant/game/desktop_extra.rpy').write_text('init python:\n    import everplay_desktop_extra\n')
+        (output / 'variant/game/desktop_extra.rpy').write_text(
+            'init python:\n    import everplay_desktop_extra\n    import openai\n    openai.api_key = "test"\n')
+        # An online extra whose compiled part exists only for desktop systems.
+        (packages / 'openai').mkdir()
+        (packages / 'openai/__init__.py').write_text('from ._native import Client\n')
         # A game variable that shadows a builtin used by Ren'Py's own common code.
         (output / 'variant/game/shadowed_builtin.rpy').write_text('define sorted = "newest"\n')
+        # E: a game folder that ships its own (here: marked) copy of the same engine version.
+        engine = output / 'engine'
+        shutil.copytree(output / 'variant/game', engine / 'game')
+        shutil.copytree(sdk / 'renpy', engine / 'renpy', ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '*.pyo'))
+        with (engine / 'renpy/game.py').open('a') as stream:
+            stream.write('\neverplay_engine_marker = True\n')
+        (engine / 'game/engine_marker.rpy').write_text(
+            'init python:\n'
+            '    if getattr(renpy.game, "everplay_engine_marker", False):\n'
+            '        config.after_default_callbacks.append(lambda: setattr(store, "gold", 99))\n')
         shutil.copytree(work / 'quit/game', output / 'quit/game')
         # Opens a link via os.system the way desktop games do; CI expects Safari to show it.
         (output / 'link/game').mkdir(parents=True)

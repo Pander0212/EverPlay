@@ -25,3 +25,18 @@ Logs show the GLES2 renderer on “ANGLE (Metal Renderer: Apple iOS simulator GP
 - **App lifecycle:** `SDL_UIKitRunApp` owns `UIApplicationMain`. EverPlay’s SwiftUI library and the SDL game must share one app, and Python can only be initialised reliably once per process; returning from a game to the library may need an app restart at first.
 - **Ren’Py 7 and 8 together:** both link a static CPython with identical symbols; plan separately linked frameworks per runtime, loaded on demand.
 - **Info.plist:** add `UIApplicationSupportsIndirectInputEvents` for mouse/trackpad support.
+
+## Compatibility layer for real desktop games
+
+Found with real games on an iPhone; each rule covers a class of games, not a single title.
+
+| Problem | Handling |
+| --- | --- |
+| Extra Python packages in `game/python-packages` or `lib/python*` | Appended to `sys.path` after the runtime's own modules |
+| Same string translation defined twice | First definition wins, duplicate is logged |
+| `os.system` / `webbrowser` (Discord status, link buttons) | Links open in Safari, other commands are ignored |
+| Game variable shadows a builtin used by engine code (`sorted`) | Bundled speech-bubble code uses the real builtin |
+| Online extras whose compiled parts exist only for desktop (OpenAI via `pydantic_core`, MySQL, …) | Replaced by a placeholder: attributes work, calls raise, games keep running offline |
+| Game ships a **modified engine** (`renpy/` next to `game/`) | If its `vc_version.py` matches the runtime exactly, the game's own engine scripts are used with the app's compiled modules |
+
+The last rule is why exact runtimes matter: a real 8.4.1 game moved part of its game logic into `renpy/game.py` and `renpy/persistent.py` and removed engine checks (VPGrid overfull, duplicate translations). It needs the 8.4.1 runtime. CI case E proves the switch with a marked engine copy (`Gold: 99`).
