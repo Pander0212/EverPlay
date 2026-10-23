@@ -3,13 +3,11 @@ import SwiftUI
 @main
 struct EverPlayApp: App {
     @StateObject private var library = LibraryModel()
-    @StateObject private var plugins = PluginStore()
+    @StateObject private var renpy = RenPyLibrary()
     var body: some Scene {
         WindowGroup {
-            RootView().environmentObject(library).environmentObject(plugins)
+            RootView().environmentObject(library).environmentObject(renpy)
                 .preferredColorScheme(.dark).tint(Theme.accent)
-                // A plugin returns with everplay://library after its game ends.
-                .onOpenURL { _ in plugins.refresh() }
         }
     }
 }

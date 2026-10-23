@@ -42,6 +42,8 @@ final class LibraryModel: ObservableObject {
         let items = (try? FileManager.default.contentsOfDirectory(at: documents, includingPropertiesForKeys: [.isDirectoryKey],
                                                                   options: [.skipsHiddenFiles])) ?? []
         inbox = items.filter { url in
+            // EverPlay's own Ren'Py library and save folders live here too.
+            guard !["Ren'Py", "Saves"].contains(url.lastPathComponent) else { return false }
             let directory = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
             return directory || url.pathExtension.lowercased() == "zip"
         }.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }

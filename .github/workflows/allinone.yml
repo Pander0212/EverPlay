@@ -1,0 +1,177 @@
+name: EverPlay all-in-one (Ren'Py inside)
+# One app instead of plugin apps: every Ren'Py runtime becomes a framework inside EverPlay.
+# Our MIT fixtures only. The simulator job starts one fixture per runtime from EverPlay's own
+# library; the IPA job produces the unsigned all-in-one test build.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/allinone.yml
+      - scripts/build-renpy-ios-prototype.py
+      - scripts/package-renpy-runtime.py
+      - App/**
+permissions:
+  contents: read
+concurrency:
+  group: allinone-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  RUNTIMES: '8.5.3 8.4.1 7.8.7'
+jobs:
+  simulator:
+    runs-on: macos-15-intel
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Reuse Ren'Py 8.5.3 downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-8.5
+          key: renpy-8.5.3-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Reuse Ren'Py 8.4.1 downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-8.4
+          key: renpy-8.4.1-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Reuse Ren'Py 7.8.7 downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-7.8
+          key: renpy-7.8.7-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Reuse the pinned XcodeGen source build
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/XcodeGen
+          key: ${{ runner.os }}-${{ runner.arch }}-xcode16.4-xcodegen-21ac9944b0ab546a07422dbed86f33dd2ebd76f8-v1
+      - name: Package the Ren'Py runtimes for the simulator
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts build/fixtures
+          for runtime in $RUNTIMES; do
+            id="$(echo "$runtime" | cut -d. -f1,2 | tr -d .)"
+            EVERPLAY_RENPY_RUNTIME="$runtime" python3 scripts/build-renpy-ios-prototype.py > "artifacts/prototype-$id.log" 2>&1 \
+              || { tail -n 60 "artifacts/prototype-$id.log"; exit 1; }
+            EVERPLAY_RENPY_RUNTIME="$runtime" python3 scripts/package-renpy-runtime.py iphonesimulator build/runtimes \
+              > "artifacts/package-$id.log" 2>&1 || { tail -n 60 "artifacts/package-$id.log"; exit 1; }
+            cp -R build/renpy-ios/variant "build/fixtures/Probe$id"
+            cp -R build/renpy-ios/engine "build/fixtures/Engine$id"
+          done
+          du -sh build/runtimes/Frameworks/* build/runtimes/Runtimes/*
+      - name: Build EverPlay for the simulator and embed the runtimes
+        run: |
+          set -euo pipefail
+          bash scripts/generate-project.sh > artifacts/project-generation.log 2>&1 || { tail -n 60 artifacts/project-generation.log; exit 1; }
+          set -o pipefail
+          xcodebuild build -project EverPlay.xcodeproj -scheme EverPlay -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO \
+            -derivedDataPath DerivedData -clonedSourcePackagesDirPath .build/xcode-packages CODE_SIGN_IDENTITY=- \
+            2>&1 | tee artifacts/everplay-build.log | grep -E 'error:|\*\* BUILD' || true
+          grep -q '\*\* BUILD SUCCEEDED \*\*' artifacts/everplay-build.log
+          app=DerivedData/Build/Products/Debug-iphonesimulator/EverPlay.app
+          mkdir -p "$app/Frameworks"
+          cp -R build/runtimes/Frameworks/. "$app/Frameworks/"
+          cp -R build/runtimes/Runtimes "$app/"
+          for framework in "$app"/Frameworks/*.framework; do codesign --force --sign - --timestamp=none "$framework"; done
+          codesign --force --sign - --timestamp=none "$app"
+      - name: Start one fixture per runtime from EverPlay's library
+        run: |
+          set -euo pipefail
+          app=DerivedData/Build/Products/Debug-iphonesimulator/EverPlay.app
+          bundle="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")"
+          udid="$(xcrun simctl list devices available -j | python3 -c '
+          import json,sys
+          items=json.load(sys.stdin)["devices"]
+          print(next(d["udid"] for r,ds in items.items() if "iOS" in r for d in ds if "iPhone" in d["name"]))')"
+          python3 -c 'import subprocess,sys; subprocess.run(["xcrun","simctl","bootstatus",sys.argv[1],"-b"],timeout=600,check=True)' "$udid"
+          xcrun simctl install "$udid" "$app"
+          data="$(xcrun simctl get_app_container "$udid" "$bundle" data)"
+          mkdir -p "$data/Documents/Ren'Py"
+          cp -R build/fixtures/. "$data/Documents/Ren'Py/"
+          # Probe (Gold: 37) per runtime; Engine84 ships its own engine copy (Gold: 99).
+          for game in Probe85 Probe84 Probe78 Engine84; do
+            xcrun simctl launch --stdout="$PWD/artifacts/$game-stdout.log" --stderr="$PWD/artifacts/$game-stderr.log" \
+              "$udid" "$bundle" -EverPlayAutoplayRenPy "$game"
+            sleep 75
+            xcrun simctl io "$udid" screenshot "artifacts/$game.png"
+            xcrun simctl terminate "$udid" "$bundle" || true
+            echo "== $game"; grep -hE 'EverPlay|Error|Traceback' "artifacts/$game-stdout.log" "artifacts/$game-stderr.log" | head -n 20 || true
+          done
+          ls "$data/Documents/Saves" || true
+      - name: Keep screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: allinone-simulator
+          path: artifacts/
+          retention-days: 14
+
+  ipa:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Reuse Ren'Py 8.5.3 downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-8.5
+          key: renpy-8.5.3-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Reuse Ren'Py 8.4.1 downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-8.4
+          key: renpy-8.4.1-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Reuse Ren'Py 7.8.7 downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/renpy-7.8
+          key: renpy-7.8.7-renios-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Reuse the pinned XcodeGen source build
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/XcodeGen
+          key: ${{ runner.os }}-${{ runner.arch }}-xcode26.6-xcodegen-21ac9944b0ab546a07422dbed86f33dd2ebd76f8-v1
+      - name: Package the Ren'Py runtimes for iPhone
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          for runtime in $RUNTIMES; do
+            id="$(echo "$runtime" | cut -d. -f1,2 | tr -d .)"
+            EVERPLAY_RENPY_RUNTIME="$runtime" python3 scripts/build-renpy-ios-prototype.py > "artifacts/prototype-$id.log" 2>&1 \
+              || { tail -n 60 "artifacts/prototype-$id.log"; exit 1; }
+            EVERPLAY_RENPY_RUNTIME="$runtime" python3 scripts/package-renpy-runtime.py iphoneos build/runtimes \
+              > "artifacts/package-$id.log" 2>&1 || { tail -n 60 "artifacts/package-$id.log"; exit 1; }
+          done
+      - name: Build EverPlay for iPhone and embed the runtimes
+        run: |
+          set -euo pipefail
+          bash scripts/generate-project.sh > artifacts/project-generation.log 2>&1 || { tail -n 60 artifacts/project-generation.log; exit 1; }
+          set -o pipefail
+          xcodebuild build -project EverPlay.xcodeproj -scheme EverPlay -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath DerivedData \
+            -clonedSourcePackagesDirPath .build/xcode-packages \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= \
+            2>&1 | tee artifacts/everplay-build.log | grep -E 'error:|\*\* BUILD' || true
+          grep -q '\*\* BUILD SUCCEEDED \*\*' artifacts/everplay-build.log
+          app=DerivedData/Build/Products/Release-iphoneos/EverPlay.app
+          mkdir -p "$app/Frameworks"
+          cp -R build/runtimes/Frameworks/. "$app/Frameworks/"
+          cp -R build/runtimes/Runtimes "$app/"
+          # Ad-hoc placeholder signatures; sideloading tools re-sign every framework and the app.
+          for framework in "$app"/Frameworks/*.framework; do codesign --force --sign - --timestamp=none "$framework"; done
+          codesign --force --sign - --timestamp=none "$app"
+          codesign --verify --deep --verbose=2 "$app"
+          mkdir -p ipa/Payload
+          cp -R "$app" ipa/Payload/
+          (cd ipa && zip -qry ../artifacts/EverPlay-AllInOne-unsigned.ipa Payload)
+          ls -la artifacts/*.ipa
+      - name: Keep the IPA
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: EverPlay-AllInOne-unsigned-ipa
+          path: artifacts/
+          retention-days: 30

@@ -4,7 +4,7 @@ import EverPlayCore
 
 struct RootView: View {
     @EnvironmentObject private var library: LibraryModel
-    @EnvironmentObject private var plugins: PluginStore
+    @EnvironmentObject private var renpy: RenPyLibrary
     @State private var showImporter = false
     @State private var archiveCandidate: GameRecord?
     var body: some View {
@@ -17,7 +17,16 @@ struct RootView: View {
             }.tabItem { Label("Import", systemImage: "plus.app") }
             NavigationStack { SettingsView() }.tabItem { Label("Settings", systemImage: "slider.horizontal.3") }
         }
-        .task { await library.refresh(); plugins.refresh() }
+        .task {
+            await library.refresh()
+            renpy.refresh()
+            // CI and development: start a Ren'Py game from the library directly.
+            let arguments = ProcessInfo.processInfo.arguments
+            if let index = arguments.firstIndex(of: "-EverPlayAutoplayRenPy"), index + 1 < arguments.count,
+               let game = renpy.games.first(where: { $0.folder == arguments[index + 1] }) {
+                renpy.play(game)
+            }
+        }
         .sheet(isPresented: $showImporter) {
             DocumentPicker(types: [.zip, .archive, .data]) { url in Task { await library.importZIP(url) } }
                 .ignoresSafeArea()
@@ -25,9 +34,9 @@ struct RootView: View {
         .alert("EverPlay", isPresented: Binding(get: { library.error != nil }, set: { if !$0 { library.error = nil } })) {
             Button("OK") { library.error = nil }
         } message: { Text(library.error ?? "") }
-        .alert("Ren'Py", isPresented: Binding(get: { plugins.message != nil }, set: { if !$0 { plugins.message = nil } })) {
-            Button("OK") { plugins.message = nil }
-        } message: { Text(plugins.message ?? "") }
+        .alert("Ren'Py", isPresented: Binding(get: { renpy.message != nil }, set: { if !$0 { renpy.message = nil } })) {
+            Button("OK") { renpy.message = nil }
+        } message: { Text(renpy.message ?? "") }
         .confirmationDialog("Archive this game? Its files and browser saves will be retained; restore UI is planned.",
                             isPresented: Binding(get: { archiveCandidate != nil }, set: { if !$0 { archiveCandidate = nil } })) {
             Button("Archive game") { if let game = archiveCandidate { Task { await library.archive(game) } }; archiveCandidate = nil }
@@ -40,7 +49,7 @@ struct RootView: View {
 
 private struct LibraryView: View {
     @EnvironmentObject private var library: LibraryModel
-    @EnvironmentObject private var plugins: PluginStore
+    @EnvironmentObject private var renpy: RenPyLibrary
     @Binding var showImporter: Bool
     @Binding var archiveCandidate: GameRecord?
     @State private var search = ""
@@ -64,13 +73,13 @@ private struct LibraryView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 header
-                if library.games.isEmpty && plugins.games.isEmpty {
+                if library.games.isEmpty && renpy.games.isEmpty {
                     EmptyLibrary(showImporter: $showImporter)
                 } else {
                     if search.isEmpty && filter == nil && !recentGames.isEmpty { continueSection }
                     if engines.count > 1 { filterChips }
                     if !library.games.isEmpty { gameGrid }
-                    if !plugins.games.isEmpty && filter == nil { PluginGamesSection() }
+                    if !renpy.games.isEmpty && filter == nil { RenPyGamesSection() }
                 }
             }
             .padding(.horizontal, 20).padding(.bottom, 120)
@@ -316,7 +325,7 @@ private struct ImportToast: View {
 
 private struct ImportView: View {
     @EnvironmentObject private var library: LibraryModel
-    @EnvironmentObject private var plugins: PluginStore
+    @EnvironmentObject private var renpy: RenPyLibrary
     @Environment(\.scenePhase) private var scenePhase
     @Binding var showImporter: Bool
     @State private var showFolderPicker = false
@@ -335,7 +344,7 @@ private struct ImportView: View {
                              detail: "Or place it in On My iPhone › EverPlay; it then appears here.") { showFolderPicker = true }
                 ImportOption(icon: "leaf.fill", title: "Lantern Garden demo",
                              detail: "An original sample game to try the controls.") { Task { await library.importDemo() } }
-                if library.importing || plugins.installing != nil { ImportToast().padding(.horizontal, -20) }
+                if library.importing || renpy.installing != nil { ImportToast().padding(.horizontal, -20) }
                 if let message = library.importMessage {
                     Label(message, systemImage: "checkmark.circle.fill").foregroundStyle(Theme.accent).font(.subheadline)
                 }
@@ -364,7 +373,7 @@ private struct ImportView: View {
 
     /// Ren'Py games go to their plugin app; everything else into EverPlay's own library.
     private func importFolderOrZIP(_ url: URL) async {
-        if await plugins.install(folder: url) { return }
+        if await renpy.install(folder: url) { return }
         await library.importZIP(url)
     }
 
@@ -450,7 +459,7 @@ struct SettingsView: View {
                      ? "Liquid Glass uses the system glass material of iOS 26."
                      : "Liquid Glass needs iOS 26; on this device a frosted material is used instead.")
             }
-            PluginSettingsSection()
+            RenPySettingsSection()
             Section("While playing") {
                 Toggle("Keep screen awake", isOn: $preventSleep)
                 Text("Virtual controls, their layout and transparency are saved separately for each game in the player menu.")

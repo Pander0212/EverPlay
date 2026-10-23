@@ -1,7 +1,7 @@
 import XCTest
 @testable import EverPlay
 
-final class RenPyPluginTests: XCTestCase {
+final class RenPyLibraryTests: XCTestCase {
     private var root: URL!
 
     override func setUpWithError() throws {
@@ -34,7 +34,16 @@ final class RenPyPluginTests: XCTestCase {
         XCTAssertTrue(RenPyGame.isGame(scriptOnly))
         XCTAssertEqual(RenPyGame.version(of: scriptOnly), "8.2.3")
 
-        let web = try game("Web", files: ["index.html": "<!doctype html>"])
-        XCTAssertFalse(RenPyGame.isGame(web))
+        XCTAssertFalse(RenPyGame.isGame(try game("Web", files: ["index.html": "<!doctype html>"])))
+    }
+
+    func testPicksExactRuntimeThenSameMajor() {
+        let runtimes = [RenPyRuntime(id: "85", version: "8.5.3"), RenPyRuntime(id: "84", version: "8.4.1"),
+                        RenPyRuntime(id: "78", version: "7.8.7")]
+        XCTAssertEqual(RenPyRuntime.best(for: "8.4.1", among: runtimes)?.id, "84")
+        XCTAssertEqual(RenPyRuntime.best(for: "8.2.3", among: runtimes)?.id, "85")
+        XCTAssertEqual(RenPyRuntime.best(for: "7.4.11", among: runtimes)?.id, "78")
+        XCTAssertEqual(RenPyRuntime.best(for: "6.99.12", among: runtimes)?.id, "78")
+        XCTAssertEqual(RenPyRuntime.best(for: nil, among: runtimes)?.id, "85")
     }
 }

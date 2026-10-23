@@ -298,6 +298,21 @@ def everplay_engine_override(renpy_base):
     return base
 
 
+def everplay_save_location():
+    # EverPlay (all-in-one app): iOS Ren'Py saves every game into Documents; give each game the
+    # folder the host chose instead. Plugin apps do not set this and keep Ren'Py's behaviour.
+    target = os.environ.get("EVERPLAY_SAVE_DIR")
+    if not target:
+        return
+
+    def path_to_saves(gamedir, save_directory=None):
+        if not os.path.isdir(target):
+            os.makedirs(target)
+        return target
+
+    globals()["path_to_saves"] = path_to_saves
+
+
 def everplay_game_packages():
     # EverPlay: desktop games may ship extra pure-Python packages (in game/python-packages or
     # their lib/ folder). Make them importable *after* the runtime's own modules, so the iOS
@@ -470,7 +485,7 @@ def add_game_packages(main_py):
     source = source.replace('    sys.path.append(renpy_base)',
                             '    renpy_base = everplay_engine_override(renpy_base)\n    sys.path.append(renpy_base)')
     source = source.replace('    renpy.bootstrap.bootstrap(renpy_base)',
-                            '    everplay_game_packages()\n    everplay_compatibility()\n'
+                            '    everplay_game_packages()\n    everplay_save_location()\n    everplay_compatibility()\n'
                             '    renpy.bootstrap.bootstrap(renpy_base)')
     if PYTHON == 'py3':
         ast.parse(source, str(main_py))  # A broken main.py would stop every game from starting.

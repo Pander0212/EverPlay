@@ -41,9 +41,13 @@ Found with real games on an iPhone; each rule covers a class of games, not a sin
 
 The last rule is why exact runtimes matter: a real 8.4.1 game moved part of its game logic into `renpy/game.py` and `renpy/persistent.py` and removed engine checks (VPGrid overfull, duplicate translations). It needs the 8.4.1 runtime. CI case E proves the switch with a marked engine copy (`Gold: 99`).
 
-## Plugin model (like JoiPlay's runtime plugins)
+## One app for every runtime (all-in-one)
 
-One iOS process can host only one embedded Python, and sideloading certificates rarely grant shared App Groups. Each Ren'Py runtime is therefore its own app ("EverPlay RenPy 8.5", "8.4", "7.8"), installed only when needed:
+Free sideloading allows only three apps, so separate runtime apps (JoiPlay-style plugins) are not the main path. Instead each Ren'Py runtime is packaged into EverPlay itself (`scripts/package-renpy-runtime.py`):
 
-- **Plugin:** its Documents folder (visible in Files) holds the games. `everplay-renpyNN://play?game=<folder>` starts a game; when Ren'Py exits, the plugin opens `everplay://library`. CI case F checks the URL start.
-- **EverPlay:** Settings › Plugins connects each plugin folder once (security-scoped bookmark). The library lists the plugin games; importing a Ren'Py folder copies it into the best plugin: the exact engine version first (for games with a modified engine), otherwise the same major version (Ren'Py 6 → 7.8).
+- `Frameworks/RenPyNN.framework` links the official prebuilt renios libraries and exports only `everplay_renpy_main`, so the Python, SDL and FFmpeg inside different runtimes never meet. The 8.x runtimes share one MetalANGLE; 7.8 gets a renamed copy.
+- `Runtimes/NN/base` holds the engine and EverPlay's `main.py`; Ren'Py's launcher finds it relative to `argv[0]`, which EverPlay sets per runtime.
+- EverPlay keeps Ren'Py games in Documents/Ren'Py, picks the exact engine version when bundled (otherwise the newest of the same major version), loads that framework with `dlopen` and calls it on the main thread after `SDL_SetMainReady` (EverPlay, not SDL, owns `UIApplicationMain`). Saves go to Documents/Saves/<game>.
+- One Python per process: quitting a Ren'Py game currently closes EverPlay.
+
+The standalone runtime apps (with `everplay-renpyNN://play?game=` URL start, CI case F) remain test builds.
