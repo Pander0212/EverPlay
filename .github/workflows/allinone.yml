@@ -67,6 +67,7 @@ jobs:
           xcodebuild build -project EverPlay.xcodeproj -scheme EverPlay -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO \
             -derivedDataPath DerivedData -clonedSourcePackagesDirPath .build/xcode-packages CODE_SIGN_IDENTITY=- \
+            EVERPLAY_EXTRA_FRAMEWORK_PATHS="$PWD/build/runtimes/Frameworks" EVERPLAY_EXTRA_LDFLAGS="-framework MetalANGLE" \
             2>&1 | tee artifacts/everplay-build.log | grep -E 'error:|\*\* BUILD' || true
           grep -q '\*\* BUILD SUCCEEDED \*\*' artifacts/everplay-build.log
           app=DerivedData/Build/Products/Debug-iphonesimulator/EverPlay.app
@@ -156,6 +157,7 @@ jobs:
           xcodebuild build -project EverPlay.xcodeproj -scheme EverPlay -configuration Release \
             -destination 'generic/platform=iOS' -derivedDataPath DerivedData \
             -clonedSourcePackagesDirPath .build/xcode-packages \
+            EVERPLAY_EXTRA_FRAMEWORK_PATHS="$PWD/build/runtimes/Frameworks" EVERPLAY_EXTRA_LDFLAGS="-framework MetalANGLE" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= \
             2>&1 | tee artifacts/everplay-build.log | grep -E 'error:|\*\* BUILD' || true
           grep -q '\*\* BUILD SUCCEEDED \*\*' artifacts/everplay-build.log

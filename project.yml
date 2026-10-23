@@ -45,9 +45,18 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        # Documents (games, saves) visible in Files under On My iPhone › EverPlay.
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        # Mouse and trackpad input for games.
+        UIApplicationSupportsIndirectInputEvents: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.everplay.player
+        # The all-in-one build links MetalANGLE directly (see allinone.yml) so OpenGL ES lookups
+        # of the embedded Ren'Py runtimes reach it first; empty for every other build.
+        FRAMEWORK_SEARCH_PATHS: "$(inherited) $(EVERPLAY_EXTRA_FRAMEWORK_PATHS)"
+        OTHER_LDFLAGS: "$(inherited) $(EVERPLAY_EXTRA_LDFLAGS)"
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
         GENERATE_INFOPLIST_FILE: NO

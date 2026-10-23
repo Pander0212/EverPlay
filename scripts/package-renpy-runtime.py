@@ -25,9 +25,12 @@ MINIMUM_IOS = '17.0'
 # The 8.x runtimes ship the same MetalANGLE build; other versions get their own renamed copy.
 SHARED_ANGLE_SHA256 = '5f861cec64bf298eafff3b698b5af4fd6a9d8d3786ba43b9af3a0804b69b88e6'
 
-ENTRY = r'''#include <limits.h>
+ENTRY = r'''#include <dlfcn.h>
+#include <limits.h>
+#include <mach-o/dyld.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 int launcher_main(int argc, char **argv);
 void SDL_SetMainReady(void);
@@ -42,6 +45,15 @@ int everplay_renpy_main(const char *runtime, const char *game) {
     setenv("SDL_IOS_HIDE_HOME_INDICATOR", "2", 0);
     /* EverPlay owns UIApplicationMain; SDL runs inside it instead of SDL_UIKitRunApp. */
     SDL_SetMainReady();
+    /* SDL resolves OpenGL ES with dlsym(RTLD_DEFAULT): report which library answers. */
+    Dl_info info;
+    void *symbol = dlsym(RTLD_DEFAULT, "glGetString");
+    fprintf(stderr, "EverPlay: glGetString resolves to %s\n",
+            symbol && dladdr(symbol, &info) ? info.dli_fname : "nothing");
+    for (uint32_t i = 0; i < _dyld_image_count(); i++) {
+        const char *image = _dyld_get_image_name(i);
+        if (strstr(image, "GLES") || strstr(image, "ANGLE")) fprintf(stderr, "EverPlay: loaded %u %s\n", i, image);
+    }
     char *argv[] = { program, (char *) game, NULL };
     return launcher_main(2, argv);
 }
@@ -84,8 +96,15 @@ def angle(sdk, output):
     source = XCODE / 'Frameworks/MetalANGLE.xcframework' / slice_name / 'MetalANGLE.framework'
     digest = subprocess.run(['shasum', '-a', '256', str(XCODE / 'Frameworks/MetalANGLE.xcframework/ios-arm64_armv7/MetalANGLE.framework/MetalANGLE')],
                             check=True, capture_output=True, text=True).stdout.split()[0]
-    name = 'MetalANGLE' if digest == SHARED_ANGLE_SHA256 else f'MetalANGLE{PLUGIN}'
+    # EverPlay links MetalANGLE directly so it precedes any system GLES library in symbol
+    # lookups; every runtime therefore shares the 8.x build (same MGLContext API).
+    name = 'MetalANGLE'
     target = output / 'Frameworks' / f'{name}.framework'
+    if digest != SHARED_ANGLE_SHA256:
+        if not target.exists():
+            raise SystemExit(f'Package an 8.x runtime first: Ren\'Py {RELEASE} links the shared 8.x MetalANGLE')
+        print(f'Note: Ren\'Py {RELEASE} ships a different MetalANGLE; linking the shared 8.x build')
+        return name, target
     if target.exists():
         shutil.rmtree(target)
     shutil.copytree(source, target, symlinks=True)
@@ -93,14 +112,9 @@ def angle(sdk, output):
     binary = target / 'MetalANGLE'
     if sdk == 'iphoneos':
         run('lipo', binary, '-thin', 'arm64', '-output', binary)
-    if name != 'MetalANGLE':
-        binary.rename(target / name)
-        binary = target / name
-        run('install_name_tool', '-id', f'@rpath/{name}.framework/{name}', binary)
     with (target / 'Info.plist').open('rb') as stream:
         info = plistlib.load(stream)
-    info.update(CFBundleExecutable=name, MinimumOSVersion=MINIMUM_IOS,
-                CFBundleIdentifier=f'app.everplay.runtime.{name.lower()}')
+    info.update(MinimumOSVersion=MINIMUM_IOS)
     with (target / 'Info.plist').open('wb') as stream:
         plistlib.dump(info, stream)
     return name, target
