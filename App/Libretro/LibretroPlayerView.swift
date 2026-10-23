@@ -166,12 +166,9 @@ final class LibretroSession: ObservableObject {
 
     init(game: GameRecord, directory: URL) {
         self.game = game
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        // Saves are visible in Files (On My iPhone › EverPlay › Saves), like Ren'Py saves.
-        let folder = game.title.replacingOccurrences(of: "/", with: "-")
         core = LibretroCore(gamePath: directory.appendingPathComponent(game.entryPoint).path,
-                            saveDirectory: documents.appendingPathComponent("Saves/\(folder)", isDirectory: true),
+                            saveDirectory: SaveFolders.libretro(game),
                             systemDirectory: support.appendingPathComponent("EverPlay/libretro-system", isDirectory: true))
         hasQuickSave = FileManager.default.fileExists(atPath: quickSaveFile.path)
     }
@@ -216,5 +213,13 @@ final class LibretroSession: ObservableObject {
             "Shift": .x, "c": .y, "PageUp": .l, "PageDown": .r, "Tab": .select, "F12": .start,
         ]
         if let button = mapping[key] { core.set(button, pressed: down) }
+    }
+}
+
+enum SaveFolders {
+    /// Saves of native (libretro) games, visible in Files under On My iPhone › EverPlay › Saves, like Ren'Py saves.
+    static func libretro(_ game: GameRecord) -> URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Saves/\(game.title.replacingOccurrences(of: "/", with: "-"))", isDirectory: true)
     }
 }

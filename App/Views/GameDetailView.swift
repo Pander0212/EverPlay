@@ -199,8 +199,21 @@ struct GameDetailView: View {
             case .renpy(let game):
                 Text("Game: On My iPhone › EverPlay › Ren'Py › \(game.folder)\nSaves: On My iPhone › EverPlay › Saves › \(game.folder)")
                     .font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
+                NavigationLink {
+                    SaveManagerView(title: game.title, folder: renpy.saveFolder(of: game))
+                } label: {
+                    Label("Manage saves and cheats", systemImage: "externaldrive")
+                }
+                .accessibilityIdentifier("manageSaves")
+            case .web(let game, _) where !game.engine.isWeb:
+                Text("Saves: On My iPhone › EverPlay › Saves › \(game.title)").font(.footnote).foregroundStyle(.secondary)
+                NavigationLink {
+                    SaveManagerView(title: game.title, folder: SaveFolders.libretro(game))
+                } label: {
+                    Label("Manage saves", systemImage: "externaldrive")
+                }
             case .web:
-                Text("Stored in EverPlay's private storage with the game's own browser saves.")
+                Text("Stored in EverPlay's private storage with the game's own browser saves. Cheats and value editing: game menu › Cheats while playing.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
         }

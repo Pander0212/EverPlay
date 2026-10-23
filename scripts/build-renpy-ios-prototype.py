@@ -314,6 +314,10 @@ def everplay_engine_override(renpy_base):
         return renpy_base
     print("EverPlay: using the game's own Ren'Py %s engine scripts" % version)
     sys.path.insert(0, base)
+    # The game's renpy/common lacks EverPlay's in-game menu; add the runtime's compiled copy.
+    menu = os.path.join(renpy_base, "everplay")
+    if os.path.isfile(os.path.join(menu, "00everplay.rpyc")):
+        os.environ["RENPY_SEARCHPATH"] = menu
     return base
 
 
@@ -654,6 +658,11 @@ def main():
         subprocess.run([str(sdk / 'renpy.sh'), str(sdk / 'launcher'), 'ios_populate',
                         str(work / 'probe'), str(xcode)], env=env, check=True)
         verify_common(xcode)
+        # Games that ship their own copy of this engine version load renpy/common from that copy;
+        # the EverPlay menu reaches them through RENPY_SEARCHPATH (see everplay_engine_override).
+        menu = next((xcode / 'base').rglob('renpy/common/00everplay.rpyc'))
+        (xcode / 'base/everplay').mkdir(exist_ok=True)
+        shutil.copy(menu, xcode / 'base/everplay/00everplay.rpyc')
 
         subprocess.run([str(sdk / 'renpy.sh'), str(sdk / 'launcher'), 'distribute', str(work / 'variant'),
                         '--package', 'pc', '--no-update', '--destination', str(work / 'desktop')],

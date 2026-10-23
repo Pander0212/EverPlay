@@ -92,7 +92,8 @@ Ordered; each item ends with a simulator CI check and, where possible, an owner 
 - [x] Ren'Py: variable editor in the in-game menu (game-changed or all variables, one level into objects and dicts, search by name or =value, ±1/10/100, edit), developer console, gallery/replay unlock
 - [ ] Ren'Py: freeze values, saved cheat presets per game, search for changed/unchanged values between scans
 - [x] RPG Maker MV/MZ: gold, items/weapons/armor, heal and level the party, switches/variables (search by name, #id, =value), speed ×1–×4, walk through walls, no random encounters (game menu › Cheats; logic tested against an engine stand-in in `tests/rpgmaker-cheats.test.js`)
-- [ ] Save editor: MV/MZ saves (LZString JSON) in a native editor; Ren'Py saves edited only inside the running game; automatic backups
+- [x] Save manager (Settings › Saves & cheats, game page): list, back up, restore, share, delete; Ren'Py values are edited in the running game (variable editor), saves are never unpickled outside it
+- [ ] Native MV/MZ save editor (LZString JSON) and automatic backups before each session
 
 **E. Comfort and discretion**
 - [x] Cover art from the game (`gui/main_menu.png`, window icon, RPG Maker title), playtime, last played, game page

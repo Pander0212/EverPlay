@@ -308,8 +308,14 @@ init -1500 python:
         return translated or text
 
 init 1999 python:
-    if _everplay_enabled() and "_everplay_overlay" not in config.overlay_screens:
-        config.overlay_screens.append("_everplay_overlay")
+    # Always-shown screens stay visible on splash screens, the main menu and the save/load
+    # screens, where Ren'Py hides overlay screens (suppress_overlay).
+    if _everplay_enabled():
+        _everplay_shown = _everplay_b.getattr(config, "always_shown_screens", None)
+        if _everplay_shown is None:
+            _everplay_shown = config.overlay_screens
+        if "_everplay_overlay" not in _everplay_shown:
+            _everplay_shown.append("_everplay_overlay")
     # Image cache (decoded images in memory; their textures use the same memory on iPhone).
     # Ren'Py keeps up to 400 MB on every platform; EverPlay passes a limit that fits the device.
     def _everplay_limit_image_cache():

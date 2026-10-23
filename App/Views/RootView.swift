@@ -484,6 +484,7 @@ struct SettingsView: View {
                      : "Liquid Glass needs iOS 26; on this device a frosted material is used instead.")
             }
             RenPySettingsSection()
+            SavesSettingsSection()
             TranslationSettingsSection()
             PrivacySettingsSection()
             Section("While playing") {
@@ -519,5 +520,29 @@ struct SettingsView: View {
         guard let url = Bundle.main.url(forResource: "ThirdPartyNotices", withExtension: "txt"),
               let text = try? String(contentsOf: url, encoding: .utf8) else { return "License notices are missing from this build." }
         return text
+    }
+}
+
+/// Settings › Saves & cheats: every game's saves in one place.
+struct SavesSettingsSection: View {
+    @EnvironmentObject private var renpy: RenPyLibrary
+    @EnvironmentObject private var library: LibraryModel
+
+    var body: some View {
+        Section {
+            ForEach(renpy.games) { game in
+                NavigationLink(game.title) { SaveManagerView(title: game.title, folder: renpy.saveFolder(of: game)) }
+            }
+            ForEach(library.games.filter { !$0.engine.isWeb }) { game in
+                NavigationLink(game.title) { SaveManagerView(title: game.title, folder: SaveFolders.libretro(game)) }
+            }
+            if renpy.games.isEmpty && !library.games.contains(where: { !$0.engine.isWeb }) {
+                Text("No games with save files yet.").foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Saves & cheats")
+        } footer: {
+            Text("Back up, restore, share or delete save files. Values (money, stats, flags) are changed while playing: Ren'Py games with the ☰ button › Variables, RPG Maker MV/MZ games with the game menu › Cheats. Ren'Py saves are never opened outside the game, because reading them would run code from the file.")
+        }
     }
 }

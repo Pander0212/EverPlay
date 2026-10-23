@@ -191,6 +191,7 @@ final class RenPyLibrary: ObservableObject {
     }
 
     func folder(of game: RenPyTitle) -> URL { root.appendingPathComponent(game.folder) }
+    func saveFolder(of game: RenPyTitle) -> URL { saves.appendingPathComponent(game.folder) }
 
     /// MB of decoded images Ren'Py may keep: less on devices with less memory (Settings can override).
     static func imageCacheLimit() -> Int {
