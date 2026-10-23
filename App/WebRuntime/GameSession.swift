@@ -23,6 +23,12 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
         configuration.mediaTypesRequiringUserActionForPlayback = .audio
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        if game.engine == .rpgMakerMV || game.engine == .rpgMakerMZ,
+           let url = Bundle.main.url(forResource: "RPGMakerCheats", withExtension: "js"),
+           let source = try? String(contentsOf: url, encoding: .utf8) {
+            configuration.userContentController.addUserScript(
+                WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        }
         webView = WKWebView(frame: .zero, configuration: configuration)
         super.init()
         webView.navigationDelegate = self
@@ -79,6 +85,20 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
         })();
         """
         webView.evaluateJavaScript(script, completionHandler: nil)
+    }
+
+    /// Methods of window.__everplayCheats (App/Resources/RPGMakerCheats.js) the cheat screen may call.
+    static let cheatMethods: Set<String> = ["status", "addGold", "setGold", "heal", "levelUp", "setSpeed", "setThrough",
+                                            "setNoEncounters", "variables", "setVariable", "switches", "setSwitch",
+                                            "items", "gainItem"]
+
+    /// Calls the RPG Maker cheat script with JSON-encoded arguments and decodes its JSON reply.
+    func cheat<Result: Decodable>(_ method: String, _ arguments: [Any] = [], as type: Result.Type) async throws -> Result {
+        guard Self.cheatMethods.contains(method) else { throw EverPlayError.invalidRequest }
+        let encoded = String(decoding: try JSONSerialization.data(withJSONObject: arguments), as: UTF8.self)
+        let script = "JSON.stringify(window.__everplayCheats ? window.__everplayCheats.\(method).apply(null, \(encoded)) : null)"
+        guard let reply = try await webView.evaluateJavaScript(script) as? String else { throw EverPlayError.invalidRequest }
+        return try JSONDecoder().decode(Result.self, from: Data(reply.utf8))
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,

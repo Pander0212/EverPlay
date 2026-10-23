@@ -74,6 +74,14 @@ struct GamePlayerView: View {
                             Button("Reset layout") { controls = ControlSettings(); controls.visible = true }
                         }
                     }
+                    if game.engine == .rpgMakerMV || game.engine == .rpgMakerMZ {
+                        Section("Cheats") {
+                            NavigationLink { CheatsView(session: session) } label: {
+                                Label("Gold, items, variables, speed", systemImage: "wand.and.stars")
+                            }
+                            .accessibilityIdentifier("openCheats")
+                        }
+                    }
                     Section("Saving") {
                         Text("Save using the game’s own controls. Its browser storage is kept when you exit and reopen it.")
                         Text("The menu does not pause every game. Native save export and restore are not available yet.")
