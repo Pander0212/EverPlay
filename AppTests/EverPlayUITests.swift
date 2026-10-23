@@ -17,6 +17,11 @@ final class EverPlayUITests: XCTestCase {
         }
         XCTAssertTrue(game.waitForExistence(timeout: 20))
         snapshot(app, "Library")
+        app.buttons["details-Lantern Garden"].tap()
+        XCTAssertTrue(app.buttons["detailPlay"].waitForExistence(timeout: 5))
+        snapshot(app, "Game details")
+        app.buttons["Done"].firstMatch.tap()
+        XCTAssertTrue(game.waitForExistence(timeout: 5))
         let add = app.buttons["addGame"]
         XCTAssertTrue(add.waitForExistence(timeout: 5))
         add.tap()

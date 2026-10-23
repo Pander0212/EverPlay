@@ -47,6 +47,12 @@ enum LibraryItem: Identifiable {
         case .renpy(let game): return game.playSeconds
         }
     }
+    var playtime: String {
+        let seconds = Int(playSeconds)
+        if seconds < 60 { return "\(seconds) s" }
+        if seconds < 3600 { return "\(seconds / 60) min" }
+        return "\(seconds / 3600) h \(seconds % 3600 / 60) min"
+    }
     var tint: Color {
         switch self {
         case .web(let game, _): return Theme.engineColor(game.engine)
@@ -116,10 +122,37 @@ struct CoverView: View {
 }
 
 /// A library card: cover, title, engine and version, playtime, last played and a play button.
+/// The card opens the game's page; the play tile starts the game straight away.
 struct GameRow: View {
     let item: LibraryItem
+    let identifier: String
+    let open: () -> Void
+    let play: () -> Void
 
     var body: some View {
+        HStack(spacing: 12) {
+            Button(action: open) { summary }
+                .buttonStyle(PressableStyle())
+                .accessibilityIdentifier("details-\(item.title)")
+                .accessibilityHint("Shows details and options")
+            Button(action: play) {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 58, height: 84)
+                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .shadow(color: Theme.accent.opacity(0.45), radius: 12, y: 4)
+            }
+            .buttonStyle(PressableStyle())
+            .accessibilityLabel("Play \(item.title)")
+            .accessibilityIdentifier(identifier)
+        }
+        .padding(14)
+        .surface(cornerRadius: 26)
+        .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+    }
+
+    private var summary: some View {
         HStack(spacing: 16) {
             CoverView(item: item)
                 .frame(width: 86, height: 114)
@@ -141,7 +174,7 @@ struct GameRow: View {
                     }
                 }
                 HStack(spacing: 12) {
-                    Label(playtime, systemImage: "clock").lineLimit(1)
+                    Label(item.playtime, systemImage: "clock").lineLimit(1)
                     Label {
                         if let last = item.lastPlayed {
                             Text(last, format: .relative(presentation: .named))
@@ -154,23 +187,8 @@ struct GameRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
-            Spacer(minLength: 4)
-            Image(systemName: "play.fill")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 58, height: 84)
-                .background(Theme.accent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .shadow(color: Theme.accent.opacity(0.45), radius: 12, y: 4)
+            Spacer(minLength: 0)
         }
-        .padding(14)
-        .surface(cornerRadius: 26)
-        .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-    }
-
-    private var playtime: String {
-        let seconds = Int(item.playSeconds)
-        if seconds < 60 { return "\(seconds) s" }
-        if seconds < 3600 { return "\(seconds / 60) min" }
-        return "\(seconds / 3600) h \(seconds % 3600 / 60) min"
+        .contentShape(Rectangle())
     }
 }

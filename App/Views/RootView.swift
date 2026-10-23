@@ -144,6 +144,9 @@ private struct LibraryView: View {
     let pickFolder: () -> Void
     @State private var search = ""
     @State private var webCovers: [UUID: URL] = [:]
+    @State private var detail: LibraryItem?
+    /// Set by the details page; acted on once its sheet is gone.
+    @State private var afterDetail: (() -> Void)?
 
     private var items: [LibraryItem] {
         let web = library.games.map { LibraryItem.web($0, cover: webCovers[$0.id]) }
@@ -212,6 +215,17 @@ private struct LibraryView: View {
             if phase == .active { library.refreshInbox(); renpy.refresh() }
         }
         .task(id: library.games.map(\.id)) { await loadWebCovers() }
+        .sheet(item: $detail, onDismiss: {
+            let action = afterDetail
+            afterDetail = nil
+            action?()
+        }) { item in
+            NavigationStack {
+                GameDetailView(item: item, play: { afterDetail = { play(item) }; detail = nil },
+                               remove: { afterDetail = { remove(item) }; detail = nil })
+            }
+            .presentationDragIndicator(.visible)
+        }
     }
 
     private var header: some View {
@@ -225,18 +239,24 @@ private struct LibraryView: View {
     }
 
     private func row(_ item: LibraryItem, identifier: String) -> some View {
-        Button { play(item) } label: { GameRow(item: item) }
-            .buttonStyle(PressableStyle())
-            .accessibilityIdentifier(identifier)
+        GameRow(item: item, identifier: identifier, open: { detail = item }, play: { play(item) })
             .contextMenu {
+                Button("Play", systemImage: "play.fill") { play(item) }
+                Button("Details", systemImage: "info.circle") { detail = item }
                 switch item {
-                case .web(let game, _):
-                    Button("Archive game", systemImage: "archivebox") { archiveCandidate = game }
-                case .renpy(let game):
-                    Text("Made with \(game.engineVersion ?? "unknown version") · \(item.runtimeLabel ?? "")")
-                    Button("Delete game", systemImage: "trash", role: .destructive) { deleteCandidate = game }
+                case .web:
+                    Button("Archive game", systemImage: "archivebox") { remove(item) }
+                case .renpy:
+                    Button("Delete game", systemImage: "trash", role: .destructive) { remove(item) }
                 }
             }
+    }
+
+    private func remove(_ item: LibraryItem) {
+        switch item {
+        case .web(let game, _): archiveCandidate = game
+        case .renpy(let game): deleteCandidate = game
+        }
     }
 
     private func play(_ item: LibraryItem) {

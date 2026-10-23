@@ -39,6 +39,8 @@ struct RenPyTitle: Identifiable, Hashable {
     let title: String
     let engineVersion: String?
     let runtime: RenPyRuntime?
+    /// The runtime picked in the game's details; nil means automatic.
+    let runtimeChoice: String?
     let cover: URL?
     let lastPlayed: Date?
     let playSeconds: Double
@@ -75,12 +77,15 @@ final class RenPyLibrary: ObservableObject {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: root.path)) ?? []
         let played = defaults.dictionary(forKey: "renpy.lastPlayed") as? [String: Double] ?? [:]
         let seconds = defaults.dictionary(forKey: "renpy.playSeconds") as? [String: Double] ?? [:]
+        let choices = defaults.dictionary(forKey: "renpy.runtimeChoice") as? [String: String] ?? [:]
         games = names.filter { !$0.hasPrefix(".") && RenPyGame.isGame(root.appendingPathComponent($0)) }
             .map { name in
                 let folder = root.appendingPathComponent(name)
                 let version = RenPyGame.version(of: folder)
+                let chosen = choices[name].flatMap { id in runtimes.first { $0.id == id } }
                 return RenPyTitle(folder: name, title: RenPyGame.title(of: folder), engineVersion: version,
-                                  runtime: RenPyRuntime.best(for: version, among: runtimes),
+                                  runtime: chosen ?? RenPyRuntime.best(for: version, among: runtimes),
+                                  runtimeChoice: chosen?.id,
                                   cover: RenPyGame.cover(of: folder), lastPlayed: played[name].map(Date.init(timeIntervalSince1970:)),
                                   playSeconds: seconds[name] ?? 0)
             }
@@ -161,6 +166,17 @@ final class RenPyLibrary: ObservableObject {
         } catch { message = "The game could not be deleted: \(error.localizedDescription)" }
         refresh()
     }
+
+    /// Runs the game on a specific bundled runtime (nil: pick automatically).
+    func setRuntime(_ id: String?, for game: RenPyTitle) {
+        var choices = defaults.dictionary(forKey: "renpy.runtimeChoice") as? [String: String] ?? [:]
+        choices[game.folder] = id
+        defaults.set(choices, forKey: "renpy.runtimeChoice")
+        EverPlayLog.write("Runtime for \(game.folder): \(id ?? "automatic")")
+        refresh()
+    }
+
+    func folder(of game: RenPyTitle) -> URL { root.appendingPathComponent(game.folder) }
 
     private func addPlaytime(_ seconds: Double, to folder: String) {
         var all = defaults.dictionary(forKey: "renpy.playSeconds") as? [String: Double] ?? [:]
@@ -279,10 +295,11 @@ enum RenPyGame {
         return cleaned.isEmpty ? folder.lastPathComponent : cleaned
     }
 
-    /// A picture shipped as a loose file: the window icon or main menu background.
+    /// A picture shipped as a loose file: the main menu background, else the window icon.
     static func cover(of folder: URL) -> URL? {
-        let candidates = ["game/gui/window_icon.png", "game/gui/main_menu.png", "game/gui/main_menu.jpg",
-                          "game/gui/main_menu.webp", "game/gui/game_menu.png", "game/images/main_menu.png", "game/icon.png"]
+        let candidates = ["game/gui/main_menu.png", "game/gui/main_menu.jpg", "game/gui/main_menu.webp",
+                          "game/images/main_menu.png", "game/images/main_menu.jpg", "game/gui/game_menu.png",
+                          "game/gui/game_menu.jpg", "game/gui/window_icon.png", "game/icon.png"]
         return candidates.map { folder.appendingPathComponent($0) }.first { FileManager.default.fileExists(atPath: $0.path) }
     }
 }
