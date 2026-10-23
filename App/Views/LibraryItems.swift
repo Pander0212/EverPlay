@@ -65,6 +65,13 @@ enum LibraryItem: Identifiable {
 enum WebCover {
     static func locate(in gameDirectory: URL, entryPoint: String) -> URL? {
         let base = gameDirectory.appendingPathComponent(entryPoint).deletingLastPathComponent()
+        if entryPoint.lowercased().hasSuffix("rpg_rt.ldb") {
+            // RPG Maker 2000/2003: the title screen picture (PNG or BMP; XYZ images cannot be shown).
+            let titles = (try? FileManager.default.contentsOfDirectory(at: base.appendingPathComponent("Title"),
+                                                                       includingPropertiesForKeys: nil)) ?? []
+            return titles.filter { ["png", "bmp", "jpg"].contains($0.pathExtension.lowercased()) }
+                .sorted { $0.lastPathComponent < $1.lastPathComponent }.first
+        }
         var candidates = ["icon/icon.png", "www/icon/icon.png", "favicon.png", "img/icon.png"]
         // RPG Maker MV/MZ: the title screen picture named in data/System.json.
         for data in ["data/System.json", "www/data/System.json"] {
