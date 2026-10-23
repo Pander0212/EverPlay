@@ -50,9 +50,17 @@ targets:
         LSSupportsOpeningDocumentsInPlace: true
         # Mouse and trackpad input for games.
         UIApplicationSupportsIndirectInputEvents: true
+        # Offered in "Open in…" / Share for ZIP archives (Files, Safari downloads).
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Game archive
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - public.zip-archive
+              - com.pkware.zip-archive
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.everplay.player
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # The all-in-one build links MetalANGLE directly (see allinone.yml) so OpenGL ES lookups
         # of the embedded Ren'Py runtimes reach it first; empty for every other build.
         FRAMEWORK_SEARCH_PATHS: "$(inherited) $(EVERPLAY_EXTRA_FRAMEWORK_PATHS)"

@@ -27,9 +27,11 @@ struct RootView: View {
                 renpy.play(game)
             }
         }
-        .sheet(isPresented: $showImporter) {
-            DocumentPicker(types: [.zip, .archive, .data]) { url in Task { await library.importZIP(url) } }
-                .ignoresSafeArea()
+        .onChange(of: showImporter) { _, requested in
+            guard requested else { return }
+            showImporter = false
+            // A copy: the archive is read once and needs no lasting access to its source.
+            FilePicker.present(types: [.zip, .archive, .data], asCopy: true) { url in Task { await library.importZIP(url) } }
         }
         .alert("EverPlay", isPresented: Binding(get: { library.error != nil }, set: { if !$0 { library.error = nil } })) {
             Button("OK") { library.error = nil }
@@ -365,9 +367,10 @@ private struct ImportView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { library.refreshInbox() }
         .onChange(of: scenePhase) { _, phase in if phase == .active { library.refreshInbox() } }
-        .sheet(isPresented: $showFolderPicker) {
-            DocumentPicker(types: [.folder]) { url in Task { await importFolderOrZIP(url) } }
-                .ignoresSafeArea()
+        .onChange(of: showFolderPicker) { _, requested in
+            guard requested else { return }
+            showFolderPicker = false
+            FilePicker.present(types: [.folder], asCopy: false) { url in Task { await importFolderOrZIP(url) } }
         }
     }
 
@@ -392,25 +395,35 @@ private struct ImportView: View {
     }
 }
 
-/// UIKit's document picker: SwiftUI's fileImporter did not react to taps on some sideloaded installs.
-struct DocumentPicker: UIViewControllerRepresentable {
-    let types: [UTType]
-    let onPick: (URL) -> Void
+/// UIKit's document picker, presented the UIKit way from the topmost view controller. Wrapped in a
+/// SwiftUI sheet (and SwiftUI's own fileImporter before that) it showed the browser on a real
+/// iPhone but nothing could be chosen.
+@MainActor
+enum FilePicker {
+    private static var delegate: Delegate?
 
-    func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
-    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: types, asCopy: false)
+    static func present(types: [UTType], asCopy: Bool, onPick: @escaping (URL) -> Void) {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive } ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        guard var top = scene?.keyWindow?.rootViewController ?? scene?.windows.first?.rootViewController else { return }
+        while let presented = top.presentedViewController { top = presented }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: types, asCopy: asCopy)
         picker.allowsMultipleSelection = false
-        picker.delegate = context.coordinator
-        return picker
+        let handler = Delegate(onPick: onPick)
+        delegate = handler
+        picker.delegate = handler
+        top.present(picker, animated: true)
     }
-    func updateUIViewController(_ controller: UIDocumentPickerViewController, context: Context) {}
 
-    final class Coordinator: NSObject, UIDocumentPickerDelegate {
+    private final class Delegate: NSObject, UIDocumentPickerDelegate {
         let onPick: (URL) -> Void
         init(onPick: @escaping (URL) -> Void) { self.onPick = onPick }
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
             if let url = urls.first { onPick(url) }
+            Task { @MainActor in FilePicker.delegate = nil }
+        }
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            Task { @MainActor in FilePicker.delegate = nil }
         }
     }
 }

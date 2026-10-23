@@ -10,6 +10,7 @@ on:
       - scripts/build-renpy-ios-prototype.py
       - scripts/package-renpy-runtime.py
       - App/**
+      - project.yml
 permissions:
   contents: read
 concurrency:
@@ -114,6 +115,8 @@ jobs:
   ipa:
     runs-on: macos-26
     timeout-minutes: 60
+    permissions:
+      contents: write  # the "nightly" pre-release that Feather/AltStore sources point to
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
@@ -159,6 +162,7 @@ jobs:
             -clonedSourcePackagesDirPath .build/xcode-packages \
             EVERPLAY_EXTRA_FRAMEWORK_PATHS="$PWD/build/runtimes/Frameworks" EVERPLAY_EXTRA_LDFLAGS="-framework MetalANGLE" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= \
+            MARKETING_VERSION="0.2.${{ github.run_number }}" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             2>&1 | tee artifacts/everplay-build.log | grep -E 'error:|\*\* BUILD' || true
           grep -q '\*\* BUILD SUCCEEDED \*\*' artifacts/everplay-build.log
           app=DerivedData/Build/Products/Release-iphoneos/EverPlay.app
@@ -173,6 +177,37 @@ jobs:
           cp -R "$app" ipa/Payload/
           (cd ipa && zip -qry ../artifacts/EverPlay-AllInOne-unsigned.ipa Payload)
           ls -la artifacts/*.ipa
+      - name: Publish the nightly build and the Feather/AltStore source
+        # Contains only EverPlay, the Ren'Py runtimes and our MIT demo; never third-party games.
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: 0.2.${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/nightly"
+          cp artifacts/EverPlay-AllInOne-unsigned.ipa release-EverPlay.ipa
+          cp App/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png release-icon.png
+          python3 - "$base" "$VERSION" <<'PYTHON'
+          import json, os, sys, datetime
+          base, version = sys.argv[1], sys.argv[2]
+          size = os.path.getsize('release-EverPlay.ipa')
+          date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+          app = {
+              'name': 'EverPlay', 'bundleIdentifier': 'app.everplay.player', 'developerName': 'EverPlay',
+              'subtitle': 'Play desktop Ren\'Py, RPG Maker and HTML games', 'iconURL': f'{base}/release-icon.png',
+              'localizedDescription': 'Nightly test build of EverPlay with built-in Ren\'Py 8.5, 8.4 and 7.8.',
+              'tintColor': '8F87ED', 'version': version, 'versionDate': date,
+              'downloadURL': f'{base}/release-EverPlay.ipa', 'size': size,
+              'versions': [{'version': version, 'date': date, 'downloadURL': f'{base}/release-EverPlay.ipa', 'size': size}],
+          }
+          source = {'name': 'EverPlay Nightly', 'identifier': 'app.everplay.nightly', 'apps': [app], 'news': []}
+          json.dump(source, open('release-source.json', 'w'), indent=2)
+          PYTHON
+          gh release delete nightly --yes --cleanup-tag || true
+          gh release create nightly --prerelease --target "$GITHUB_SHA" --title "EverPlay nightly $VERSION" \
+            --notes "Unsigned test build from $GITHUB_SHA. Feather/AltStore source: $base/release-source.json" \
+            release-EverPlay.ipa release-icon.png release-source.json
       - name: Keep the IPA
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

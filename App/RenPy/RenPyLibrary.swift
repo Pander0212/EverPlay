@@ -98,8 +98,14 @@ final class RenPyLibrary: ObservableObject {
         }
         let folder = root.appendingPathComponent(game.folder)
         let saveDirectory = saves.appendingPathComponent(game.folder)
-        // Let SwiftUI finish the tap before Ren'Py's loop takes over the main thread.
-        DispatchQueue.main.async { [weak self] in
+        // Desktop Ren'Py games are landscape. Rotate before SDL creates its window, which keeps the
+        // size it starts with, and keep SDL's own view controller in landscape afterwards.
+        setenv("SDL_IOS_ORIENTATIONS", "LandscapeLeft LandscapeRight", 1)
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        scene?.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape)) { _ in }
+        let delay = scene?.interfaceOrientation.isLandscape == true ? 0.05 : 0.8
+        // Let SwiftUI finish the tap (and the rotation) before Ren'Py's loop takes over the main thread.
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             // RTLD_GLOBAL: SDL resolves OpenGL ES entry points with dlsym(RTLD_DEFAULT), so the
             // runtime's MetalANGLE must be visible globally. Python, SDL and FFmpeg stay private
             // because the framework exports only everplay_renpy_main.
