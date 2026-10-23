@@ -1,12 +1,9 @@
 name: Native Ren'Py test IPA (unsigned)
 # Device test builds of the native Ren'Py runtime with our MIT fixture only. Users copy their
 # own game folders into the app's Documents via the Files app and sign the IPA themselves.
+# Superseded by the all-in-one app (allinone.yml); run by hand when a standalone build is needed.
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - .github/workflows/renpy-ipa.yml
-      - scripts/build-renpy-ios-prototype.py
 permissions:
   contents: read
 concurrency:

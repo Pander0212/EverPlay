@@ -1,12 +1,10 @@
 name: Native Ren'Py iOS feasibility
 # Our MIT fixture only. A: game inside the app bundle (official renios layout).
 # B: a desktop (pc) package's game/ in the app's Documents, started via the basedir argument.
+# The all-in-one workflow covers the runtimes on every change; run this by hand to check the
+# standalone prototype cases (two games in one process, plugin URLs).
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - .github/workflows/renpy-native.yml
-      - scripts/build-renpy-ios-prototype.py
 permissions:
   contents: read
 concurrency:
