@@ -333,7 +333,7 @@ private struct EmptyLibrary: View {
             .frame(height: 210)
             VStack(spacing: 8) {
                 Text("Make room for play").font(.title2.weight(.bold))
-                Text("Add Ren'Py, RPG Maker MV/MZ or HTML games with the + button: a ZIP, a game folder or a direct link. You can also copy games into On My iPhone › EverPlay.")
+                Text("Add Ren'Py, RPG Maker (2000/2003, MV, MZ), TyranoBuilder or HTML games with the + button: a ZIP, a game folder or a direct link. You can also copy games into On My iPhone › EverPlay.")
                     .multilineTextAlignment(.center).foregroundStyle(.secondary)
             }
             VStack(spacing: 12) {
@@ -390,8 +390,9 @@ private struct ImportHelpView: View {
                 Label("Share: long-press a ZIP in Files or Safari › Share › EverPlay.", systemImage: "square.and.arrow.up")
             }
             Section("Supported now") {
-                Text("Ren'Py 6–8 desktop games (built-in Ren'Py 8.5, 8.4 and 7.8; games that ship their own engine of an included version use it).")
-                Text("RPG Maker MV/MZ and HTML5 games.")
+                Text("Ren'Py 6–8 desktop games (built-in Ren'Py 8.5, 8.4, 8.3, 8.2, 8.1 and 7.8; games that ship their own engine of an included version use it).")
+                Text("RPG Maker MV/MZ, TyranoBuilder/NW.js (also with package.nw), Twine and other HTML5 games.")
+                Text("RPG Maker 2000/2003 games with EasyRPG Player (on iPhone and iPad).")
             }
             Section("Saves") {
                 Text("Ren'Py saves: On My iPhone › EverPlay › Saves › game folder. Web games keep their saves in EverPlay's private storage.")
