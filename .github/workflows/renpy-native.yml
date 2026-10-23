@@ -111,6 +111,10 @@ jobs:
           plugin="$(echo '${{ matrix.runtime }}' | cut -d. -f1,2 | tr -d .)"
           cp -R build/renpy-ios/engine "$data/Documents/aaa"
           cp -R build/renpy-ios/variant "$data/Documents/urlgame"
+          # Foreground the plugin first: SpringBoard asks "Open in ...?" for URLs to a background
+          # app (EverPlay itself opens plugins without that prompt). The plugin waits up to 1 s
+          # for a launch URL before falling back to the first folder.
+          xcrun simctl launch "$udid" "$bundle"
           xcrun simctl openurl "$udid" "everplay-renpy${plugin}://play?game=urlgame"
           sleep 60
           xcrun simctl io "$udid" screenshot artifacts/f-url-launch.png
