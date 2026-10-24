@@ -133,6 +133,7 @@ struct CoverView: View {
 struct GameRow: View {
     let item: LibraryItem
     let identifier: String
+    var favorite = false
     let open: () -> Void
     let play: () -> Void
 
@@ -165,11 +166,17 @@ struct GameRow: View {
                 .frame(width: 86, height: 114)
                 .shadow(color: .black.opacity(0.35), radius: 10, y: 6)
             VStack(alignment: .leading, spacing: 8) {
-                Text(item.title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    if favorite {
+                        Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow)
+                            .accessibilityLabel("Favorite")
+                    }
+                    Text(item.title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
                 HStack(spacing: 6) {
                     Text(item.engineLabel)
                         .font(.caption.weight(.semibold))
@@ -198,4 +205,79 @@ struct GameRow: View {
         }
         .contentShape(Rectangle())
     }
+}
+
+/// Library filter chips.
+enum LibraryFilter: String, CaseIterable, Identifiable {
+    case all, favorites, renpy, rpgMaker, web
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .all: return "All"
+        case .favorites: return "Favorites"
+        case .renpy: return "Ren'Py"
+        case .rpgMaker: return "RPG Maker"
+        case .web: return "Web"
+        }
+    }
+
+    func includes(_ item: LibraryItem) -> Bool {
+        switch (self, item) {
+        case (.all, _): return true
+        case (.favorites, _): return FavoriteGames.contains(item.id)
+        case (.renpy, .renpy): return true
+        case (.rpgMaker, .web(let game, _)): return [.rpgMakerMV, .rpgMakerMZ, .rpgMaker2000].contains(game.engine)
+        case (.web, .web(let game, _)): return game.engine == .html5
+        default: return false
+        }
+    }
+}
+
+enum LibrarySort: String, CaseIterable, Identifiable {
+    case recent, title, playtime
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .recent: return "Recently played"
+        case .title: return "Title"
+        case .playtime: return "Playtime"
+        }
+    }
+
+    /// Favorites first, then this order.
+    func ordered(_ items: [LibraryItem]) -> [LibraryItem] {
+        items.sorted { lhs, rhs in
+            let left = FavoriteGames.contains(lhs.id), right = FavoriteGames.contains(rhs.id)
+            if left != right { return left }
+            switch self {
+            case .recent:
+                switch (lhs.lastPlayed, rhs.lastPlayed) {
+                case let (l?, r?) where l != r: return l > r
+                case (_?, nil): return true
+                case (nil, _?): return false
+                default: break
+                }
+            case .playtime:
+                if lhs.playSeconds != rhs.playSeconds { return lhs.playSeconds > rhs.playSeconds }
+            case .title:
+                break
+            }
+            return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
+        }
+    }
+}
+
+/// Favorite games stay on top of the library.
+enum FavoriteGames {
+    static func contains(_ id: String) -> Bool { all.contains(id) }
+
+    static func set(_ id: String, favorite: Bool) {
+        var ids = all
+        if favorite { ids.insert(id) } else { ids.remove(id) }
+        UserDefaults.standard.set(Array(ids), forKey: "library.favorites")
+    }
+
+    private static var all: Set<String> { Set(UserDefaults.standard.stringArray(forKey: "library.favorites") ?? []) }
 }

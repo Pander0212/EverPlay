@@ -149,7 +149,9 @@ private struct LibraryView: View {
     @State private var webCovers: [UUID: URL] = [:]
     @State private var detail: LibraryItem?
     @AppStorage("library.showHidden") private var showHidden = false
-    /// Changes when a game is hidden or shown, so the list updates.
+    @AppStorage("library.filter") private var filter = LibraryFilter.all
+    @AppStorage("library.sort") private var sort = LibrarySort.recent
+    /// Changes when a game is hidden, shown or marked as a favorite, so the list updates.
     @State private var hiddenVersion = 0
     /// Set by the details page; acted on once its sheet is gone.
     @State private var afterDetail: (() -> Void)?
@@ -158,22 +160,16 @@ private struct LibraryView: View {
         let web = library.games.map { LibraryItem.web($0, cover: webCovers[$0.id]) }
         let renpyItems = renpy.games.map { LibraryItem.renpy($0) }
         _ = hiddenVersion
-        return (web + renpyItems).filter { showHidden || !HiddenGames.contains($0.id) }.sorted { lhs, rhs in
-            switch (lhs.lastPlayed, rhs.lastPlayed) {
-            case let (l?, r?): return l > r
-            case (_?, nil): return true
-            case (nil, _?): return false
-            default: return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
-            }
-        }
+        return sort.ordered((web + renpyItems).filter { showHidden || !HiddenGames.contains($0.id) })
     }
     private var visibleItems: [LibraryItem] {
-        search.isEmpty ? items : items.filter { $0.title.localizedCaseInsensitiveContains(search) }
+        items.filter { filter.includes($0) && (search.isEmpty || $0.title.localizedCaseInsensitiveContains(search)) }
     }
     /// The most recently played game, shown on top when there is more than one game.
     private var hero: LibraryItem? {
-        guard search.isEmpty, items.count > 1, let first = items.first, first.lastPlayed != nil else { return nil }
-        return first
+        guard search.isEmpty, filter == .all, items.count > 1,
+              let last = items.filter({ $0.lastPlayed != nil }).max(by: { $0.lastPlayed! < $1.lastPlayed! }) else { return nil }
+        return last
     }
 
     var body: some View {
@@ -184,6 +180,7 @@ private struct LibraryView: View {
                     EmptyLibrary(pickArchive: pickArchive)
                 } else {
                     if !library.inbox.isEmpty { inboxSection }
+                    if items.count > 1 { filterBar }
                     if let hero {
                         VStack(alignment: .leading, spacing: 10) {
                             Label("Continue playing", systemImage: "play.circle.fill")
@@ -196,7 +193,7 @@ private struct LibraryView: View {
                         row(item, identifier: "game-\(item.title)")
                     }
                     if visibleItems.isEmpty {
-                        Text("No games match “\(search)”.").foregroundStyle(.secondary)
+                        Text(search.isEmpty ? "No \(filter.title) games yet." : "No games match “\(search)”.").foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity).padding(.vertical, 40)
                     }
                 }
@@ -245,11 +242,53 @@ private struct LibraryView: View {
         .padding(.top, 6)
     }
 
+    /// Engine filter chips and the sort order.
+    private var filterBar: some View {
+        HStack(spacing: 8) {
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) {
+                    ForEach(LibraryFilter.allCases) { option in
+                        Button { withAnimation(.snappy) { filter = option } } label: {
+                            Text(option.title)
+                                .font(.subheadline.weight(.semibold))
+                                .padding(.horizontal, 14).padding(.vertical, 8)
+                                .foregroundStyle(filter == option ? .white : .primary)
+                                .background(filter == option ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(Color.white.opacity(0.08)),
+                                            in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("filter-\(option.rawValue)")
+                        .accessibilityAddTraits(filter == option ? .isSelected : [])
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+            Menu {
+                Picker("Sort by", selection: $sort) {
+                    ForEach(LibrarySort.allCases) { Text($0.title).tag($0) }
+                }
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(width: 36, height: 36)
+                    .background(.white.opacity(0.08), in: Circle())
+            }
+            .accessibilityLabel("Sort games")
+            .accessibilityIdentifier("sortGames")
+        }
+    }
+
     private func row(_ item: LibraryItem, identifier: String) -> some View {
-        GameRow(item: item, identifier: identifier, open: { detail = item }, play: { play(item) })
+        GameRow(item: item, identifier: identifier, favorite: FavoriteGames.contains(item.id),
+                open: { detail = item }, play: { play(item) })
             .contextMenu {
                 Button("Play", systemImage: "play.fill") { play(item) }
                 Button("Details", systemImage: "info.circle") { detail = item }
+                if FavoriteGames.contains(item.id) {
+                    Button("Remove from favorites", systemImage: "star.slash") { FavoriteGames.set(item.id, favorite: false); hiddenVersion += 1 }
+                } else {
+                    Button("Add to favorites", systemImage: "star") { FavoriteGames.set(item.id, favorite: true); hiddenVersion += 1 }
+                }
                 if HiddenGames.contains(item.id) {
                     Button("Show in library", systemImage: "eye") { HiddenGames.set(item.id, hidden: false); hiddenVersion += 1 }
                 } else {
