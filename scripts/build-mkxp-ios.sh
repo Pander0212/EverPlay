@@ -33,7 +33,7 @@ repo() {
     vorbis) echo "https://github.com/mkxp-z/vorbis" ;;
     theora) echo "https://github.com/xiph/theora" ;;
     uchardet) echo "https://github.com/mkxp-z/uchardet" ;;
-    libpng) echo "https://github.com/mkxp-z/libpng" ;;
+    libpng) echo "https://github.com/pnggroup/libpng v1.6.50" ;;  # mkxp-z's fork predates iOS (fp.h)
     pixman) echo "https://github.com/mkxp-z/pixman" ;;
     physfs) echo "https://github.com/mkxp-z/physfs release-3.2.0" ;;
     sdl2) echo "https://github.com/mkxp-z/SDL mkxp-z" ;;
@@ -112,7 +112,25 @@ deps() {
   ls -la "$PREFIX/lib"
 }
 
+# Ruby 3.1 as one static library with its extensions linked in. iOS has no fork, vfork or
+# system(); Ruby then spawns processes with posix_spawn only, which RGSS games do not need.
+ruby_ios() {
+  [ -x configure ] || autoreconf -fi
+  local baseruby; baseruby="$(command -v ruby)"
+  CC="$CC_IOS" CXX="$CXX_IOS" CFLAGS="$ARCH_FLAGS -O2 -I$PREFIX/include -DRUBY_FUNCTION_NAME_STRING=__func__" \
+    LDFLAGS="$ARCH_FLAGS -L$PREFIX/lib" \
+    ac_cv_func_fork=no ac_cv_func_vfork=no ac_cv_func_system=no ac_cv_func_daemon=no \
+    ac_cv_func_getcontext=no ac_cv_func_setcontext=no ac_cv_func_execv=no \
+    ./configure --host=aarch64-apple-darwin --target=aarch64-apple-darwin --build="$(uname -m)-apple-darwin" \
+    --prefix="$PREFIX" --with-baseruby="$baseruby" --disable-shared --enable-static --with-static-linked-ext \
+    --disable-install-doc --disable-rubygems --disable-jit-support --disable-dtrace \
+    --with-out-ext=fiddle,gdbm,win32ole,win32,readline,pty,syslog,openssl,psych,ripper,dbm,nkf,objspace
+  make -j "$NPROC"
+  make install-nodoc
+}
+
 case "${1:-deps}" in
   deps) deps ;;
+  ruby) step ruby ruby_ios; ls -la "$PREFIX/lib" ;;
   *) echo "unknown step $1"; exit 2 ;;
 esac
