@@ -95,10 +95,10 @@ patch('subprojects/packagefiles/ruby-3.1/meson.build', """                'ac_cv
 
 # Without fork Ruby falls back to system(), which iOS forbids; report ENOSYS instead (RGSS games
 # do not start other programs).
-# iOS lacks <sys/vnode.h>; dir.c needs only its file type list from it.
+# iOS lacks <sys/vnode.h>; dir.c needs only its file and file system type lists (macOS values).
 (root / 'subprojects/packagefiles/ruby-3.1-ios.patch').write_text("""--- a/dir.c
 +++ b/dir.c
-@@ -97,7 +97,12 @@
+@@ -97,7 +97,13 @@
  # define NORMALIZE_UTF8PATH 1
  # include <sys/param.h>
  # include <sys/mount.h>
@@ -106,6 +106,7 @@ patch('subprojects/packagefiles/ruby-3.1/meson.build', """                'ac_cv
 +# include <TargetConditionals.h>
 +# if TARGET_OS_IPHONE
 +enum vtype { VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD, VSTR, VCPLX };
++enum vtagtype { VT_NON, VT_UFS, VT_NFS, VT_MFS, VT_MSDOSFS, VT_LFS, VT_LOFS, VT_FDESC, VT_PORTAL, VT_NULL, VT_UMAP, VT_KERNFS, VT_PROCFS, VT_AFS, VT_ISOFS, VT_MOCKFS, VT_HFS, VT_ZFS, VT_DEVFS, VT_WEBDAV, VT_UDF, VT_AFP, VT_CDDA, VT_CIFS, VT_OTHER };
 +# else
 +#  include <sys/vnode.h>
 +# endif
