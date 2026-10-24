@@ -1,0 +1,49 @@
+name: mkxp-z for iPhone (RPG Maker XP/VX/VX Ace)
+# Builds mkxp-z and its libraries for iPhone with scripts/build-mkxp-ios.sh. Libraries that built
+# once are kept in the cache, so a run continues where the last one stopped.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/mkxp-ios.yml
+      - scripts/build-mkxp-ios.sh
+permissions:
+  contents: read
+concurrency:
+  group: mkxp-ios-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 120
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Reuse libraries from earlier runs
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            build/mkxp-ios/prefix
+            build/mkxp-ios/done-*
+          key: mkxp-ios-v1-${{ github.run_id }}
+          restore-keys: mkxp-ios-v1-
+      - name: Build tools
+        run: brew install autoconf automake libtool ninja pkg-config || true
+      - name: Libraries
+        run: bash scripts/build-mkxp-ios.sh deps
+      - name: Keep the built libraries
+        if: always()
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            build/mkxp-ios/prefix
+            build/mkxp-ios/done-*
+          key: mkxp-ios-v1-${{ github.run_id }}
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: mkxp-ios-logs
+          path: build/mkxp-ios/logs/
+          retention-days: 14
