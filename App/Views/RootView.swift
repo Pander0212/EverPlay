@@ -200,7 +200,8 @@ private struct LibraryView: View {
                     }
                 }
             }
-            .padding(.horizontal, 18).padding(.bottom, 24)
+            // Room for the bottom bar and the search field below it, so the last game can scroll into view.
+            .padding(.horizontal, 18).padding(.bottom, 140)
         }
         .scrollIndicators(.hidden)
         .background {
