@@ -214,6 +214,9 @@ struct GameDetailView: View {
                     Label("Manage saves and cheats", systemImage: "externaldrive")
                 }
                 .accessibilityIdentifier("manageSaves")
+            case .web(let game, _) where game.engine == .rgss:
+                Text("Saves stay in the game's folder, as on the PC. Games that need the RPG Maker RTP show missing graphics or sounds until one is added.")
+                    .font(.footnote).foregroundStyle(.secondary)
             case .web(let game, _) where !game.engine.isWeb:
                 Text("Saves: On My iPhone › EverPlay › Saves › \(game.title)").font(.footnote).foregroundStyle(.secondary)
                 NavigationLink {

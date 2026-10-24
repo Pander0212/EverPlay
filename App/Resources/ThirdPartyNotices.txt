@@ -351,6 +351,17 @@ https://www.gnu.org/licenses/old-licenses/gpl-2.0.html. Complete corresponding s
 https://github.com/YuriSizuku/OnscripterYuri (release v0.7.7beta). EverPlay runs it as
 a separate web page in its game player; EverPlay's own source is published at https://github.com/Pander0212/EverPlay.
 
+mkxp-z (all-in-one build)
+GNU General Public License v2.0 or later
+
+The all-in-one build includes mkxp-z, an open implementation of RPG Maker XP, VX and VX Ace's RGSS by
+Amaryllis Kulla, Splendide Imaginarius and contributors, with Ruby 3.1 (Ruby license / BSD-2-Clause) and the
+libraries it builds (SDL2 and SDL_image/SDL_sound/SDL_ttf under zlib, OpenAL Soft under LGPL-2.0+, PhysFS,
+FreeType, pixman, libogg, libvorbis, libtheora, FluidSynth (LGPL-2.1+), uchardet, libffi, libyaml, fmt, zlib).
+It is distributed WITHOUT ANY WARRANTY; see https://www.gnu.org/licenses/old-licenses/gpl-2.0.html.
+Complete corresponding source: https://github.com/mkxp-z/mkxp-z (commit 37a04d1) with the changes in
+scripts/patch-mkxp-ios.py and the build in scripts/build-mkxp-ios.sh of https://github.com/Pander0212/EverPlay.
+
 Ren'Py (all-in-one build)
 
 The all-in-one build includes Ren'Py runtimes (https://www.renpy.org, MIT license, with its bundled components under

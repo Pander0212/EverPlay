@@ -153,6 +153,8 @@ private struct LibraryView: View {
     @AppStorage("library.sort") private var sort = LibrarySort.recent
     /// Changes when a game is hidden, shown or marked as a favorite, so the list updates.
     @State private var hiddenVersion = 0
+    /// Why a game could not start (RPG Maker XP/VX/VX Ace without mkxp-z in this build).
+    @State private var playMessage: String?
     /// Set by the details page; acted on once its sheet is gone.
     @State private var afterDetail: (() -> Void)?
 
@@ -219,6 +221,11 @@ private struct LibraryView: View {
             if phase == .active { library.refreshInbox(); renpy.refresh() }
         }
         .task(id: library.games.map(\.id)) { await loadWebCovers() }
+        .alert("Cannot start this game", isPresented: Binding(get: { playMessage != nil }, set: { if !$0 { playMessage = nil } })) {
+            Button("OK", role: .cancel) { playMessage = nil }
+        } message: {
+            Text(playMessage ?? "")
+        }
         .sheet(item: $detail, onDismiss: {
             let action = afterDetail
             afterDetail = nil
@@ -312,6 +319,9 @@ private struct LibraryView: View {
 
     private func play(_ item: LibraryItem) {
         switch item {
+        case .web(let game, _) where game.engine == .rgss:
+            guard let store = library.store else { return }
+            playMessage = MKXPLauncher.play(game, directory: store.directory(for: game))
         case .web(let game, _): library.selectedGame = game
         case .renpy(let game): renpy.play(game)
         }

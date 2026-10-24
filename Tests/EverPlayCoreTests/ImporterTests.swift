@@ -218,6 +218,16 @@ final class ImporterTests: FixtureTestCase {
         try data.write(to: url)
         return url
     }
+    func testRPGMakerXPVXAceGamesAreDetectedByGameIniAndScriptsOrArchive() throws {
+        let xp = try prepare([("Aedemphia/Game.exe", Data("MZ".utf8)), ("Aedemphia/Game.ini", Data("[Game]".utf8)),
+                              ("Aedemphia/Data/Scripts.rxdata", Data([4, 8])), ("Aedemphia/Graphics/Titles/t.png", Data())])
+        XCTAssertEqual(xp.validation.engine, .rgss)
+        XCTAssertEqual(xp.validation.entryPoint, "Aedemphia/Game.ini")
+        XCTAssertFalse(GameEngine.rgss.isWeb)
+        let ace = try prepare([("Game.ini", Data("[Game]".utf8)), ("Game.rgss3a", Data([1]))])
+        XCTAssertEqual(ace.validation.entryPoint, "Game.ini")
+        XCTAssertThrowsError(try prepare([("Broken/Data/Scripts.rvdata2", Data([1]))]), "scripts without Game.ini are not a game")
+    }
     func testONScripterGameIsDetectedByItsScript() throws {
         let game = try prepare([("Tsukihime/Game.exe", Data("MZ".utf8)), ("Tsukihime/nscript.dat", Data([1, 2])),
                                 ("Tsukihime/default.ttf", Data()), ("Tsukihime/readme.html", html)])

@@ -6,6 +6,8 @@ public enum GameEngine: String, Codable, Sendable, CaseIterable {
     case rpgMaker2000
     /// ONScripter (NScripter) visual novels, played by OnscripterYuri's WebAssembly build.
     case onscripter
+    /// RPG Maker XP, VX and VX Ace (RGSS 1-3), played natively by mkxp-z.
+    case rgss
 
     public var title: String {
         switch self {
@@ -14,6 +16,7 @@ public enum GameEngine: String, Codable, Sendable, CaseIterable {
         case .rpgMakerMZ: return "RPG Maker MZ"
         case .rpgMaker2000: return "RPG Maker 2000/2003"
         case .onscripter: return "ONScripter"
+        case .rgss: return "RPG Maker XP/VX/VX Ace"
         }
     }
 
@@ -23,11 +26,12 @@ public enum GameEngine: String, Codable, Sendable, CaseIterable {
         case .rpgMakerMV, .rpgMakerMZ: return "Experimental · web exports only"
         case .rpgMaker2000: return "Native · EasyRPG Player"
         case .onscripter: return "Experimental · OnscripterYuri"
+        case .rgss: return "Experimental · mkxp-z"
         }
     }
 
     /// Runs in EverPlay's web player (WKWebView and the loopback game server).
-    public var isWeb: Bool { self != .rpgMaker2000 }
+    public var isWeb: Bool { self != .rpgMaker2000 && self != .rgss }
 }
 
 public struct EngineCapabilities: OptionSet, Sendable {

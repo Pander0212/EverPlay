@@ -31,6 +31,9 @@ public enum GameDetector {
         var mapTrees: Set<String> = []
         // ONScripter: its script (0.txt, 00.txt or an encrypted nscript.dat and the like).
         var onsScripts: [String] = []
+        // RPG Maker XP/VX/VX Ace: Game.ini next to an encrypted archive or Data/Scripts.*.
+        var gameInis: [String] = []
+        var rgssFolders: Set<String> = []
         let rootComponents = root.pathComponents
         for case let enumeratedURL as URL in enumerator {
             let url = enumeratedURL.standardizedFileURL.resolvingSymlinksInPath()
@@ -46,6 +49,14 @@ public enum GameDetector {
             case "rpg_rt.ldb": databases.append(relative)
             case "rpg_rt.lmt": mapTrees.insert((relative as NSString).deletingLastPathComponent.lowercased())
             case let name where ONScripterShell.scriptNames.contains(name): onsScripts.append(relative)
+            case "game.ini": gameInis.append(relative)
+            case "game.rgssad", "game.rgss2a", "game.rgss3a":
+                rgssFolders.insert((relative as NSString).deletingLastPathComponent.lowercased())
+            case "scripts.rxdata", "scripts.rvdata", "scripts.rvdata2":
+                let data = (relative as NSString).deletingLastPathComponent
+                if (data as NSString).lastPathComponent.lowercased() == "data" {
+                    rgssFolders.insert((data as NSString).deletingLastPathComponent.lowercased())
+                }
             default: break
             }
             let pageExtension = ["html", "htm"].contains(url.pathExtension.lowercased())
@@ -63,6 +74,12 @@ public enum GameDetector {
         if let database = games2000.min(by: { $0.split(separator: "/").count < $1.split(separator: "/").count }) {
             return GameValidationResult(engine: .rpgMaker2000, entryPoint: database, warnings: [
                 "Games that need the original RTP show missing graphics until an RTP is added."
+            ])
+        }
+        let rgssGames = gameInis.filter { rgssFolders.contains(($0 as NSString).deletingLastPathComponent.lowercased()) }
+        if let ini = rgssGames.min(by: { $0.split(separator: "/").count < $1.split(separator: "/").count }) {
+            return GameValidationResult(engine: .rgss, entryPoint: ini, warnings: [
+                "Games that need the RPG Maker RTP show missing graphics or sounds until an RTP is added."
             ])
         }
         if entries.isEmpty, let script = onsScripts.min(by: { $0.split(separator: "/").count < $1.split(separator: "/").count }) {

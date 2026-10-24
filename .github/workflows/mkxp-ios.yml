@@ -17,6 +17,8 @@ concurrency:
 jobs:
   build:
     runs-on: macos-26
+    permissions:
+      contents: write  # the libretro-cores release, which the all-in-one build pins
     timeout-minutes: 150
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
@@ -46,6 +48,15 @@ jobs:
             || { grep -E ' error:|FAILED:|Undefined symbols|ld: ' package-mkxp.log | head -n 80; exit 1; }
           ls -la build/mkxp-output/Frameworks/MKXP.framework
           (cd build/mkxp-output && zip -qry ../../MKXP.framework.zip Frameworks)
+      - name: Publish the framework for the all-in-one build
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          name="mkxp-z_ios-arm64-$(git rev-parse --short HEAD).framework.zip"
+          cp MKXP.framework.zip "$name"
+          gh release upload libretro-cores --repo "$GITHUB_REPOSITORY" --clobber "$name"
+          echo "Pin in allinone.yml: $name $(shasum -a 256 "$name" | cut -d' ' -f1)"
       - name: Keep the framework
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
