@@ -7,9 +7,9 @@
   "license": "MIT",
   "engines": {"node": ">=22"},
   "scripts": {
-    "test": "node --test tests/demo-state.test.js tests/rpgmaker-cheats.test.js tests/rpgmaker-shims.test.js tests/rpgmaker-translate.test.js",
+    "test": "node --test tests/demo-state.test.js tests/rpgmaker-cheats.test.js tests/rpgmaker-saves.test.js tests/rpgmaker-shims.test.js tests/rpgmaker-translate.test.js",
     "test:browser": "playwright test",
-    "check": "node --check DemoGame/game.js && node --check DemoGame/state.js && node --check App/Resources/RPGMakerCheats.js && node --check App/Resources/RPGMakerShims.js && node --check App/Resources/RPGMakerTranslate.js",
+    "check": "node --check DemoGame/game.js && node --check DemoGame/state.js && node --check App/Resources/RPGMakerCheats.js && node --check App/Resources/RPGMakerSaves.js && node --check App/Resources/RPGMakerShims.js && node --check App/Resources/RPGMakerTranslate.js",
     "package:demo": "python3 scripts/package-demo.py"
   },
   "devDependencies": {"@playwright/test": "1.64.1"}

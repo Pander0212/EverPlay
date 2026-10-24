@@ -94,11 +94,15 @@ struct GamePlayerView: View {
                                 Label("Gold, items, variables, speed", systemImage: "wand.and.stars")
                             }
                             .accessibilityIdentifier("openCheats")
+                            NavigationLink { SaveEditorView(session: session) } label: {
+                                Label("Save editor", systemImage: "square.and.pencil")
+                            }
+                            .accessibilityIdentifier("openSaveEditor")
                         }
                     }
                     Section("Saving") {
                         Text("Save using the game’s own controls. Its browser storage is kept when you exit and reopen it.")
-                        Text("The menu does not pause every game. Native save export and restore are not available yet.")
+                        Text("The menu does not pause every game.")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                     Section {

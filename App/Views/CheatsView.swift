@@ -48,11 +48,11 @@ struct CheatsView: View {
                     Text("Speed runs the game's logic several times per frame. Walk-through and encounters last until the game closes.")
                 }
                 Section("Inventory and flags") {
-                    NavigationLink("Items") { CheatItemsView(session: session, kind: "item", title: "Items") }
-                    NavigationLink("Weapons") { CheatItemsView(session: session, kind: "weapon", title: "Weapons") }
-                    NavigationLink("Armor") { CheatItemsView(session: session, kind: "armor", title: "Armor") }
-                    NavigationLink("Variables") { CheatVariablesView(session: session) }
-                    NavigationLink("Switches") { CheatSwitchesView(session: session) }
+                    NavigationLink("Items") { CheatItemsView(target: RunningGame(session: session), kind: "item", title: "Items") }
+                    NavigationLink("Weapons") { CheatItemsView(target: RunningGame(session: session), kind: "weapon", title: "Weapons") }
+                    NavigationLink("Armor") { CheatItemsView(target: RunningGame(session: session), kind: "armor", title: "Armor") }
+                    NavigationLink("Variables") { CheatVariablesView(target: RunningGame(session: session)) }
+                    NavigationLink("Switches") { CheatSwitchesView(target: RunningGame(session: session)) }
                 }
             } else {
                 Section {
@@ -146,8 +146,43 @@ struct CheatSwitch: Decodable, Identifiable {
     let value: Bool
 }
 
-private struct CheatItemsView: View {
-    @ObservedObject var session: GameSession
+/// What the item, variable and switch lists change: the running game or a save slot (SaveEditorView).
+@MainActor
+protocol CheatTarget {
+    func items(_ kind: String, _ query: String) async throws -> [CheatItem]
+    func gainItem(_ kind: String, _ id: Int, _ amount: Int) async throws
+    func variables(_ query: String) async throws -> [CheatVariable]
+    func setVariable(_ id: Int, _ value: Double) async throws
+    func switches(_ query: String) async throws -> [CheatSwitch]
+    func setSwitch(_ id: Int, _ on: Bool) async throws
+}
+
+/// The game as it runs now (RPGMakerCheats.js).
+struct RunningGame: CheatTarget {
+    let session: GameSession
+
+    func items(_ kind: String, _ query: String) async throws -> [CheatItem] {
+        try await session.cheat("items", [kind, query], as: [CheatItem].self)
+    }
+    func gainItem(_ kind: String, _ id: Int, _ amount: Int) async throws {
+        _ = try await session.cheat("gainItem", [kind, id, amount], as: Bool.self)
+    }
+    func variables(_ query: String) async throws -> [CheatVariable] {
+        try await session.cheat("variables", [query], as: [CheatVariable].self)
+    }
+    func setVariable(_ id: Int, _ value: Double) async throws {
+        _ = try await session.cheat("setVariable", [id, value], as: Bool.self)
+    }
+    func switches(_ query: String) async throws -> [CheatSwitch] {
+        try await session.cheat("switches", [query], as: [CheatSwitch].self)
+    }
+    func setSwitch(_ id: Int, _ on: Bool) async throws {
+        _ = try await session.cheat("setSwitch", [id, on], as: Bool.self)
+    }
+}
+
+struct CheatItemsView: View {
+    let target: CheatTarget
     let kind: String
     let title: String
     @State private var query = ""
@@ -174,19 +209,19 @@ private struct CheatItemsView: View {
     }
 
     private func load() async {
-        items = (try? await session.cheat("items", [kind, query], as: [CheatItem].self)) ?? []
+        items = (try? await target.items(kind, query)) ?? []
     }
 
     private func gain(_ item: CheatItem, _ amount: Int) {
         Task {
-            _ = try? await session.cheat("gainItem", [kind, item.id, amount], as: Bool.self)
+            try? await target.gainItem(kind, item.id, amount)
             await load()
         }
     }
 }
 
-private struct CheatVariablesView: View {
-    @ObservedObject var session: GameSession
+struct CheatVariablesView: View {
+    let target: CheatTarget
     @State private var query = ""
     @State private var variables: [CheatVariable] = []
     @State private var editing: CheatVariable?
@@ -220,7 +255,7 @@ private struct CheatVariablesView: View {
             Button("Set") {
                 if let variable = editing, let value = Double(text.replacingOccurrences(of: ",", with: ".")) {
                     Task {
-                        _ = try? await session.cheat("setVariable", [variable.id, value], as: Bool.self)
+                        try? await target.setVariable(variable.id, value)
                         await load()
                     }
                 }
@@ -231,12 +266,12 @@ private struct CheatVariablesView: View {
     }
 
     private func load() async {
-        variables = (try? await session.cheat("variables", [query], as: [CheatVariable].self)) ?? []
+        variables = (try? await target.variables(query)) ?? []
     }
 }
 
-private struct CheatSwitchesView: View {
-    @ObservedObject var session: GameSession
+struct CheatSwitchesView: View {
+    let target: CheatTarget
     @State private var query = ""
     @State private var switches: [CheatSwitch] = []
 
@@ -244,7 +279,7 @@ private struct CheatSwitchesView: View {
         List(switches) { entry in
             Toggle(isOn: Binding(get: { entry.value }, set: { on in
                 Task {
-                    _ = try? await session.cheat("setSwitch", [entry.id, on], as: Bool.self)
+                    try? await target.setSwitch(entry.id, on)
                     await load()
                 }
             })) {
@@ -261,6 +296,6 @@ private struct CheatSwitchesView: View {
     }
 
     private func load() async {
-        switches = (try? await session.cheat("switches", [query], as: [CheatSwitch].self)) ?? []
+        switches = (try? await target.switches(query)) ?? []
     }
 }

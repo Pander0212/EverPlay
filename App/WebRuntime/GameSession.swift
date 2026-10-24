@@ -24,8 +24,9 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         if game.engine == .rpgMakerMV || game.engine == .rpgMakerMZ {
-            // Shims first, before the game's plugins run; cheats once the page is loaded.
-            var scripts = [("RPGMakerShims", WKUserScriptInjectionTime.atDocumentStart), ("RPGMakerCheats", .atDocumentEnd)]
+            // Shims first, before the game's plugins run; cheats and the save editor once the page is loaded.
+            var scripts = [("RPGMakerShims", WKUserScriptInjectionTime.atDocumentStart), ("RPGMakerCheats", .atDocumentEnd),
+                           ("RPGMakerSaves", .atDocumentEnd)]
             // Machine translation, when switched on for this game (game page › Translate).
             let translation = TranslationPreferences.settings
             if translation.provider != .off, TranslationPreferences.isEnabled(for: Self.translationKey(game)) {
@@ -120,6 +121,24 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
         let script = "JSON.stringify(window.__everplayCheats ? window.__everplayCheats.\(method).apply(null, \(encoded)) : null)"
         guard let reply = try await webView.evaluateJavaScript(script) as? String else { throw EverPlayError.invalidRequest }
         return try JSONDecoder().decode(Result.self, from: Data(reply.utf8))
+    }
+
+    /// Methods of window.__everplaySaves (App/Resources/RPGMakerSaves.js) the save editor may call.
+    static let saveMethods: Set<String> = ["slots", "summary", "setGold", "setLevel", "variables", "setVariable",
+                                           "switches", "setSwitch", "items", "gainItem"]
+
+    /// Calls the RPG Maker save editor script, awaits its promise and decodes the JSON reply.
+    func saveEdit<Result: Decodable>(_ method: String, _ arguments: [Any] = [], as type: Result.Type) async throws -> Result {
+        guard Self.saveMethods.contains(method) else { throw EverPlayError.invalidRequest }
+        let body = """
+        const saves = window.__everplaySaves;
+        if (!saves) return null;
+        return JSON.stringify(await saves[method].apply(null, args));
+        """
+        let reply = try await webView.callAsyncJavaScript(body, arguments: ["method": method, "args": arguments],
+                                                          in: nil, contentWorld: .page)
+        guard let text = reply as? String else { throw EverPlayError.invalidRequest }
+        return try JSONDecoder().decode(Result.self, from: Data(text.utf8))
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
