@@ -25,6 +25,25 @@ PREFIX="$WORK/prefix"
 SDL_VERSION=2.28.5
 if [ ! -f "$PREFIX/lib/pkgconfig/sdl2.pc" ]; then
   curl -sSfL "https://github.com/libsdl-org/SDL/releases/download/release-$SDL_VERSION/SDL2-$SDL_VERSION.tar.gz" | tar xz -C "$WORK"
+  # SDL finds GL functions with dlsym(RTLD_DEFAULT). In EverPlay, WebKit's ANGLE also exports
+  # gl* names; its glGetString knows no EAGL context and returns NULL. Ask OpenGLES first.
+  python3 - "$WORK/SDL2-$SDL_VERSION/src/video/uikit/SDL_uikitopengles.m" <<'PATCH'
+import sys
+path = sys.argv[1]
+text = open(path).read()
+old = "    return dlsym(RTLD_DEFAULT, proc);\n"
+new = """    static void *gles;
+    void *function;
+    if (!gles) {
+        gles = dlopen("/System/Library/Frameworks/OpenGLES.framework/OpenGLES", RTLD_LAZY | RTLD_GLOBAL);
+    }
+    function = gles ? dlsym(gles, proc) : NULL;
+    return function ? function : dlsym(RTLD_DEFAULT, proc);
+"""
+if text.count(old) != 1:
+    sys.exit("SDL_uikitopengles.m: GetProcAddress not found")
+open(path, "w").write(text.replace(old, new))
+PATCH
   cmake -S "$WORK/SDL2-$SDL_VERSION" -B "$WORK/sdl2-build" -G Ninja -DCMAKE_SYSTEM_NAME=iOS \
     -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=$MIN_IOS \
     -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PREFIX" \

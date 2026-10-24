@@ -60,6 +60,14 @@ patch('src/main.cpp', '    SDL_GLContext glCtx = initGL(win, conf, 0);\n', """  
 #endif
 """)
 
+# Without a usable GL context glGetString returns NULL; report that instead of crashing.
+patch('src/display/gl/gl-fun.cpp', """    const char *ver = (const char*) gl.GetString(GL_VERSION);
+""", """    const char *ver = (const char*) gl.GetString(GL_VERSION);
+    if (!ver)
+        throw Exception(Exception::MKXPError, "OpenGL ES did not answer (glGetString returned nothing, error 0x%x).",
+                        gl.GetError ? gl.GetError() : 0);
+""")
+
 patch('src/system/system.h', """#ifdef __APPLE__
 void openSettingsWindow();""", f"""#if {MAC_ONLY}
 void openSettingsWindow();""")
