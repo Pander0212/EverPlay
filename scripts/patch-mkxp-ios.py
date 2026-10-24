@@ -93,4 +93,23 @@ patch('subprojects/packagefiles/ruby-3.1/meson.build', """                'ac_cv
                 'ac_cv_func_system': 'no',
                 'ac_cv_func_daemon': 'no',""")
 
+# Without fork Ruby falls back to system(), which iOS forbids; report ENOSYS instead (RGSS games
+# do not start other programs).
+(root / 'subprojects/packagefiles/ruby-3.1-ios.patch').write_text("""--- a/process.c
++++ b/process.c
+@@ -4659,6 +4659,11 @@
+     }
+ # else
++#  ifdef __APPLE__
++    status = -1;
++    errno = ENOSYS;
++#  else
+     status = system(rb_execarg_commandline(eargp, &prog));
++#  endif
+     pid = 1;			/* dummy */
+     rb_last_status_set((status & 0xff) << 8, pid);
+ # endif
+""", encoding='utf-8')
+patch('subprojects/ruby-3.1.wrap', '    end-of-diff-files.patch', '    ruby-3.1-ios.patch,\n    end-of-diff-files.patch')
+
 print('mkxp-z patched for iOS')
