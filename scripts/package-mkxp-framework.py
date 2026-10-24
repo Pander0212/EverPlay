@@ -73,7 +73,7 @@ def main():
     # Build everything the executable links (the libraries, Ruby included), but not the executable.
     # Absolute paths are outside Ninja (SDL2 from build-mkxp-ios.sh, Ruby's own make build).
     inputs = [part for part in command if (part.endswith('.a') or part.endswith('.o')) and not part.startswith('/')]
-    subprocess.run(['ninja', '-C', BUILD, *inputs], check=True)
+    subprocess.run(['ninja', '-k', '0', '-C', BUILD, *inputs], check=True)
     framework = output / 'Frameworks' / f'{NAME}.framework'
     if framework.exists():
         shutil.rmtree(framework)

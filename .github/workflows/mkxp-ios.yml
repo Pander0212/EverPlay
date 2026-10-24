@@ -42,7 +42,8 @@ jobs:
       - name: Link MKXP.framework
         run: |
           set -o pipefail
-          python3 scripts/package-mkxp-framework.py build/mkxp-output 2>&1 | tail -n 60
+          python3 scripts/package-mkxp-framework.py build/mkxp-output > package-mkxp.log 2>&1 \
+            || { grep -E ' error:|FAILED:|Undefined symbols|ld: ' package-mkxp.log | head -n 80; exit 1; }
           ls -la build/mkxp-output/Frameworks/MKXP.framework
           (cd build/mkxp-output && zip -qry ../../MKXP.framework.zip Frameworks)
       - name: Keep the framework
@@ -66,6 +67,7 @@ jobs:
           name: mkxp-ios-logs
           path: |
             build-mkxp-ios.log
+            package-mkxp.log
             build/mkxp-ios/build/meson-logs/
             build/mkxp-ios/build/subprojects/ruby-3_1_3/build/ext/zlib/mkmf.log
           retention-days: 14
