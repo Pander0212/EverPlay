@@ -169,4 +169,23 @@ patch('binding/binding-mri.cpp', """    if (std::system(command.c_str()) != 0) {
     if (std::system(command.c_str()) != 0) {
 #endif""")
 
+# OpenAL Soft finds proc_pidpath in libSystem, but iOS has no <libproc.h> for it.
+(root / 'subprojects/packagefiles/openal-soft-ios.patch').write_text("""--- a/core/helpers.cpp
++++ b/core/helpers.cpp
+@@ -211,6 +211,12 @@
+ #ifdef __HAIKU__
+ #include <FindDirectory.h>
+ #endif
++#ifdef __APPLE__
++#include <TargetConditionals.h>
++#if TARGET_OS_IPHONE
++#undef HAVE_PROC_PIDPATH
++#endif
++#endif
+ #ifdef HAVE_PROC_PIDPATH
+ #include <libproc.h>
+ #endif
+""", encoding='utf-8')
+patch('subprojects/openal-soft.wrap', '    end-of-diff-files.patch', '    openal-soft-ios.patch,\n    end-of-diff-files.patch')
+
 print('mkxp-z patched for iOS')
