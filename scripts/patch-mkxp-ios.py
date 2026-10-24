@@ -95,7 +95,24 @@ patch('subprojects/packagefiles/ruby-3.1/meson.build', """                'ac_cv
 
 # Without fork Ruby falls back to system(), which iOS forbids; report ENOSYS instead (RGSS games
 # do not start other programs).
-(root / 'subprojects/packagefiles/ruby-3.1-ios.patch').write_text("""--- a/process.c
+# iOS lacks <sys/vnode.h>; dir.c needs only its file type list from it.
+(root / 'subprojects/packagefiles/ruby-3.1-ios.patch').write_text("""--- a/dir.c
++++ b/dir.c
+@@ -97,7 +97,12 @@
+ # define NORMALIZE_UTF8PATH 1
+ # include <sys/param.h>
+ # include <sys/mount.h>
+-# include <sys/vnode.h>
++# include <TargetConditionals.h>
++# if TARGET_OS_IPHONE
++enum vtype { VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD, VSTR, VCPLX };
++# else
++#  include <sys/vnode.h>
++# endif
+ #else
+ # define NORMALIZE_UTF8PATH 0
+ #endif
+--- a/process.c
 +++ b/process.c
 @@ -4659,6 +4659,11 @@
      }
