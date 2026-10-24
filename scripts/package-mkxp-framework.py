@@ -71,7 +71,8 @@ def main():
     output = Path(sys.argv[1])
     executable, command = executable_link_command()
     # Build everything the executable links (the libraries, Ruby included), but not the executable.
-    inputs = [part for part in command if part.endswith('.a') or part.endswith('.o')]
+    # Absolute paths are outside Ninja (SDL2 from build-mkxp-ios.sh, Ruby's own make build).
+    inputs = [part for part in command if (part.endswith('.a') or part.endswith('.o')) and not part.startswith('/')]
     subprocess.run(['ninja', '-C', BUILD, *inputs], check=True)
     framework = output / 'Frameworks' / f'{NAME}.framework'
     if framework.exists():
