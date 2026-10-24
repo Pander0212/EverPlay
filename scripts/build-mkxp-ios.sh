@@ -84,6 +84,8 @@ cmake_ios() {
 
 configure_ios() {
   [ -x configure ] || { if [ -x autogen.sh ]; then NOCONFIGURE=1 ./autogen.sh; else autoreconf -fi; fi; }
+  # Old Xiph configure scripts add a linker option for PowerPC-era macOS that ld rejects.
+  sed -i '' 's/-force_cpusubtype_ALL//g' configure
   CC="$CC_IOS" CXX="$CXX_IOS" CFLAGS="$ARCH_FLAGS -O2 -I$PREFIX/include" CXXFLAGS="$ARCH_FLAGS -O2 -I$PREFIX/include" \
     LDFLAGS="$ARCH_FLAGS -L$PREFIX/lib" ./configure --host=aarch64-apple-darwin --prefix="$PREFIX" \
     --enable-static --disable-shared "$@"
