@@ -228,7 +228,7 @@ enum LibraryFilter: String, CaseIterable, Identifiable {
         case (.favorites, _): return FavoriteGames.contains(item.id)
         case (.renpy, .renpy): return true
         case (.rpgMaker, .web(let game, _)): return [.rpgMakerMV, .rpgMakerMZ, .rpgMaker2000].contains(game.engine)
-        case (.web, .web(let game, _)): return game.engine == .html5
+        case (.web, .web(let game, _)): return [.html5, .onscripter].contains(game.engine)
         default: return false
         }
     }

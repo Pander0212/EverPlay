@@ -200,6 +200,9 @@ jobs:
       # Pinned copy in the libretro-cores release (empty: build without RPG Maker 2000/2003).
       EASYRPG_CORE: easyrpg_libretro_ios-arm64-2026-10-23.dylib.zip  # EasyRPG Player 0.8.1.1-git+21@a3fbb7c
       EASYRPG_CORE_SHA256: 8e9e3aa210580f4f4874a752807a9daebff40e3e0457f45d3cb751aa6e42d2af
+      # OnscripterYuri's web build for ONScripter games (empty: build without ONScripter).
+      ONSYURI_WEB: ""
+      ONSYURI_WEB_SHA256: ""
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -277,6 +280,14 @@ jobs:
             chmod 755 "$core/easyrpg_libretro"
             install_name_tool -id @rpath/easyrpg_libretro.framework/easyrpg_libretro "$core/easyrpg_libretro"
             python3 -c 'import plistlib,sys; plistlib.dump({"CFBundleExecutable": "easyrpg_libretro", "CFBundleIdentifier": "app.everplay.core.easyrpg", "CFBundleName": "easyrpg_libretro", "CFBundlePackageType": "FMWK", "CFBundleShortVersionString": "0.8.1", "CFBundleVersion": "1", "MinimumOSVersion": "17.0", "CFBundleSupportedPlatforms": ["iPhoneOS"]}, open(sys.argv[1], "wb"))' "$core/Info.plist"
+          fi
+          # ONScripter: OnscripterYuri's WebAssembly build (GPL-2.0), vendored by vendor-cores.yml.
+          if [[ -n "$ONSYURI_WEB" ]]; then
+            curl --fail --location --show-error --retry 2 --max-time 300 \
+              "https://github.com/${GITHUB_REPOSITORY}/releases/download/libretro-cores/$ONSYURI_WEB" --output onsyuri.zip
+            echo "$ONSYURI_WEB_SHA256  onsyuri.zip" | shasum -a 256 -c -
+            mkdir -p "$app/ONScripter"
+            unzip -o -q onsyuri.zip onsyuri.html onsyuri.js onsyuri.wasm -d "$app/ONScripter"
           fi
           # Ad-hoc placeholder signatures; sideloading tools re-sign every framework and the app.
           for framework in "$app"/Frameworks/*.framework; do codesign --force --sign - --timestamp=none "$framework"; done

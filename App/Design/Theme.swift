@@ -16,6 +16,7 @@ enum Theme {
         case .rpgMakerMV: return Color(red: 0.86, green: 0.67, blue: 0.42)
         case .rpgMakerMZ: return Color(red: 0.84, green: 0.53, blue: 0.61)
         case .rpgMaker2000: return Color(red: 0.55, green: 0.70, blue: 0.93)
+        case .onscripter: return Color(red: 0.78, green: 0.60, blue: 0.88)
         }
     }
 

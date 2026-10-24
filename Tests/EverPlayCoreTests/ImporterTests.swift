@@ -218,6 +218,39 @@ final class ImporterTests: FixtureTestCase {
         try data.write(to: url)
         return url
     }
+    func testONScripterGameIsDetectedByItsScript() throws {
+        let game = try prepare([("Tsukihime/Game.exe", Data("MZ".utf8)), ("Tsukihime/nscript.dat", Data([1, 2])),
+                                ("Tsukihime/default.ttf", Data()), ("Tsukihime/readme.html", html)])
+        XCTAssertEqual(game.validation.engine, .onscripter)
+        XCTAssertEqual(game.validation.entryPoint, "Tsukihime/onsyuri.html")
+        XCTAssertEqual(game.validation.warnings, [])
+        XCTAssertTrue(GameEngine.onscripter.isWeb)
+        let plain = try prepare([("0.txt", Data("*define".utf8)), ("bgm/a.ogg", Data())])
+        XCTAssertEqual(plain.validation.entryPoint, "onsyuri.html")
+        XCTAssertEqual(plain.validation.warnings.count, 1, "no default.ttf")
+    }
+    func testONScripterShellIsCopiedWithAFileIndex() throws {
+        let shell = temporary.appendingPathComponent("shell")
+        let game = temporary.appendingPathComponent("game")
+        try FileManager.default.createDirectory(at: shell, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: game.appendingPathComponent("my bgm"), withIntermediateDirectories: true)
+        for name in ONScripterShell.files { try Data(name.utf8).write(to: shell.appendingPathComponent(name)) }
+        try Data("*define".utf8).write(to: game.appendingPathComponent("0.txt"))
+        try Data().write(to: game.appendingPathComponent("my bgm/曲#1.ogg"))
+        try ONScripterShell.install(shell: shell, gameFolder: game)
+        XCTAssertEqual(try Data(contentsOf: game.appendingPathComponent("onsyuri.wasm")), Data("onsyuri.wasm".utf8))
+        let index = try JSONSerialization.jsonObject(with: Data(contentsOf: game.appendingPathComponent("onsyuri_index.json"))) as! [String: Any]
+        let files = index["files"] as! [[String: String]]
+        XCTAssertEqual(files.map { $0["path"]! }, ["0.txt", "my bgm/曲#1.ogg"])
+        XCTAssertEqual(files[1]["url"], "my%20bgm/%E6%9B%B2%231.ogg")
+        XCTAssertEqual(index["lazyload"] as? Bool, true)
+        // A newer build replaces the copy; an unchanged one is left alone.
+        try Data("new".utf8).write(to: shell.appendingPathComponent("onsyuri.js"))
+        try ONScripterShell.install(shell: shell, gameFolder: game)
+        XCTAssertEqual(try Data(contentsOf: game.appendingPathComponent("onsyuri.js")), Data("new".utf8))
+        try FileManager.default.removeItem(at: shell.appendingPathComponent("onsyuri.wasm"))
+        XCTAssertThrowsError(try ONScripterShell.install(shell: shell, gameFolder: game))
+    }
     func testSingleFileHTMLGameWithoutIndex() throws {
         let story = Data(("<!doctype html><title>Story</title>" + String(repeating: "x", count: 4000)).utf8)
         let game = try prepare([("DoL/Degrees of Lewdity 0.5.html", story), ("DoL/credits.html", html),

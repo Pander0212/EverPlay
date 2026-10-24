@@ -4,6 +4,8 @@ public enum GameEngine: String, Codable, Sendable, CaseIterable {
     case html5, rpgMakerMV, rpgMakerMZ
     /// RPG Maker 2000/2003, played natively by the EasyRPG Player libretro core.
     case rpgMaker2000
+    /// ONScripter (NScripter) visual novels, played by OnscripterYuri's WebAssembly build.
+    case onscripter
 
     public var title: String {
         switch self {
@@ -11,6 +13,7 @@ public enum GameEngine: String, Codable, Sendable, CaseIterable {
         case .rpgMakerMV: return "RPG Maker MV"
         case .rpgMakerMZ: return "RPG Maker MZ"
         case .rpgMaker2000: return "RPG Maker 2000/2003"
+        case .onscripter: return "ONScripter"
         }
     }
 
@@ -19,6 +22,7 @@ public enum GameEngine: String, Codable, Sendable, CaseIterable {
         case .html5: return "Web player"
         case .rpgMakerMV, .rpgMakerMZ: return "Experimental · web exports only"
         case .rpgMaker2000: return "Native · EasyRPG Player"
+        case .onscripter: return "Experimental · OnscripterYuri"
         }
     }
 

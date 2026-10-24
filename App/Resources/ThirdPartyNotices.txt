@@ -341,6 +341,16 @@ the libretro build recipe: https://github.com/libretro/libretro-super. EverPlay 
 library through the libretro API; EverPlay's own source is published at https://github.com/Pander0212/EverPlay.
 
 
+OnscripterYuri (all-in-one build)
+GNU General Public License v2.0
+
+The all-in-one build includes the WebAssembly build of OnscripterYuri (onsyuri.html, onsyuri.js, onsyuri.wasm), an
+ONScripter port by YuriSizuku and contributors, based on ONScripter by Ogapee and ONScripter-jh. It is free software
+under the GNU General Public License version 2, distributed WITHOUT ANY WARRANTY; see
+https://www.gnu.org/licenses/old-licenses/gpl-2.0.html. Complete corresponding source:
+https://github.com/YuriSizuku/OnscripterYuri (the release tag named in the vendored file's name). EverPlay runs it as
+a separate web page in its game player; EverPlay's own source is published at https://github.com/Pander0212/EverPlay.
+
 Ren'Py (all-in-one build)
 
 The all-in-one build includes Ren'Py runtimes (https://www.renpy.org, MIT license, with its bundled components under

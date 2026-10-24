@@ -5,6 +5,7 @@ name: Vendor libretro cores
 # changes; then pin the printed checksum in allinone.yml.
 #
 # easyrpg: EasyRPG Player (RPG Maker 2000/2003), GPL-3.0, source https://github.com/EasyRPG/Player
+# onsyuri: OnscripterYuri web build (ONScripter), GPL-2.0, source https://github.com/YuriSizuku/OnscripterYuri
 on:
   workflow_dispatch:
   push:
@@ -41,3 +42,31 @@ jobs:
           fi
           gh release upload libretro-cores --repo "$REPOSITORY" --clobber "$name"
           echo "Pin in allinone.yml: $name $(cut -d' ' -f1 SHA256SUMS) ($version)"
+      - name: Fetch, check and publish OnscripterYuri's web build (ONScripter)
+        # OnscripterYuri, GPL-2.0, source https://github.com/YuriSizuku/OnscripterYuri
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag="$(gh release list --repo YuriSizuku/OnscripterYuri --exclude-drafts --limit 20 --json tagName,isPrerelease \
+            --jq '[.[] | select(.isPrerelease | not)][0].tagName')"
+          echo "OnscripterYuri $tag"
+          gh release download "$tag" --repo YuriSizuku/OnscripterYuri --pattern '*_web.7z' --dir onsyuri-download
+          7z x -oonsyuri-extract onsyuri-download/*_web.7z > /dev/null
+          mkdir onsyuri_web
+          for file in onsyuri.html onsyuri.js onsyuri.wasm; do
+            found="$(find onsyuri-extract -name "$file" -type f | head -n 1)"
+            [ -n "$found" ] || { echo "missing $file"; exit 1; }
+            cp "$found" onsyuri_web/
+          done
+          head -c 4 onsyuri_web/onsyuri.wasm | od -An -tx1 | grep -q '00 61 73 6d' || { echo 'not a WebAssembly module'; exit 1; }
+          name="onsyuri_web-$tag-$(date -u +%Y-%m-%d).zip"
+          (cd onsyuri_web && zip -q -X "../$name" onsyuri.html onsyuri.js onsyuri.wasm)
+          sha256sum "$name" | tee ONSYURI_SHA256SUMS
+          if ! gh release view libretro-cores --repo "$REPOSITORY" > /dev/null 2>&1; then
+            gh release create libretro-cores --repo "$REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+              --title "Vendored libretro cores" --notes "Pinned copies of third-party engines for the all-in-one build."
+          fi
+          gh release upload libretro-cores --repo "$REPOSITORY" --clobber "$name"
+          echo "Pin in allinone.yml: $name $(cut -d' ' -f1 ONSYURI_SHA256SUMS) (OnscripterYuri $tag, GPL-2.0)"

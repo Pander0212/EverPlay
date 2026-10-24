@@ -10,12 +10,14 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
     let webView: WKWebView
     private let server: LocalGameServer
     private let game: GameRecord
+    private let root: URL
     private var started = false
     private var stopped = false
     private(set) var startedAt: Date?
 
     init(game: GameRecord, root: URL) {
         self.game = game
+        self.root = root
         server = LocalGameServer(root: root, game: game)
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = WKWebsiteDataStore(forIdentifier: game.id)
@@ -57,6 +59,7 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
         guard !started, !stopped else { return }
         started = true
         do {
+            if game.engine == .onscripter { try await installONScripter() }
             try await server.start()
             trace("loopback server ready")
             guard !stopped else { server.stop(); return }
@@ -69,6 +72,15 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
             self.error = "The game server could not start: \(error.localizedDescription). Close and reopen the game to retry."
             loading = false
         }
+    }
+
+    /// Puts OnscripterYuri (shipped in EverPlay.app/ONScripter) next to the game's script.
+    private func installONScripter() async throws {
+        guard let shell = Bundle.main.url(forResource: "ONScripter", withExtension: nil) else {
+            throw ONScripterMissing()
+        }
+        let folder = root.appendingPathComponent(game.entryPoint).deletingLastPathComponent()
+        try await Task.detached(priority: .userInitiated) { try ONScripterShell.install(shell: shell, gameFolder: folder) }.value
     }
 
     func stop() {
@@ -168,6 +180,10 @@ final class GameSession: NSObject, ObservableObject, WKNavigationDelegate, WKUID
     func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin,
                  initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType,
                  decisionHandler: @escaping (WKPermissionDecision) -> Void) { decisionHandler(.deny) }
+}
+
+struct ONScripterMissing: LocalizedError {
+    var errorDescription: String? { "this EverPlay build does not include the ONScripter engine" }
 }
 
 struct GameWebView: UIViewRepresentable {

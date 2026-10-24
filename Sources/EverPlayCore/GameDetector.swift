@@ -29,6 +29,8 @@ public enum GameDetector {
         // RPG Maker 2000/2003: RPG_RT.ldb (database) next to RPG_RT.lmt (map tree).
         var databases: [String] = []
         var mapTrees: Set<String> = []
+        // ONScripter: its script (0.txt, 00.txt or an encrypted nscript.dat and the like).
+        var onsScripts: [String] = []
         let rootComponents = root.pathComponents
         for case let enumeratedURL as URL in enumerator {
             let url = enumeratedURL.standardizedFileURL.resolvingSymlinksInPath()
@@ -43,6 +45,7 @@ public enum GameDetector {
             switch url.lastPathComponent.lowercased() {
             case "rpg_rt.ldb": databases.append(relative)
             case "rpg_rt.lmt": mapTrees.insert((relative as NSString).deletingLastPathComponent.lowercased())
+            case let name where ONScripterShell.scriptNames.contains(name): onsScripts.append(relative)
             default: break
             }
             let pageExtension = ["html", "htm"].contains(url.pathExtension.lowercased())
@@ -61,6 +64,12 @@ public enum GameDetector {
             return GameValidationResult(engine: .rpgMaker2000, entryPoint: database, warnings: [
                 "Games that need the original RTP show missing graphics until an RTP is added."
             ])
+        }
+        if entries.isEmpty, let script = onsScripts.min(by: { $0.split(separator: "/").count < $1.split(separator: "/").count }) {
+            let folder = (script as NSString).deletingLastPathComponent
+            let hasFont = manager.fileExists(atPath: root.appendingPathComponent(folder).appendingPathComponent("default.ttf").path)
+            return GameValidationResult(engine: .onscripter, entryPoint: (folder.isEmpty ? "" : folder + "/") + ONScripterShell.page,
+                                        warnings: hasFont ? [] : ["The game has no default.ttf; text needs that font."])
         }
         if entries.isEmpty, !legacy, !pages.isEmpty {
             // No index.html: take the page closest to the top, the largest if several are equally
