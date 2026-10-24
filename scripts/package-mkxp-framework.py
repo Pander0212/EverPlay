@@ -23,24 +23,52 @@ BUILD = WORK / 'build'
 MINIMUM_IOS = '17.0'
 NAME = 'MKXP'
 
-ENTRY = r'''#include <stdio.h>
+ENTRY = r'''#include <execinfo.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 int SDL_main(int argc, char **argv);
 void SDL_SetMainReady(void);
 void everplay_attach_sdl_windows(void);
 
+/* mkxp-z's output and, on a crash, the signal and stack go to EVERPLAY_MKXP_LOG, which
+   EverPlay reads into its diagnostics log at the next start. */
+static void everplay_crash(int signal_number) {
+    char line[64];
+    int length = snprintf(line, sizeof line, "\nEverPlay: mkxp-z crashed with signal %d\n", signal_number);
+    write(STDERR_FILENO, line, (size_t) length);
+    void *frames[64];
+    int count = backtrace(frames, 64);
+    backtrace_symbols_fd(frames, count, STDERR_FILENO);
+    signal(signal_number, SIG_DFL);
+    raise(signal_number);
+}
+
 __attribute__((visibility("default")))
 int everplay_mkxp_main(const char *game) {
+    const char *log = getenv("EVERPLAY_MKXP_LOG");
+    if (log && freopen(log, "w", stderr)) {
+        dup2(fileno(stderr), STDOUT_FILENO);
+        setvbuf(stderr, NULL, _IONBF, 0);
+        setvbuf(stdout, NULL, _IOLBF, 0);
+    }
+    int signals[] = { SIGSEGV, SIGBUS, SIGABRT, SIGILL, SIGFPE, SIGTRAP };
+    for (unsigned i = 0; i < sizeof signals / sizeof signals[0]; i++) signal(signals[i], everplay_crash);
     if (chdir(game) != 0) {
         fprintf(stderr, "EverPlay: cannot open the game folder\n");
         return 1;
     }
+    fprintf(stderr, "EverPlay: starting mkxp-z in %s\n", game);
     /* EverPlay owns UIApplicationMain; SDL runs inside it instead of SDL_UIKitRunApp. */
     SDL_SetMainReady();
     everplay_attach_sdl_windows();
     char *argv[] = { "mkxp-z", NULL };
-    return SDL_main(1, argv);
+    int status = SDL_main(1, argv);
+    fprintf(stderr, "EverPlay: mkxp-z returned %d\n", status);
+    return status;
 }
 '''
 

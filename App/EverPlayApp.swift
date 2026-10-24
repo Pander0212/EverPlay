@@ -6,7 +6,10 @@ struct EverPlayApp: App {
     @StateObject private var renpy = RenPyLibrary()
     @StateObject private var privacy = PrivacyLock()
     @Environment(\.scenePhase) private var phase
-    init() { PrivacyShield.shared.install() }
+    init() {
+        PrivacyShield.shared.install()
+        MKXPLauncher.collectPreviousLog()
+    }
 
     var body: some Scene {
         WindowGroup {
