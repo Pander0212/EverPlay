@@ -133,8 +133,24 @@ patch('subprojects/ruby-3.1.wrap', '    end-of-diff-files.patch', '    ruby-3.1-
 # SDL_opengl.h is empty on iOS; take the OpenGL ES 2 types and calling convention instead.
 patch('src/display/gl/gl-fun.h', '#include <SDL_opengl.h>', """#ifdef MKXPZ_IOS
 #include <SDL_opengles2.h>
+#ifndef APIENTRY
+#define APIENTRY
+#endif
 #ifndef APIENTRYP
 #define APIENTRYP *
+#endif
+/* Desktop and ES 3 names mkxp-z uses only after checking the context supports them. */
+#ifndef GL_READ_FRAMEBUFFER
+#define GL_READ_FRAMEBUFFER 0x8CA8
+#define GL_DRAW_FRAMEBUFFER 0x8CA9
+#endif
+#ifndef GL_UNPACK_ROW_LENGTH
+#define GL_UNPACK_ROW_LENGTH 0x0CF2
+#define GL_UNPACK_SKIP_ROWS 0x0CF3
+#define GL_UNPACK_SKIP_PIXELS 0x0CF4
+#endif
+#ifndef GL_BGRA
+#define GL_BGRA 0x80E1
 #endif
 #else
 #include <SDL_opengl.h>
