@@ -56,8 +56,12 @@ def executable_link_command():
     """mkxp-z's own executable link line: every static library and framework it needs."""
     targets = subprocess.run(['ninja', '-C', BUILD, '-t', 'targets', 'all'], check=True,
                              capture_output=True, text=True).stdout
-    executable = next(line.split(':')[0] for line in targets.splitlines()
-                      if line.split(':')[0].startswith('mkxp-z.') and line.split(':')[1].strip() == 'cpp_LINKER')
+    linked = [line.split(':')[0] for line in targets.splitlines()
+              if ':' in line and 'LINKER' in line.split(':', 1)[1] and Path(line.split(':')[0]).name.startswith('mkxp-z.')]
+    if not linked:
+        print('\n'.join(line for line in targets.splitlines() if 'LINKER' in line))
+        sys.exit('mkxp-z executable target not found')
+    executable = linked[0]
     commands = subprocess.run(['ninja', '-C', BUILD, '-t', 'commands', executable], check=True,
                               capture_output=True, text=True).stdout.strip().splitlines()
     return executable, shlex.split(commands[-1])
