@@ -62,5 +62,6 @@ if [ ! -f "$WORK/build/build.ninja" ]; then
   meson setup "$WORK/build" --cross-file "$WORK/ios.txt" --buildtype release -Db_lto=false \
     -Dgfx_backend=gles -Dangle=disabled -Dopenssl=disabled -Ddefault_library=static -Dsdl_system=enabled
 fi
-ninja -C "$WORK/build" libmkxp-z.a
+# -k 0: report every compile error in one run instead of stopping at the first.
+ninja -k 0 -C "$WORK/build" libmkxp-z.a
 ls -la "$WORK/build"/*.a
