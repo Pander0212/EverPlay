@@ -368,3 +368,10 @@ The all-in-one build includes Ren'Py runtimes (https://www.renpy.org, MIT licens
 their own licenses: Python (PSF), SDL2 (zlib), FFmpeg (LGPL-2.1), MetalANGLE (BSD), libpng, libjpeg-turbo, FreeType
 and others). Their licenses are listed at https://www.renpy.org/doc/html/license.html; the matching sources are
 published by the Ren'Py project for each release (renpy-<version>-sdk and renios downloads).
+
+LZMA SDK
+Public domain
+
+EverPlay unpacks the official RPG Maker RTP installers with the LZMA and LZMA2 decoders of the LZMA SDK 23.01 by
+Igor Pavlov (https://www.7-zip.org/sdk.html), which is placed in the public domain. The installer layout
+follows the documentation and source of innoextract by Daniel Scharrer (https://constexpr.org/innoextract/).

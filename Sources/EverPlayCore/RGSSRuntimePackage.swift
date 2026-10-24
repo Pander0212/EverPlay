@@ -47,24 +47,54 @@ public enum RGSSRuntimePackage {
         return FileManager.default.fileExists(atPath: folder.path)
     }
 
-    /// Installs an RTP from a ZIP: the shallowest folder with Graphics or Audio becomes `name`.
-    public static func install(zip: URL, name: String, into root: URL, importer: GameImporter = .init()) throws {
+    /// The official downloads (rpgmakerweb.com › Run Time Package) for the names in Game.ini.
+    static let officialDownloads: [String: String] = [
+        "rpgvxace": "https://assets.rpgmakerweb.com/RPGVXAce_RTP.zip",
+        "rpgvx": "https://assets.rpgmakerweb.com/vx_rtp102e.zip",
+        "standard": "https://assets.rpgmakerweb.com/xp_rtp104e.exe",
+    ]
+
+    public static func officialDownload(for name: String) -> URL? {
+        officialDownloads[name.lowercased()].flatMap(URL.init(string:))
+    }
+
+    /// Installs an RTP as `name` from a ZIP with its Graphics and Audio folders, or from the
+    /// official installer (Setup.exe, alone or in its ZIP), which is unpacked without running it.
+    public static func install(package: URL, name: String, into root: URL, importer: GameImporter = .init()) throws {
         guard let target = folder(name, in: root) else { throw EverPlayError.unsafePath(name) }
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
         let staging = root.appendingPathComponent(".import-\(UUID().uuidString)", isDirectory: true)
         defer { try? fileManager.removeItem(at: staging) }
-        let files = try importer.extractArchive(zip: zip, into: staging)
-        let roots = files.compactMap { file -> String? in
-            let parts = file.path.split(separator: "/")
-            guard let index = parts.firstIndex(where: { ["graphics", "audio"].contains($0.lowercased()) }) else { return nil }
-            return parts[..<index].joined(separator: "/")
+        let unpacked = staging.appendingPathComponent("app", isDirectory: true)
+        if package.pathExtension.lowercased() == "exe" {
+            try InnoSetupArchive(setup: package).extract(into: unpacked)
+        } else {
+            let archive = staging.appendingPathComponent("zip", isDirectory: true)
+            let files = try importer.extractArchive(zip: package, into: archive)
+            if runtimeFolder(in: archive) == nil {
+                let installer = files.map { archive.appendingPathComponent($0.path) }
+                    .filter { $0.pathExtension.lowercased() == "exe" }
+                    .first(where: InnoSetupArchive.isInstaller)
+                guard let installer else { throw EverPlayError.notRuntimePackage }
+                try InnoSetupArchive(setup: installer).extract(into: unpacked)
+            }
         }
-        guard let base = roots.min(by: { $0.split(separator: "/").count < $1.split(separator: "/").count }) else {
-            throw EverPlayError.notRuntimePackage
-        }
+        guard let base = runtimeFolder(in: staging) else { throw EverPlayError.notRuntimePackage }
         if fileManager.fileExists(atPath: target.path) { try fileManager.removeItem(at: target) }
-        try fileManager.moveItem(at: base.isEmpty ? staging : staging.appendingPathComponent(base), to: target)
+        try fileManager.moveItem(at: base, to: target)
+    }
+
+    /// The shallowest folder that holds a Graphics or Audio folder.
+    static func runtimeFolder(in folder: URL) -> URL? {
+        guard let walker = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: [.isDirectoryKey]) else { return nil }
+        var best: (URL, Int)?
+        for case let url as URL in walker where ["graphics", "audio"].contains(url.lastPathComponent.lowercased()) {
+            guard (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
+            let depth = url.pathComponents.count
+            if best == nil || depth < best!.1 { best = (url.deletingLastPathComponent(), depth) }
+        }
+        return best?.0
     }
 
     /// Points mkxp-z at the installed RTPs the game asks for. Returns the names still missing.

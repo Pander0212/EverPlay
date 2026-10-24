@@ -17,7 +17,7 @@ final class RGSSRuntimePackageTests: FixtureTestCase {
         let root = temporary.appendingPathComponent("RTP")
         let package = try zip([("RTP/RPGVXAce/Graphics/System/Window.png", Data([1])),
                                ("RTP/RPGVXAce/Audio/SE/Cursor1.ogg", Data([2]))])
-        try RGSSRuntimePackage.install(zip: package, name: "RPGVXAce", into: root)
+        try RGSSRuntimePackage.install(package: package, name: "RPGVXAce", into: root)
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("RPGVXAce/Graphics/System/Window.png").path))
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), ["RPGVXAce"])
 
@@ -36,7 +36,20 @@ final class RGSSRuntimePackageTests: FixtureTestCase {
         try Data("{\"fullscreen\": true}".utf8).write(to: game.appendingPathComponent("mkxp.json"))
         XCTAssertEqual(try RGSSRuntimePackage.configure(gameFolder: game, root: temporary.appendingPathComponent("RTP")), ["RPGVX"])
         XCTAssertEqual(try String(contentsOf: game.appendingPathComponent("mkxp.json"), encoding: .utf8), "{\"fullscreen\": true}")
-        XCTAssertThrowsError(try RGSSRuntimePackage.install(zip: try zip([("readme.txt", Data([1]))]), name: "RPGVX",
+        XCTAssertThrowsError(try RGSSRuntimePackage.install(package: try zip([("readme.txt", Data([1]))]), name: "RPGVX",
                                                             into: temporary.appendingPathComponent("RTP")))
+    }
+
+    /// Installs the official downloads named in EVERPLAY_RTP_TEST ("name=file;…"), which are not in the repository.
+    func testInstallsOfficialPackagesFromTheEnvironment() throws {
+        guard let list = ProcessInfo.processInfo.environment["EVERPLAY_RTP_TEST"] else { throw XCTSkip("EVERPLAY_RTP_TEST not set") }
+        let root = temporary.appendingPathComponent("RTP")
+        for pair in list.split(separator: ";") {
+            let parts = pair.split(separator: "=").map(String.init)
+            try RGSSRuntimePackage.install(package: URL(fileURLWithPath: parts[1]), name: parts[0], into: root)
+            let graphics = root.appendingPathComponent(parts[0]).appendingPathComponent("Graphics")
+            XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: graphics.path).isEmpty, parts[0])
+        }
+        XCTAssertNotNil(RGSSRuntimePackage.officialDownload(for: "RPGVXAce"))
     }
 }

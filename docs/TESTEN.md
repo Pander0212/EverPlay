@@ -93,8 +93,9 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 1. Ein XP-, VX- oder VX-Ace-Spiel als ZIP importieren (Ordner mit `Game.ini` und `Game.rgss3a`/`.rgss2a`/`.rgssad`
    oder `Data/Scripts.rxdata`).
 2. Spielseite öffnen: Braucht das Spiel eine RTP (z. B. `RPGVXAce`), steht dort **RPG Maker RTP** mit einem
-   orangen Warnzeichen. **Import ZIP** tippen und eine ZIP mit den RTP-Ordnern `Graphics` und `Audio` wählen
-   (z. B. vom PC: `C:\Program Files (x86)\Common Files\Enterbrain\RGSS3\RPGVXAce` zippen). Danach grüner Haken.
+   orangen Warnzeichen. **Get RTP › Download from rpgmakerweb.com** tippen: EverPlay lädt die kostenlose
+   offizielle RTP (VX Ace ca. 190 MB, also lieber im WLAN) und entpackt sie. Danach grüner Haken.
+   Kein PC nötig. (Alternativ **Import file…** mit der RTP-ZIP oder `Setup.exe`.)
 3. Starten: mkxp-z übernimmt den Bildschirm im Querformat. Beenden schließt EverPlay (wie bei Ren'Py).
 4. Melden: Startet es? Bild, Ton? Bei einem Absturz EverPlay neu öffnen und das Diagnose-Log schicken:
    Darin steht jetzt die Ausgabe von mkxp-z und, falls es abstürzt, die Absturzstelle.

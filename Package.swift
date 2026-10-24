@@ -10,8 +10,9 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-crypto.git", exact: "3.12.3")
     ],
     targets: [
+        .target(name: "CLzma", exclude: ["README.md"]),
         .target(name: "EverPlayCore", dependencies: [
-            "ZIPFoundation", .product(name: "Crypto", package: "swift-crypto")
+            "CLzma", "ZIPFoundation", .product(name: "Crypto", package: "swift-crypto")
         ]),
         .testTarget(name: "EverPlayCoreTests", dependencies: ["EverPlayCore", "ZIPFoundation"])
     ]
