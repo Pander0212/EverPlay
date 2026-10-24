@@ -22,6 +22,7 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 | 9. Import, auch Electron-Spiele mit `resources/app.asar` | offen |
 | 10. Übersetzung und Übersetzungs-Editor | offen |
 | 11. Bibliothek: Filter, Sortierung, Favoriten (langes Drücken auf ein Spiel) | offen |
+| 12. RPG Maker XP/VX/VX Ace | offen (neu, experimentell) |
 
 ## 1. Ren'Py-Spiel: Tastatur (Namenseingabe)
 1. Ein Spiel starten, das nach einem Namen fragt.
@@ -87,3 +88,10 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 1. Mindestens zwei Spiele in der Bibliothek: Oben erscheinen Filter (All, Favorites, Ren'Py, RPG Maker, Web).
 2. Filter antippen: Nur passende Spiele bleiben. Pfeil-Symbol rechts: Sortierung wechseln.
 3. Lange auf ein Spiel drücken › **Add to favorites**: Stern am Titel, das Spiel steht oben.
+
+## 12. RPG Maker XP/VX/VX Ace (experimentell)
+1. Ein XP-, VX- oder VX-Ace-Spiel als ZIP importieren (Ordner mit `Game.ini` und `Game.rgss3a`/`.rgss2a`/`.rgssad`
+   oder `Data/Scripts.rxdata`).
+2. Starten: mkxp-z übernimmt den Bildschirm. Beenden schließt EverPlay (wie bei Ren'Py).
+3. Melden: Startet es? Bild, Ton, Steuerung? Fehlende Grafiken heißen meist: Das Spiel braucht die RTP.
+   Bei Problemen das Diagnose-Log schicken.
