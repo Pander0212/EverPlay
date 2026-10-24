@@ -84,4 +84,13 @@ SettingsMenu *smenu = nil;""")
 path = root / 'src/system/systemImplApple.mm'
 path.write_text(path.read_text(encoding='utf-8').rstrip('\n') + '\n#endif\n', encoding='utf-8')
 
+# Ruby: iOS declares getentropy only in <sys/random.h>, which random.c does not include, and
+# forbids fork, vfork, system and daemon. Without them Ruby spawns processes with posix_spawn.
+patch('subprojects/packagefiles/ruby-3.1/meson.build', """                'ac_cv_func_crypt': 'no',""", """                'ac_cv_func_crypt': 'no',
+                'ac_cv_func_getentropy': 'no',
+                'ac_cv_func_fork': 'no',
+                'ac_cv_func_vfork': 'no',
+                'ac_cv_func_system': 'no',
+                'ac_cv_func_daemon': 'no',""")
+
 print('mkxp-z patched for iOS')
