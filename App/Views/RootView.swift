@@ -391,7 +391,7 @@ private struct ImportHelpView: View {
             }
             Section("Supported now") {
                 Text("Ren'Py 6–8 desktop games (built-in Ren'Py 8.5, 8.4, 8.3, 8.2, 8.1 and 7.8; games that ship their own engine of an included version use it).")
-                Text("RPG Maker MV/MZ, TyranoBuilder/NW.js (also with package.nw), Twine and other HTML5 games.")
+                Text("RPG Maker MV/MZ, TyranoScript, NW.js and Electron builds (package.nw, app.asar), Twine and other HTML5 games.")
                 Text("RPG Maker 2000/2003 games with EasyRPG Player (on iPhone and iPad).")
             }
             Section("Saves") {
