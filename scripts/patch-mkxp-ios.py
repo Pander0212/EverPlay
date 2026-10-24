@@ -45,6 +45,21 @@ for name in ['src/main.cpp', 'src/eventthread.cpp']:
     text = text.replace('#ifdef __APPLE__', f'#if {MAC_ONLY}').replace('#ifndef __APPLE__', f'#if {NOT_MAC}')
     path.write_text(text, encoding='utf-8')
 
+# UIKit creates the GL view together with the context, so the context must be made on the main
+# thread (as for macOS before 10.15), not on the RGSS thread. The RGSS thread makes it current.
+patch('src/main.cpp', '#ifndef MKXPZ_INIT_GL_LATER\n#define GLINIT_SHOWERROR',
+      '#ifdef MKXPZ_IOS\n#undef MKXPZ_INIT_GL_LATER\n#endif\n\n#ifndef MKXPZ_INIT_GL_LATER\n#define GLINIT_SHOWERROR')
+patch('src/main.cpp', '    SDL_GLContext glCtx = initGL(win, conf, 0);\n', """    SDL_GLContext glCtx = initGL(win, conf, 0);
+#ifdef MKXPZ_IOS
+    if (!glCtx) {
+      SDL_DestroyWindow(win);
+      SDL_Quit();
+      return 0;
+    }
+    SDL_GL_MakeCurrent(win, 0);
+#endif
+""")
+
 patch('src/system/system.h', """#ifdef __APPLE__
 void openSettingsWindow();""", f"""#if {MAC_ONLY}
 void openSettingsWindow();""")

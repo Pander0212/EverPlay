@@ -161,7 +161,7 @@ public enum EverPlayError: Error, LocalizedError, Equatable {
     case unsafePath(String), invalidArchive, unsupportedEntry(String), limitExceeded(String)
     case missingEntryPoint, ambiguousEntryPoints, incompleteEngine(String), unsupportedGame
     case duplicateGame, invalidLibrary, unsupportedSchema(Int), noAvailablePort
-    case resourceNotFound, invalidRequest, invalidRange
+    case resourceNotFound, invalidRequest, invalidRange, notRuntimePackage
 
     public var errorDescription: String? {
         switch self {
@@ -180,6 +180,7 @@ public enum EverPlayError: Error, LocalizedError, Equatable {
         case .resourceNotFound: return "Game resource not found."
         case .invalidRequest: return "Invalid resource request."
         case .invalidRange: return "Invalid resource byte range."
+        case .notRuntimePackage: return "This ZIP has no Graphics or Audio folder, so it is not an RPG Maker RTP."
         }
     }
 }

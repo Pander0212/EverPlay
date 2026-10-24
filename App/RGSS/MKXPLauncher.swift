@@ -11,6 +11,16 @@ enum MKXPLauncher {
         return url.flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
     }
 
+    /// The RTPs imported on game pages, one folder per Game.ini name (RPGVXAce, …).
+    static var rtpRoot: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("EverPlay/RTP", isDirectory: true)
+    }
+
+    static func gameFolder(_ game: GameRecord, directory: URL) -> URL {
+        directory.appendingPathComponent(game.entryPoint).deletingLastPathComponent()
+    }
+
     /// mkxp-z's output of the last game, with the signal and stack if it crashed.
     static var logFile: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -28,8 +38,14 @@ enum MKXPLauncher {
     /// Returns a message for the player when the game cannot start.
     static func play(_ game: GameRecord, directory: URL) -> String? {
         guard let binary else { return "This EverPlay build does not include mkxp-z for RPG Maker XP/VX/VX Ace." }
-        let folder = directory.appendingPathComponent(game.entryPoint).deletingLastPathComponent()
+        let folder = gameFolder(game, directory: directory)
         EverPlayLog.write("Starting \(game.title) with mkxp-z")
+        do {
+            let missing = try RGSSRuntimePackage.configure(gameFolder: folder, root: rtpRoot)
+            if !missing.isEmpty { EverPlayLog.write("RTP not imported: \(missing.joined(separator: ", "))") }
+        } catch {
+            EverPlayLog.write("mkxp.json not written: \(error.localizedDescription)")
+        }
         try? FileManager.default.createDirectory(at: logFile.deletingLastPathComponent(), withIntermediateDirectories: true)
         setenv("EVERPLAY_MKXP_LOG", logFile.path, 1)
         // RPG Maker games are landscape; rotate before SDL creates its window.

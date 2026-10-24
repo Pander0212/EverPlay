@@ -22,7 +22,7 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 | 9. Import, auch Electron-Spiele mit `resources/app.asar` | offen |
 | 10. Übersetzung und Übersetzungs-Editor | offen |
 | 11. Bibliothek: Filter, Sortierung, Favoriten (langes Drücken auf ein Spiel) | offen |
-| 12. RPG Maker XP/VX/VX Ace | offen (neu, experimentell) |
+| 12. RPG Maker XP/VX/VX Ace (mit RTP-Import) | offen (erster Versuch abgestürzt, Fix im Test) |
 
 ## 1. Ren'Py-Spiel: Tastatur (Namenseingabe)
 1. Ein Spiel starten, das nach einem Namen fragt.
@@ -92,6 +92,10 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 ## 12. RPG Maker XP/VX/VX Ace (experimentell)
 1. Ein XP-, VX- oder VX-Ace-Spiel als ZIP importieren (Ordner mit `Game.ini` und `Game.rgss3a`/`.rgss2a`/`.rgssad`
    oder `Data/Scripts.rxdata`).
-2. Starten: mkxp-z übernimmt den Bildschirm. Beenden schließt EverPlay (wie bei Ren'Py).
-3. Melden: Startet es? Bild, Ton, Steuerung? Fehlende Grafiken heißen meist: Das Spiel braucht die RTP.
-   Bei Problemen das Diagnose-Log schicken.
+2. Spielseite öffnen: Braucht das Spiel eine RTP (z. B. `RPGVXAce`), steht dort **RPG Maker RTP** mit einem
+   orangen Warnzeichen. **Import ZIP** tippen und eine ZIP mit den RTP-Ordnern `Graphics` und `Audio` wählen
+   (z. B. vom PC: `C:\Program Files (x86)\Common Files\Enterbrain\RGSS3\RPGVXAce` zippen). Danach grüner Haken.
+3. Starten: mkxp-z übernimmt den Bildschirm im Querformat. Beenden schließt EverPlay (wie bei Ren'Py).
+4. Melden: Startet es? Bild, Ton? Bei einem Absturz EverPlay neu öffnen und das Diagnose-Log schicken:
+   Darin steht jetzt die Ausgabe von mkxp-z und, falls es abstürzt, die Absturzstelle.
+   (Steuerung per Touch fehlt noch, das kommt als Nächstes.)

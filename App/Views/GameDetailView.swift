@@ -42,6 +42,9 @@ struct GameDetailView: View {
                     if game.engine == .rpgMakerMV || game.engine == .rpgMakerMZ {
                         translationOptions(key: GameSession.translationKey(game))
                     }
+                    if game.engine == .rgss, let directory = library.store?.directory(for: game) {
+                        RTPSection(gameFolder: MKXPLauncher.gameFolder(game, directory: directory))
+                    }
                 }
                 if case .renpy(let game) = current { reports(game) }
                 storage
@@ -215,7 +218,7 @@ struct GameDetailView: View {
                 }
                 .accessibilityIdentifier("manageSaves")
             case .web(let game, _) where game.engine == .rgss:
-                Text("Saves stay in the game's folder, as on the PC. Games that need the RPG Maker RTP show missing graphics or sounds until one is added.")
+                Text("Saves stay in the game's folder, as on the PC.")
                     .font(.footnote).foregroundStyle(.secondary)
             case .web(let game, _) where !game.engine.isWeb:
                 Text("Saves: On My iPhone › EverPlay › Saves › \(game.title)").font(.footnote).foregroundStyle(.secondary)
