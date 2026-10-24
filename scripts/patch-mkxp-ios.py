@@ -162,4 +162,11 @@ patch('src/display/gl/gl-fun.h', '#include <SDL_opengl.h>', """#ifdef MKXPZ_IOS
 # The message box helper the SDL settings menu path uses.
 patch('src/util/string-util.h', '#ifndef __APPLE__', f'#if {NOT_MAC}')
 
+# System.launch (open a file or program) cannot start other programs on iOS.
+patch('binding/binding-mri.cpp', """    if (std::system(command.c_str()) != 0) {""", """#ifdef MKXPZ_IOS
+    if (true) {
+#else
+    if (std::system(command.c_str()) != 0) {
+#endif""")
+
 print('mkxp-z patched for iOS')
