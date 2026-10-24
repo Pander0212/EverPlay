@@ -182,6 +182,42 @@ final class ImporterTests: FixtureTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: game.directory.appendingPathComponent("MyTyranoGame/package_nw/tyrano/tyrano.js").path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: game.directory.appendingPathComponent("MyTyranoGame/package.nw").path))
     }
+    /// An app.asar as Electron's asar tool writes it (header pickle, then the file data).
+    func asar(_ tree: [String: Any], data: Data) throws -> Data {
+        let json = try JSONSerialization.data(withJSONObject: ["files": tree])
+        let padded = json + Data(repeating: 0, count: (4 - json.count % 4) % 4)
+        func le(_ value: Int) -> Data { withUnsafeBytes(of: UInt32(value).littleEndian) { Data($0) } }
+        return le(4) + le(padded.count + 8) + le(padded.count + 4) + le(json.count) + padded + data
+    }
+    func testElectronAppAsarNextToTheExecutable() throws {
+        let script = Data("tyrano".utf8)
+        let packed = try asar(["index.html": ["size": html.count, "offset": "0"],
+                               "tyrano": ["files": ["tyrano.js": ["size": script.count, "offset": String(html.count)]]],
+                               "node": ["link": "../elsewhere"],
+                               "native.node": ["size": 3, "unpacked": true]],
+                              data: html + script)
+        let game = try prepare([("MyTyranoGame/MyTyranoGame.exe", Data("MZ".utf8)), ("MyTyranoGame/LICENSES.chromium.html", html),
+                                ("MyTyranoGame/resources/app.asar", packed),
+                                ("MyTyranoGame/resources/app.asar.unpacked/native.node", Data("abc".utf8))])
+        XCTAssertEqual(game.validation.entryPoint, "MyTyranoGame/resources/app_asar/index.html")
+        let root = game.directory.appendingPathComponent("MyTyranoGame/resources")
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("app_asar/tyrano/tyrano.js")), script)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("app_asar/native.node")), Data("abc".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("app.asar").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("app_asar/node").path))
+    }
+    func testAsarEntriesOutsideTheArchiveOrPathsEscapingAreRejected() throws {
+        let beyond = try asar(["index.html": ["size": 400, "offset": "0"]], data: html)
+        XCTAssertThrowsError(try AsarArchive.extract(writeTemporary(beyond), into: temporary.appendingPathComponent("a")))
+        let escaping = try asar(["..": ["files": ["index.html": ["size": html.count, "offset": "0"]]]], data: html)
+        XCTAssertThrowsError(try AsarArchive.extract(writeTemporary(escaping), into: temporary.appendingPathComponent("b")))
+        XCTAssertThrowsError(try AsarArchive.extract(writeTemporary(Data("not an asar".utf8)), into: temporary.appendingPathComponent("c")))
+    }
+    func writeTemporary(_ data: Data) throws -> URL {
+        let url = temporary.appendingPathComponent(UUID().uuidString + ".asar")
+        try data.write(to: url)
+        return url
+    }
     func testSingleFileHTMLGameWithoutIndex() throws {
         let story = Data(("<!doctype html><title>Story</title>" + String(repeating: "x", count: 4000)).utf8)
         let game = try prepare([("DoL/Degrees of Lewdity 0.5.html", story), ("DoL/credits.html", html),

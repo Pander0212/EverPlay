@@ -61,6 +61,20 @@ public struct GameImporter: Sendable {
                 try FileManager.default.removeItem(at: packedURL)
                 entries = entries.filter { $0.path != packed.path } + unpacked.map { (path: folder + "/" + $0.path, size: $0.size) }
             }
+            // Electron desktop builds (TyranoScript 5 and others) keep it in resources/app.asar.
+            if !entries.contains(where: { name($0.path) == "index.html" }),
+               let packed = entries.first(where: { name($0.path) == "app.asar" }) {
+                let packedURL = staging.appendingPathComponent(packed.path)
+                let parent = (packed.path as NSString).deletingLastPathComponent
+                let folder = (parent.isEmpty ? "" : parent + "/") + "app_asar"
+                guard !FileManager.default.fileExists(atPath: staging.appendingPathComponent(folder).path) else {
+                    throw EverPlayError.unsafePath(folder)
+                }
+                let unpacked = try AsarArchive.extract(packedURL, into: staging.appendingPathComponent(folder, isDirectory: true),
+                                                       limits: limits)
+                try FileManager.default.removeItem(at: packedURL)
+                entries = entries.filter { $0.path != packed.path } + unpacked.map { (path: folder + "/" + $0.path, size: $0.size) }
+            }
             let validation = try GameDetector.detect(at: staging)
             // Hash extracted files and their paths, not ZIP metadata. Repacked duplicates are rejected too.
             var hash = SHA256()
