@@ -152,16 +152,8 @@ jobs:
             if limited 30 xcrun simctl io "$udid" screenshot artifacts/warmup.png; then break; fi
             sleep 15
           done
-          for game in Probe85 Probe84 Probe83 Probe82 Probe81 Probe78 Engine84 Input85 Menu78 Link78; do
-            echo "== $game $(date -u +%T)"
-            limited 60 xcrun simctl launch --stdout="$PWD/artifacts/$game-stdout.log" --stderr="$PWD/artifacts/$game-stderr.log" \
-              "$udid" "$bundle" -EverPlayAutoplayRenPy "$game" || echo "launch of $game failed or timed out"
-            sleep 75
-            limited 60 xcrun simctl io "$udid" screenshot "artifacts/$game.png" || echo "screenshot of $game failed or timed out"
-            limited 60 xcrun simctl terminate "$udid" "$bundle" || true
-            echo "== $game"; grep -hE 'EverPlay|Error|Traceback' "artifacts/$game-stdout.log" "artifacts/$game-stderr.log" | head -n 20 || true
-          done
-          # Leave Resume85 for the home screen and come back; taps afterwards must still reach the game.
+          # First, on a fresh app (later fixtures leave dialogs behind): leave Resume85 for the home
+          # screen and come back; taps afterwards must still reach the game.
           echo "== Resume85 $(date -u +%T)"
           limited 600 env TEST_RUNNER_EVERPLAY_RESUME_GAME=Resume85 xcodebuild test-without-building \
             -project EverPlay.xcodeproj -scheme EverPlay -destination "platform=iOS Simulator,id=$udid" \
@@ -172,9 +164,19 @@ jobs:
             > /dev/null 2>&1 || true
           taps="$(cat "$data/Documents/Ren'Py/Resume85/clicks.txt" 2>/dev/null || true)"
           echo "$taps"
+          printf '%s\n' "$taps" > artifacts/resume-taps.txt
           resume_ok=yes
           [ "$(printf '%s\n' "$taps" | grep -c '^tap')" -ge 3 ] || resume_ok=no
           echo "== Resume85: taps after returning reached the game: $resume_ok"
+          for game in Probe85 Probe84 Probe83 Probe82 Probe81 Probe78 Engine84 Input85 Menu78 Link78; do
+            echo "== $game $(date -u +%T)"
+            limited 60 xcrun simctl launch --stdout="$PWD/artifacts/$game-stdout.log" --stderr="$PWD/artifacts/$game-stderr.log" \
+              "$udid" "$bundle" -EverPlayAutoplayRenPy "$game" || echo "launch of $game failed or timed out"
+            sleep 75
+            limited 60 xcrun simctl io "$udid" screenshot "artifacts/$game.png" || echo "screenshot of $game failed or timed out"
+            limited 60 xcrun simctl terminate "$udid" "$bundle" || true
+            echo "== $game"; grep -hE 'EverPlay|Error|Traceback' "artifacts/$game-stdout.log" "artifacts/$game-stderr.log" | head -n 20 || true
+          done
           ls "$data/Documents/Saves" || true
           echo "== EverPlay-log.txt"; cat "$data/Documents/EverPlay-log.txt" || true
           # Crash reports explain an exit while Ren'Py starts inside EverPlay.
