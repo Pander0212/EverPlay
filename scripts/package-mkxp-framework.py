@@ -78,6 +78,8 @@ def main():
     if framework.exists():
         shutil.rmtree(framework)
     framework.mkdir(parents=True)
+    # Ruby's link list names every extension; the ones left out for iOS (pty, syslog) do not exist.
+    command = [part for part in command if not (part.startswith('/') and part.endswith('.a') and not Path(part).exists())]
     output_index = command.index('-o')
     del command[output_index:output_index + 2]
     with tempfile.TemporaryDirectory() as temporary:
