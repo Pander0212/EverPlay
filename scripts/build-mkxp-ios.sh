@@ -49,14 +49,6 @@ pkg-config = 'pkg-config'
 needs_exe_wrapper = true
 pkg_config_libdir = ['$PREFIX/lib/pkgconfig']
 
-[cmake]
-CMAKE_SYSTEM_NAME = 'iOS'
-CMAKE_OSX_SYSROOT = '$SDK'
-CMAKE_OSX_ARCHITECTURES = 'arm64'
-CMAKE_OSX_DEPLOYMENT_TARGET = '$MIN_IOS'
-# CMake makes every iOS executable an app bundle, which the libraries' own tools are not.
-CMAKE_MACOSX_BUNDLE = 'OFF'
-
 [host_machine]
 system = 'darwin'
 subsystem = 'ios'

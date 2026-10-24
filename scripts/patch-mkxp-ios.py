@@ -156,4 +156,7 @@ patch('src/display/gl/gl-fun.h', '#include <SDL_opengl.h>', """#ifdef MKXPZ_IOS
 #include <SDL_opengl.h>
 #endif""")
 
+# The message box helper the SDL settings menu path uses.
+patch('src/util/string-util.h', '#ifndef __APPLE__', f'#if {NOT_MAC}')
+
 print('mkxp-z patched for iOS')
