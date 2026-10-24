@@ -7,6 +7,22 @@ Wenn etwas nicht klappt: In der Bibliothek unten links auf die **Lupe** tippen (
 oben rechts **Teilen** und mir den Text schicken. Bei Ren'Py-Fehlern zusätzlich auf der Spielseite
 unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 
+## Stand
+
+| Test | Stand |
+|---|---|
+| 1. Ren'Py-Tastatur (q und a sichtbar) | offen |
+| 2. Ren'Py-Menü und Cheats | offen |
+| 3. Spielstände sichern und wiederherstellen | offen |
+| 4. App verlassen und zurückkehren (Antippen danach) | offen (im Simulator bestanden) |
+| 5. App-Umschalter unscharf | erledigt, funktioniert |
+| 6. RPG Maker MV/MZ: Speicher-Editor | offen (MV-Spiel selbst läuft) |
+| 7. RPG Maker 2000/2003 | offen |
+| 8. ONScripter | offen (niedrige Priorität) |
+| 9. Import, auch Electron-Spiele mit `resources/app.asar` | offen |
+| 10. Übersetzung und Übersetzungs-Editor | offen |
+| 11. Bibliothek: Filter, Sortierung, Favoriten (langes Drücken auf ein Spiel) | offen |
+
 ## 1. Ren'Py-Spiel: Tastatur (Namenseingabe)
 1. Ein Spiel starten, das nach einem Namen fragt.
 2. Erwartet: Eine eigene EverPlay-Tastatur (QWERTZ, mit ä/ö/ü) erscheint im Spiel, oben oder unten.
@@ -56,9 +72,9 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 2. Starten: Das Spiel läuft im Web-Player. Langes Drücken öffnet das ONScripter-Menü.
 3. Melden: Startet es? Ist Text zu sehen (das Spiel braucht eine `default.ttf`)? Ton? Speichern und Laden?
 
-## 9. Import
+## 9. Import (auch Electron)
 1. **Degrees of Lewdity** als ZIP importieren: Ein Fortschrittsbalken mit Prozent läuft.
-2. **Ordner auswählen** über + → Game folder. Wenn „Öffnen“ nichts tut: Diagnose-Log schicken.
+2. Ein Electron-Spiel (ZIP mit `resources/app.asar`, z. B. TyranoScript 5) importieren und starten.
 
 ## 10. Übersetzung (optional)
 1. Einstellungen, **Translation**: Service „Google (free)“, Sprache Deutsch.
@@ -66,3 +82,8 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 3. Spielen: Dialoge kommen auf Deutsch, nach kurzer Wartezeit pro neuer Zeile.
 4. Danach auf der Spielseite **Edit translations**: Alle übersetzten Zeilen erscheinen. Eine antippen,
    korrigieren, **Save**. Beim nächsten Spielstart steht die korrigierte Zeile im Spiel.
+
+## 11. Bibliothek
+1. Mindestens zwei Spiele in der Bibliothek: Oben erscheinen Filter (All, Favorites, Ren'Py, RPG Maker, Web).
+2. Filter antippen: Nur passende Spiele bleiben. Pfeil-Symbol rechts: Sortierung wechseln.
+3. Lange auf ein Spiel drücken › **Add to favorites**: Stern am Titel, das Spiel steht oben.
