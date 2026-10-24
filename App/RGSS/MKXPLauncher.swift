@@ -55,7 +55,10 @@ enum MKXPLauncher {
         let delay = scene?.interfaceOrientation.isLandscape == true ? 0.05 : 0.8
         // A run loop timer, not DispatchQueue.main: the game loop never returns (see RenPyLibrary.play).
         Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { _ in MainActor.assumeIsolated {
-            guard let handle = dlopen(binary.path, RTLD_NOW | RTLD_LOCAL),
+            // Global, as for Ren'Py: SDL looks up the OpenGL ES functions with dlsym(RTLD_DEFAULT, …),
+            // which misses a framework loaded locally (mkxp-z then crashed in initGLFunctions).
+            _ = dlopen("/System/Library/Frameworks/OpenGLES.framework/OpenGLES", RTLD_NOW | RTLD_GLOBAL)
+            guard let handle = dlopen(binary.path, RTLD_NOW | RTLD_GLOBAL),
                   let symbol = dlsym(handle, "everplay_mkxp_main") else {
                 EverPlayLog.write("mkxp-z could not be loaded: \(dlerror().map { String(cString: $0) } ?? "unknown")")
                 return
@@ -64,6 +67,8 @@ enum MKXPLauncher {
             let entry = unsafeBitCast(symbol, to: Entry.self)
             EverPlayLog.write("mkxp-z loaded; running \(game.title)")
             UIApplication.shared.isIdleTimerDisabled = true
+            // mkxp-z sends stdout to its log; EverPlay's buffered output would land there too.
+            fflush(stdout)
             let status = folder.path.withCString { entry($0) }
             EverPlayLog.write("mkxp-z returned with status \(status) for \(game.title)")
             exit(status)
