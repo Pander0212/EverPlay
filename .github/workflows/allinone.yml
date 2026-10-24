@@ -96,7 +96,10 @@ jobs:
               import os, time
               def zz_tap():
                   store.zz_taps += 1
-                  with open(os.path.join(config.basedir, "clicks.txt"), "a") as f:
+                  folder = os.environ.get("EVERPLAY_SAVE_DIR", config.basedir)
+                  if not os.path.isdir(folder):
+                      os.makedirs(folder)
+                  with open(os.path.join(folder, "clicks.txt"), "a") as f:
                       f.write("tap %d %.1f\n" % (store.zz_taps, time.time()))
           default zz_taps = 0
           screen zz_tap_screen():
@@ -162,7 +165,7 @@ jobs:
             || { echo "resume UI test failed or timed out"; tail -n 40 artifacts/resume-test.log; }
           xcrun xcresulttool export attachments --path artifacts/resume.xcresult --output-path artifacts/resume \
             > /dev/null 2>&1 || true
-          taps="$(cat "$data/Documents/Ren'Py/Resume85/clicks.txt" 2>/dev/null || true)"
+          taps="$(cat "$data/Documents/Saves/Resume85/clicks.txt" 2>/dev/null || true)"
           echo "$taps"
           printf '%s\n' "$taps" > artifacts/resume-taps.txt
           resume_ok=yes
