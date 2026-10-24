@@ -40,15 +40,19 @@ final class TranslationEngine: @unchecked Sendable {
         }
         self.settings = settings
         key = settings.provider.needsKey ? TranslationKeys.read(settings.provider) : nil
-        let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Translations", isDirectory: true)
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let safe = game.replacingOccurrences(of: "/", with: "_")
-        let file = folder.appendingPathComponent("\(safe).\(settings.targetLanguage.lowercased()).json")
+        let file = Self.memoryFile(game: game, language: settings.targetLanguage)
+        try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         cacheFile = file
         cache = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: file))) ?? [:]
         pending = []; inFlight = []; failed = []
         EverPlayLog.write("Translation on (\(settings.provider.title) → \(settings.targetLanguage)), \(cache.count) lines known")
+    }
+
+    /// Where a game's translations into one language are kept (source line → translation, JSON).
+    static func memoryFile(game: String, language: String) -> URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Translations", isDirectory: true)
+            .appendingPathComponent("\(game.replacingOccurrences(of: "/", with: "_")).\(language.lowercased()).json")
     }
 
     func cached(_ text: String) -> String? {

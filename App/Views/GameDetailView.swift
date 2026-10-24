@@ -134,6 +134,15 @@ struct GameDetailView: View {
                  ? "Choose a translation service in Settings › Translation first."
                  : "Dialogue and choices are translated with \(TranslationPreferences.settings.provider.title) into “\(TranslationPreferences.settings.targetLanguage)” while you play; each line is translated once and remembered. The game menu switches between original and translation.")
                 .font(.footnote).foregroundStyle(.secondary)
+            if TranslationPreferences.settings.provider != .off {
+                let language = TranslationPreferences.settings.targetLanguage
+                NavigationLink {
+                    TranslationMemoryView(game: key, language: language)
+                } label: {
+                    Label("Edit translations", systemImage: "text.badge.checkmark").font(.subheadline.weight(.semibold))
+                }
+                .accessibilityIdentifier("editTranslations")
+            }
         }
         .padding(16)
         .surface(cornerRadius: 22)
