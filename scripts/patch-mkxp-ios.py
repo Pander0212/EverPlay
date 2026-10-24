@@ -152,6 +152,9 @@ patch('src/display/gl/gl-fun.h', '#include <SDL_opengl.h>', """#ifdef MKXPZ_IOS
 #ifndef GL_BGRA
 #define GL_BGRA 0x80E1
 #endif
+#ifndef GL_NUM_EXTENSIONS
+#define GL_NUM_EXTENSIONS 0x821D
+#endif
 #else
 #include <SDL_opengl.h>
 #endif""")
