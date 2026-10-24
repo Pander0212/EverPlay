@@ -237,7 +237,12 @@ final class RenPyLibrary: ObservableObject {
         scene?.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape)) { _ in }
         let delay = scene?.interfaceOrientation.isLandscape == true ? 0.05 : 0.8
         // Let SwiftUI finish the tap (and the rotation) before Ren'Py's loop takes over the main thread.
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+        // A run loop timer, not DispatchQueue.main: Ren'Py never returns, and inside a main-queue
+        // block the main queue stays blocked for the whole game, together with all UIKit and
+        // SwiftUI work queued there (suspected cause of lost taps after returning to the game and
+        // of a stale app switcher snapshot). SDL's own app delegate starts the game loop the same
+        // way (performSelector:afterDelay:).
+        Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in MainActor.assumeIsolated {
             // RTLD_GLOBAL: SDL resolves OpenGL ES entry points with dlsym(RTLD_DEFAULT), so the
             // runtime's MetalANGLE must be visible globally. Python, SDL and FFmpeg stay private
             // because the framework exports only everplay_renpy_main.
@@ -280,7 +285,7 @@ final class RenPyLibrary: ObservableObject {
             NotificationCenter.default.removeObserver(warnings)
             EverPlayLog.write("Ren'Py returned with status \(status) for \(game.folder)")
             exit(status)
-        }
+        } }
     }
 }
 

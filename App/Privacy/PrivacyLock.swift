@@ -124,6 +124,8 @@ final class PrivacyShield {
             window.addSubview(blur)
             covers.append(blur)
         }
+        // Commit now: a running Ren'Py game may keep the main thread busy until after the snapshot.
+        CATransaction.flush()
     }
 
     private func uncover() {

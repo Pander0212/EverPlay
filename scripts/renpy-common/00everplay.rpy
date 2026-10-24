@@ -605,6 +605,7 @@ init 1600:
                         xalign 0.5
                         if index == 2 and mode == "letters":
                             textbutton ("⇧" if not shift else "⬆"):
+                                substitute False
                                 action ToggleScreenVariable("shift")
                                 xysize (key * 3 // 2, tall)
                                 background Solid("#2b2b33")
@@ -617,7 +618,10 @@ init 1600:
                                 text_yalign 0.5
                         for character in row:
                             $ typed = character.upper() if shift else character
+                            # substitute False: no [ ] interpolation and no string translation,
+                            # which replaced single letters in a game with its own translations.
                             textbutton typed:
+                                substitute False
                                 action [_TouchKeyboardTextInput(typed), SetScreenVariable("shift", False)]
                                 xysize (key, tall)
                                 background Solid("#3e3e48")
@@ -629,6 +633,7 @@ init 1600:
                                 text_yalign 0.5
                         if index == 2:
                             textbutton "⌫":
+                                substitute False
                                 action _TouchKeyboardBackspace()
                                 xysize (key * 3 // 2, tall)
                                 background Solid("#2b2b33")
@@ -642,6 +647,7 @@ init 1600:
                     spacing gap
                     xalign 0.5
                     textbutton ("123" if mode == "letters" else "ABC"):
+                        substitute False
                         action SetScreenVariable("mode", "numbers" if mode == "letters" else "letters")
                         xysize (key * 2, tall)
                         background Solid("#2b2b33")
@@ -651,6 +657,7 @@ init 1600:
                         text_xalign 0.5
                         text_yalign 0.5
                     textbutton "space":
+                        substitute False
                         action _TouchKeyboardTextInput(" ")
                         xysize (key * 6 + gap * 5, tall)
                         background Solid("#3e3e48")
@@ -661,6 +668,7 @@ init 1600:
                         text_xalign 0.5
                         text_yalign 0.5
                     textbutton "Enter":
+                        substitute False
                         action _TouchKeyboardReturn()
                         xysize (key * 3 + gap * 2, tall)
                         background Solid("#5a55c8")

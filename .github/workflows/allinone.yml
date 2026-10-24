@@ -89,13 +89,36 @@ jobs:
           cp -R build/fixtures/Probe78 build/fixtures/Link78
           printf 'label splashscreen:\n    $ import os\n    $ os.system("start https://example.com/everplay-link-test")\n    return\n' \
             > build/fixtures/Link78/game/zz_link.rpy
+          # A full-screen button that writes every tap to clicks.txt (RenPyResumeUITests).
+          cp -R build/fixtures/Probe85 build/fixtures/Resume85
+          cat > build/fixtures/Resume85/game/zz_resume.rpy <<'RPY'
+          init python:
+              import os, time
+              def zz_tap():
+                  store.zz_taps += 1
+                  with open(os.path.join(config.basedir, "clicks.txt"), "a") as f:
+                      f.write("tap %d %.1f\n" % (store.zz_taps, time.time()))
+          default zz_taps = 0
+          screen zz_tap_screen():
+              modal True
+              button:
+                  xfill True
+                  yfill True
+                  background Solid("#203040")
+                  action Function(zz_tap)
+                  text "Taps: [zz_taps]" align (0.5, 0.5) size 80
+          label splashscreen:
+              call screen zz_tap_screen
+              return
+          RPY
           du -sh build/runtimes/Frameworks/* build/runtimes/Runtimes/*
       - name: Build EverPlay for the simulator and embed the runtimes
         run: |
           set -euo pipefail
           bash scripts/generate-project.sh > artifacts/project-generation.log 2>&1 || { tail -n 60 artifacts/project-generation.log; exit 1; }
           set -o pipefail
-          xcodebuild build -project EverPlay.xcodeproj -scheme EverPlay -configuration Debug \
+          # build-for-testing: also the UI test runner for RenPyResumeUITests.
+          xcodebuild build-for-testing -project EverPlay.xcodeproj -scheme EverPlay -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO \
             -derivedDataPath DerivedData -clonedSourcePackagesDirPath .build/xcode-packages CODE_SIGN_IDENTITY=- \
             EVERPLAY_EXTRA_FRAMEWORK_PATHS="$PWD/build/runtimes/Frameworks" EVERPLAY_EXTRA_LDFLAGS="-framework MetalANGLE" \
@@ -138,11 +161,26 @@ jobs:
             limited 60 xcrun simctl terminate "$udid" "$bundle" || true
             echo "== $game"; grep -hE 'EverPlay|Error|Traceback' "artifacts/$game-stdout.log" "artifacts/$game-stderr.log" | head -n 20 || true
           done
+          # Leave Resume85 for the home screen and come back; taps afterwards must still reach the game.
+          echo "== Resume85 $(date -u +%T)"
+          limited 600 env TEST_RUNNER_EVERPLAY_RESUME_GAME=Resume85 xcodebuild test-without-building \
+            -project EverPlay.xcodeproj -scheme EverPlay -destination "platform=iOS Simulator,id=$udid" \
+            -derivedDataPath DerivedData -resultBundlePath artifacts/resume.xcresult \
+            -only-testing:EverPlayUITests/RenPyResumeUITests > artifacts/resume-test.log 2>&1 \
+            || { echo "resume UI test failed or timed out"; tail -n 40 artifacts/resume-test.log; }
+          xcrun xcresulttool export attachments --path artifacts/resume.xcresult --output-path artifacts/resume \
+            > /dev/null 2>&1 || true
+          taps="$(cat "$data/Documents/Ren'Py/Resume85/clicks.txt" 2>/dev/null || true)"
+          echo "$taps"
+          resume_ok=yes
+          [ "$(printf '%s\n' "$taps" | grep -c '^tap')" -ge 3 ] || resume_ok=no
+          echo "== Resume85: taps after returning reached the game: $resume_ok"
           ls "$data/Documents/Saves" || true
           echo "== EverPlay-log.txt"; cat "$data/Documents/EverPlay-log.txt" || true
           # Crash reports explain an exit while Ren'Py starts inside EverPlay.
           find ~/Library/Logs/DiagnosticReports -name 'EverPlay*' -newer "$app/Info.plist" -exec cp {} artifacts/ \; || true
           for report in artifacts/EverPlay*.ips; do [ -f "$report" ] && head -c 6000 "$report"; done || true
+          [ "$resume_ok" = yes ] || { echo "::error::Taps did not reach the Ren'Py game after returning from the home screen"; exit 1; }
       - name: Keep screenshots and logs
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

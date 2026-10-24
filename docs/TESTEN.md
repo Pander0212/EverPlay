@@ -27,21 +27,28 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 3. Im Spiel einen neuen Spielstand anlegen, dann hier das Backup antippen und **Restore backup**.
    Erwartet: Der alte Stand ist wieder da.
 
-## 4. App-Umschalter
+## 4. App verlassen und zurückkehren (Ren'Py)
+1. Ren'Py-Spiel starten und ein paar Mal tippen.
+2. a) Kurz zum Homescreen und sofort zurück. b) Handy sperren, 10 Sekunden warten, entsperren.
+   c) Andere App öffnen, 1 Minute warten, zurück.
+3. Erwartet: Das Spiel reagiert danach sofort auf Tippen, Musik läuft weiter.
+4. Melden: Welcher Fall hängt? Bewegt sich noch etwas im Bild, oder steht es komplett?
+
+## 5. App-Umschalter
 1. Ein Spiel spielen (Ren'Py oder Web).
 2. Vom unteren Rand hochwischen und halten (App-Umschalter).
 3. Erwartet: EverPlay ist unscharf, mit einem Auge-Symbol. Kein Spielbild zu sehen.
 
-## 5. RPG Maker 2000/2003
+## 6. RPG Maker 2000/2003
 1. Ein 2000/2003-Spiel (Ordner mit `RPG_RT.ldb`) als ZIP über **+ → ZIP from Files** importieren.
 2. Spielen: Steuerkreuz und A/B unten, **…** oben rechts für Quick save/Quick load.
 3. Melden: Startet das Spiel? Ton? Fehlen Grafiken (dann braucht das Spiel die RTP)?
 
-## 6. Import
+## 7. Import
 1. **Degrees of Lewdity** als ZIP importieren: Ein Fortschrittsbalken mit Prozent läuft.
 2. **Ordner auswählen** über + → Game folder. Wenn „Öffnen“ nichts tut: Diagnose-Log schicken.
 
-## 7. Übersetzung (optional)
+## 8. Übersetzung (optional)
 1. Einstellungen, **Translation**: Service „Google (free)“, Sprache Deutsch.
 2. Spielseite eines englischen Ren'Py-Spiels, **Translate this game** einschalten.
 3. Spielen: Dialoge kommen auf Deutsch, nach kurzer Wartezeit pro neuer Zeile.
