@@ -130,4 +130,14 @@ patch('subprojects/packagefiles/ruby-3.1/meson.build', """                'ac_cv
 """, encoding='utf-8')
 patch('subprojects/ruby-3.1.wrap', '    end-of-diff-files.patch', '    ruby-3.1-ios.patch,\n    end-of-diff-files.patch')
 
+# SDL_opengl.h is empty on iOS; take the OpenGL ES 2 types and calling convention instead.
+patch('src/display/gl/gl-fun.h', '#include <SDL_opengl.h>', """#ifdef MKXPZ_IOS
+#include <SDL_opengles2.h>
+#ifndef APIENTRYP
+#define APIENTRYP *
+#endif
+#else
+#include <SDL_opengl.h>
+#endif""")
+
 print('mkxp-z patched for iOS')

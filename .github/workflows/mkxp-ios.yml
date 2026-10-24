@@ -54,4 +54,5 @@ jobs:
           path: |
             build-mkxp-ios.log
             build/mkxp-ios/build/meson-logs/
+            build/mkxp-ios/build/subprojects/ruby-3_1_3/build/ext/zlib/mkmf.log
           retention-days: 14
