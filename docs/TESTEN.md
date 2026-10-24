@@ -51,11 +51,18 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 2. Spielen: Steuerkreuz und A/B unten, **…** oben rechts für Quick save/Quick load.
 3. Melden: Startet das Spiel? Ton? Fehlen Grafiken (dann braucht das Spiel die RTP)?
 
-## 8. Import
+## 8. ONScripter (sobald im Update enthalten)
+1. Ein ONScripter-Spiel (Ordner mit `0.txt`, `00.txt` oder `nscript.dat`) als ZIP importieren.
+2. Starten: Das Spiel läuft im Web-Player. Langes Drücken öffnet das ONScripter-Menü.
+3. Melden: Startet es? Ist Text zu sehen (das Spiel braucht eine `default.ttf`)? Ton? Speichern und Laden?
+
+## 9. Import
 1. **Degrees of Lewdity** als ZIP importieren: Ein Fortschrittsbalken mit Prozent läuft.
 2. **Ordner auswählen** über + → Game folder. Wenn „Öffnen“ nichts tut: Diagnose-Log schicken.
 
-## 9. Übersetzung (optional)
+## 10. Übersetzung (optional)
 1. Einstellungen, **Translation**: Service „Google (free)“, Sprache Deutsch.
 2. Spielseite eines englischen Ren'Py-Spiels, **Translate this game** einschalten.
 3. Spielen: Dialoge kommen auf Deutsch, nach kurzer Wartezeit pro neuer Zeile.
+4. Danach auf der Spielseite **Edit translations**: Alle übersetzten Zeilen erscheinen. Eine antippen,
+   korrigieren, **Save**. Beim nächsten Spielstart steht die korrigierte Zeile im Spiel.
