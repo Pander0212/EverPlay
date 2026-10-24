@@ -68,7 +68,7 @@ def executable_link_command():
 
 
 def main():
-    output = Path(sys.argv[1])
+    output = Path(sys.argv[1]).resolve()  # the link runs inside the build folder
     executable, command = executable_link_command()
     # Build everything the executable links (the libraries, Ruby included), but not the executable.
     # Absolute paths are outside Ninja (SDL2 from build-mkxp-ios.sh, Ruby's own make build).
