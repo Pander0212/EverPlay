@@ -101,7 +101,8 @@ deps() {
   step libpng cmake_ios -DPNG_SHARED=OFF -DPNG_TESTS=OFF -DPNG_FRAMEWORK=OFF -DPNG_TOOLS=OFF
   step pixman configure_ios --disable-arm-a64-neon --disable-gtk --disable-libpng
   step physfs cmake_ios -DPHYSFS_BUILD_STATIC=ON -DPHYSFS_BUILD_SHARED=OFF -DPHYSFS_BUILD_TEST=OFF -DPHYSFS_BUILD_DOCS=OFF
-  step sdl2 cmake_ios -DSDL_SHARED=OFF -DSDL_STATIC=ON -DSDL_TEST=OFF
+  # Newer clang applies SDL's C89 rule to its Objective-C files too.
+  step sdl2 cmake_ios -DSDL_SHARED=OFF -DSDL_STATIC=ON -DSDL_TEST=OFF -DCMAKE_C_FLAGS=-Wno-declaration-after-statement
   step sdl2_image cmake_ios -DSDL2IMAGE_SAMPLES=OFF -DSDL2IMAGE_JPG_SAVE=ON -DSDL2IMAGE_PNG_SAVE=ON \
     -DSDL2IMAGE_PNG_SHARED=OFF -DSDL2IMAGE_JPG_SHARED=OFF -DSDL2IMAGE_BACKEND_IMAGEIO=OFF -DSDL2IMAGE_VENDORED=OFF
   step sdl_sound cmake_ios -DSDLSOUND_BUILD_SHARED=OFF -DSDLSOUND_BUILD_TEST=OFF -DSDLSOUND_DECODER_COREAUDIO=OFF
