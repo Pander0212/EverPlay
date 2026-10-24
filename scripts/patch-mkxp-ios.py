@@ -188,4 +188,8 @@ patch('binding/binding-mri.cpp', """    if (std::system(command.c_str()) != 0) {
 """, encoding='utf-8')
 patch('subprojects/openal-soft.wrap', '    end-of-diff-files.patch', '    openal-soft-ios.patch,\n    end-of-diff-files.patch')
 
+# No terminals on iOS: pty needs fork, syslog is of no use in a game.
+patch('subprojects/packagefiles/ruby-3.1/meson.build', "'--with-out-ext=openssl,readline,dbm,gdbm',",
+      "'--with-out-ext=openssl,readline,dbm,gdbm,pty,syslog',")
+
 print('mkxp-z patched for iOS')
