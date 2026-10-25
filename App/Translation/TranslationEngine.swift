@@ -179,7 +179,7 @@ final class TranslationEngine: @unchecked Sendable {
             let results = lines.map { lines in
                 zip(lines, masked).map { line, mask in TranslationMasking.unmask(line, tokens: mask.tokens) }
             }
-            self.locked { self.finish(batch, results: results, error: lines == nil ? TranslationError.badResponse : nil) }
+            self.locked { self.finish(batch, results: results, error: lines == nil ? EverPlayCore.TranslationError.badResponse : nil) }
         }.resume()
     }
 
@@ -199,7 +199,7 @@ final class TranslationEngine: @unchecked Sendable {
 
     static func describe(_ error: Error?, provider: TranslationProvider) -> String {
         switch error {
-        case TranslationError.missingKey?: return "\(provider.title) needs an API key (Settings › Translation)."
+        case EverPlayCore.TranslationError.missingKey?: return "\(provider.title) needs an API key (Settings › Translation)."
         case let error?: return "\(provider.title): \(error.localizedDescription)"
         default: return "\(provider.title) did not answer."
         }
@@ -247,7 +247,7 @@ final class TranslationEngine: @unchecked Sendable {
                     let recognizer = NLLanguageRecognizer()
                     recognizer.processString(texts.joined(separator: "\n"))
                     guard let code = chosen.isEmpty ? recognizer.dominantLanguage?.rawValue : chosen else {
-                        throw TranslationError.badResponse
+                        throw EverPlayCore.TranslationError.badResponse
                     }
                     let source = Locale.Language(identifier: code)
                     if source.languageCode == target.languageCode {
@@ -281,7 +281,7 @@ final class TranslationEngine: @unchecked Sendable {
             return
         }
         #endif
-        failLater(batch, TranslationError.badResponse)
+        failLater(batch, EverPlayCore.TranslationError.badResponse)
     }
 
     private func save() {
