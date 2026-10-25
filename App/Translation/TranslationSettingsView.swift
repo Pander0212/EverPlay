@@ -37,7 +37,7 @@ struct TranslationSettingsSection: View {
                 if AppleTranslation.available {
                     Button(preparing ? "Downloading…" : "Download languages", systemImage: "arrow.down.circle") { preparing = true }
                         .disabled(preparing)
-                        .modifier(PrepareAppleTranslation(active: $preparing, source: settings.sourceLanguage ?? "ja",
+                        .modifier(PrepareAppleTranslation(active: $preparing, source: AppleTranslation.downloadSource(settings),
                                                           target: settings.targetLanguage))
                 }
             }
@@ -81,7 +81,7 @@ struct TranslationSettingsSection: View {
             return "Any OpenAI-compatible service with your key: OpenAI, OpenRouter, a local LM Studio or Ollama server. Game text is sent to it. Keys stay in this device's Keychain."
         case .apple:
             return AppleTranslation.available
-                ? "Free, offline and private: Apple's translation on this iPhone. Download the game's language and yours once (Download languages; with “Detect automatically” it downloads Japanese). Translations are a little plainer than DeepL or Claude."
+                ? "Free, offline and private: Apple's translation on this iPhone. Download the game's language and yours once (Download languages; with “Detect automatically” it downloads English, or Japanese when you translate into English). Translations are a little plainer than DeepL or Claude."
                 : "Apple's translation needs iOS 26 here. Choose another service."
         case .anthropic:
             return "Claude with your Anthropic API key; you can enter a cheaper model such as claude-haiku-5-5. Game text is sent to Anthropic. Keys stay in this device's Keychain."
@@ -90,6 +90,12 @@ struct TranslationSettingsSection: View {
 }
 
 enum AppleTranslation {
+    /// The games' language to download: the chosen one, else English (Japanese when translating into English).
+    static func downloadSource(_ settings: TranslationSettings) -> String {
+        if let chosen = settings.sourceLanguage, !chosen.isEmpty { return chosen }
+        return settings.targetLanguage.lowercased() == "en" ? "ja" : "en"
+    }
+
     /// Translating outside SwiftUI (TranslationSession for installed languages) needs iOS 26.
     static var available: Bool {
         #if canImport(Translation) && compiler(>=6.2)

@@ -29,6 +29,8 @@ final class TranslationEngine: @unchecked Sendable {
     private var cacheFile: URL?
     private var dirty = false
     private var lastSave = Date.distantPast
+    /// Why the last request failed (shown on the whole-game page; logged once per reason).
+    private var failure: String?
     private let session: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 20
@@ -55,7 +57,7 @@ final class TranslationEngine: @unchecked Sendable {
         try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         cacheFile = file
         cache = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: file))) ?? [:]
-        pending = []; inFlight = []; failed = []
+        pending = []; inFlight = []; failed = []; failure = nil
         bulk = []; bulkInFlight = []; bulkTotal = 0; bulkDone = 0
         EverPlayLog.write("Translation on (\(settings.provider.title) → \(settings.targetLanguage)), \(cache.count) lines known")
     }
@@ -165,7 +167,7 @@ final class TranslationEngine: @unchecked Sendable {
         }
         let request: URLRequest
         do { request = try TranslationAPI.request(for: masked.map { $0.masked }, settings: settings, key: key) }
-        catch { finish(batch, results: nil, error: error); return }
+        catch { failLater(batch, error); return }
         session.dataTask(with: request) { [weak self] data, response, error in
             guard let self else { return }
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -181,6 +183,28 @@ final class TranslationEngine: @unchecked Sendable {
         }.resume()
     }
 
+    /// A request that fails before it is sent finishes from another queue: finishing here would
+    /// start the next batch, fail again and recurse once per batch until the stack overflowed
+    /// (a whole game without an API key crashed EverPlay).
+    private func failLater(_ batch: [String], _ error: Error) {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            self?.locked { self?.finish(batch, results: nil, error: error) }
+        }
+    }
+
+    var lastFailure: String? {
+        condition.lock(); defer { condition.unlock() }
+        return failure
+    }
+
+    static func describe(_ error: Error?, provider: TranslationProvider) -> String {
+        switch error {
+        case TranslationError.missingKey?: return "\(provider.title) needs an API key (Settings › Translation)."
+        case let error?: return "\(provider.title): \(error.localizedDescription)"
+        default: return "\(provider.title) did not answer."
+        }
+    }
+
     private func locked(_ work: () -> Void) {
         condition.lock(); work(); condition.unlock()
     }
@@ -192,6 +216,7 @@ final class TranslationEngine: @unchecked Sendable {
         bulkDone += fromBulk.count
         bulkInFlight.subtract(fromBulk)
         if let results {
+            failure = nil
             for (source, translated) in zip(batch, results) {
                 if let translated { cache[source] = translated } else { failed.insert(source) }
             }
@@ -199,7 +224,9 @@ final class TranslationEngine: @unchecked Sendable {
             if Date().timeIntervalSince(lastSave) > 10 { save() }
         } else {
             failed.formUnion(batch)
-            EverPlayLog.write("Translation request failed (\(settings.provider.title)): \(error.map { "\($0)" } ?? "unknown")")
+            let reason = Self.describe(error, provider: settings.provider)
+            if reason != failure { EverPlayLog.write("Translation request failed: \(reason)") }
+            failure = reason
         }
         condition.broadcast()
         pump()
@@ -226,6 +253,12 @@ final class TranslationEngine: @unchecked Sendable {
                     if source.languageCode == target.languageCode {
                         results = batch  // already in that language
                     } else {
+                        // A session for languages that are not downloaded must not be made.
+                        let status = await LanguageAvailability().status(from: source, to: target)
+                        guard status == .installed else {
+                            throw AppleTranslationError(source: code, target: settings.targetLanguage,
+                                                        unsupported: status == .unsupported)
+                        }
                         let session = TranslationSession(installedSource: source, target: target)
                         let requests = texts.enumerated().map {
                             TranslationSession.Request(sourceText: $0.element, clientIdentifier: String($0.offset))
@@ -248,7 +281,7 @@ final class TranslationEngine: @unchecked Sendable {
             return
         }
         #endif
-        finish(batch, results: nil, error: TranslationError.badResponse)
+        failLater(batch, TranslationError.badResponse)
     }
 
     private func save() {
@@ -327,5 +360,18 @@ enum TranslationPreferences {
         var all = UserDefaults.standard.dictionary(forKey: "translation.games") as? [String: Bool] ?? [:]
         all[game] = on
         UserDefaults.standard.set(all, forKey: "translation.games")
+    }
+}
+
+struct AppleTranslationError: LocalizedError {
+    let source: String
+    let target: String
+    let unsupported: Bool
+    var errorDescription: String? {
+        let from = Locale.current.localizedString(forLanguageCode: source) ?? source
+        let to = Locale.current.localizedString(forLanguageCode: target) ?? target
+        return unsupported
+            ? "Apple cannot translate \(from) into \(to)."
+            : "\(from) → \(to) is not downloaded. Settings › Translation: set “Games are in” to \(from), then Download languages."
     }
 }

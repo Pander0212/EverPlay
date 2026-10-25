@@ -17,6 +17,7 @@ struct PretranslateView: View {
     @State private var known = 0
     @State private var state = Stage.reading
     @State private var preparing = false
+    @State private var failure: String?
 
     private enum Stage { case reading, running, finished, failed(String) }
 
@@ -39,6 +40,10 @@ struct PretranslateView: View {
                         Text("\(done) of \(total) new lines · \(known) lines known")
                             .font(.subheadline.monospacedDigit()).foregroundStyle(.secondary)
                     }
+                    if let failure {
+                        Label(failure, systemImage: "exclamationmark.triangle.fill")
+                            .font(.footnote).foregroundStyle(.orange).multilineTextAlignment(.center)
+                    }
                     Text(finished
                          ? "Play now: the translated lines appear right away."
                          : "You can close this page and even start playing; the translation continues while EverPlay is open.")
@@ -60,7 +65,7 @@ struct PretranslateView: View {
             .background(Theme.background.ignoresSafeArea())
             .navigationTitle("Translate game").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .modifier(PrepareAppleTranslation(active: $preparing, source: TranslationPreferences.settings.sourceLanguage ?? "ja",
+            .modifier(PrepareAppleTranslation(active: $preparing, source: AppleTranslation.downloadSource(TranslationPreferences.settings),
                                               target: TranslationPreferences.settings.targetLanguage))
         }
         .task { await run() }
@@ -84,14 +89,19 @@ struct PretranslateView: View {
             RPGMakerText.dataFolder(gameRoot: root).map(RPGMakerText.lines(dataFolder:)) ?? []
         }.value
         guard !lines.isEmpty else { state = .failed("No messages found in this game's data files."); return }
+        if settings.provider.needsKey, (TranslationKeys.read(settings.provider) ?? "").isEmpty {
+            state = .failed("\(settings.provider.title) needs an API key: Settings › Translation.")
+            return
+        }
         let engine = TranslationEngine.shared
         engine.start(game: job.key, settings: settings)
         engine.translateAll(lines)
-        EverPlayLog.write("Translating \(lines.count) lines of a game up front")
+        EverPlayLog.write("Translating \(lines.count) lines of a game up front with \(settings.provider.title)")
         state = .running
         while !Task.isCancelled {
             let progress = engine.bulkProgress
             (done, total, known) = (progress.done, progress.total, engine.knownLines)
+            failure = engine.lastFailure
             if progress.done >= progress.total {
                 engine.flush()
                 state = .finished
