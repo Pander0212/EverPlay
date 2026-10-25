@@ -92,36 +92,25 @@ enum RGSSControls {
         return top
     }
 
-    static func showMenu(from button: UIView) {
+    /// The game menu MV/MZ games have, as a sheet over the game.
+    static func showMenu() {
         overlay?.releaseAll()
-        guard let top = topController() else {
+        guard let game, let top = topController() else {
             EverPlayLog.write("RPG Maker menu: no view controller to show it on")
             return
         }
-        let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-        sheet.addAction(UIAlertAction(title: "Cheats", style: .default) { _ in showCheats() })
-        sheet.addAction(UIAlertAction(title: "Edit controls", style: .default) { _ in editLayout() })
-        sheet.addAction(UIAlertAction(title: settings.visible ? "Hide controls" : "Show controls", style: .default) { _ in
-            update { $0.visible.toggle() }
-        })
-        sheet.addAction(UIAlertAction(title: "Control opacity…", style: .default) { _ in showOpacity(from: button) })
-        sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        sheet.popoverPresentationController?.sourceView = button
-        sheet.popoverPresentationController?.sourceRect = button.bounds
-        top.present(sheet, animated: true)
-    }
-
-    private static func showOpacity(from button: UIView) {
-        guard let top = topController() else { return }
-        let sheet = UIAlertController(title: "Control opacity", message: nil, preferredStyle: .actionSheet)
-        for value in [0.25, 0.45, 0.65, 0.85, 1.0] {
-            let title = "\(Int((value * 100).rounded())) %" + (abs(settings.opacity - value) < 0.01 ? "  ✓" : "")
-            sheet.addAction(UIAlertAction(title: title, style: .default) { _ in update { $0.opacity = value } })
+        let box = ControllerBox()
+        let menu = RGSSGameMenu(game: game, settings: settings,
+                                change: { edited in update { $0 = edited } },
+                                close: { box.controller?.dismiss(animated: true) },
+                                editLayout: { box.controller?.dismiss(animated: true) { editLayout() } })
+        let controller = UIHostingController(rootView: menu)
+        if let sheet = controller.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+            sheet.prefersGrabberVisible = true
         }
-        sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        sheet.popoverPresentationController?.sourceView = button
-        sheet.popoverPresentationController?.sourceRect = button.bounds
-        top.present(sheet, animated: true)
+        box.controller = controller
+        top.present(controller, animated: true)
     }
 
     static func showCheats() {
@@ -147,6 +136,67 @@ enum RGSSControls {
 
     final class ControllerBox {
         weak var controller: UIViewController?
+    }
+}
+
+/// The game menu: the same sections as MV/MZ games (controls, cheats, saving, leaving).
+private struct RGSSGameMenu: View {
+    let game: GameRecord
+    @State private var settings: ControlSettings
+    @State private var confirmQuit = false
+    let change: (ControlSettings) -> Void
+    let close: () -> Void
+    let editLayout: () -> Void
+
+    init(game: GameRecord, settings: ControlSettings, change: @escaping (ControlSettings) -> Void,
+         close: @escaping () -> Void, editLayout: @escaping () -> Void) {
+        self.game = game
+        _settings = State(initialValue: settings)
+        self.change = change; self.close = close; self.editLayout = editLayout
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(game.title).font(.title2.bold())
+                    Text(game.engine.title + " · " + game.engine.compatibility).font(.caption).foregroundStyle(.secondary)
+                    Button("Resume", systemImage: "play.fill", action: close)
+                }
+                Section("Controls") {
+                    Toggle("Show virtual controls", isOn: $settings.visible)
+                    if settings.visible {
+                        LabeledContent("Opacity") { Slider(value: $settings.opacity, in: 0.15...1).frame(maxWidth: 180) }
+                        Button("Edit controls", systemImage: "hand.draw", action: editLayout)
+                        Button("Reset layout") { settings.buttons = ControlButton.rgssLayout }
+                    }
+                }
+                Section("Cheats") {
+                    NavigationLink { CheatsView(session: RGSSCheatBridge()) } label: {
+                        Label("Gold, items, variables, speed", systemImage: "wand.and.stars")
+                    }
+                }
+                Section("Saving") {
+                    Text("Save using the game’s own menu. Saves appear in Files under EverPlay › Saves › \(game.title).")
+                }
+                Section {
+                    Button("Quit game", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { confirmQuit = true }
+                }
+            }
+            .navigationTitle("Game menu").navigationBarTitleDisplayMode(.inline)
+            .alert("Quit \(game.title)?", isPresented: $confirmQuit) {
+                Button("Cancel", role: .cancel) {}
+                Button("Quit", role: .destructive) {
+                    // mkxp-z cannot return to the library; EverPlay closes with the game, as Ren'Py does.
+                    MKXPLauncher.collectSaves()
+                    exit(0)
+                }
+            } message: {
+                Text("Save in the game first. EverPlay closes with the game.")
+            }
+        }
+        .preferredColorScheme(.dark)
+        .onChange(of: settings) { _, edited in change(edited) }
     }
 }
 
@@ -195,11 +245,8 @@ final class RGSSControlOverlay: UIView {
             addSubview(button)
         }
         toggle.addAction(UIAction { _ in RGSSControls.update { $0.visible.toggle() } }, for: .touchUpInside)
-        // An action sheet, not a UIMenu: mkxp-z's game loop never runs the run loop mode a menu needs.
-        menu.addAction(UIAction { [weak self] _ in
-            guard let self else { return }
-            RGSSControls.showMenu(from: self.menu)
-        }, for: .touchUpInside)
+        // A sheet, not a UIMenu: mkxp-z's game loop never runs the run loop mode a menu needs.
+        menu.addAction(UIAction { _ in RGSSControls.showMenu() }, for: .touchUpInside)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
