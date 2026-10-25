@@ -92,6 +92,38 @@ enum RGSSControls {
         return top
     }
 
+    static func showMenu(from button: UIView) {
+        overlay?.releaseAll()
+        guard let top = topController() else {
+            EverPlayLog.write("RPG Maker menu: no view controller to show it on")
+            return
+        }
+        let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        sheet.addAction(UIAlertAction(title: "Cheats", style: .default) { _ in showCheats() })
+        sheet.addAction(UIAlertAction(title: "Edit controls", style: .default) { _ in editLayout() })
+        sheet.addAction(UIAlertAction(title: settings.visible ? "Hide controls" : "Show controls", style: .default) { _ in
+            update { $0.visible.toggle() }
+        })
+        sheet.addAction(UIAlertAction(title: "Control opacity…", style: .default) { _ in showOpacity(from: button) })
+        sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        sheet.popoverPresentationController?.sourceView = button
+        sheet.popoverPresentationController?.sourceRect = button.bounds
+        top.present(sheet, animated: true)
+    }
+
+    private static func showOpacity(from button: UIView) {
+        guard let top = topController() else { return }
+        let sheet = UIAlertController(title: "Control opacity", message: nil, preferredStyle: .actionSheet)
+        for value in [0.25, 0.45, 0.65, 0.85, 1.0] {
+            let title = "\(Int((value * 100).rounded())) %" + (abs(settings.opacity - value) < 0.01 ? "  ✓" : "")
+            sheet.addAction(UIAlertAction(title: title, style: .default) { _ in update { $0.opacity = value } })
+        }
+        sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        sheet.popoverPresentationController?.sourceView = button
+        sheet.popoverPresentationController?.sourceRect = button.bounds
+        top.present(sheet, animated: true)
+    }
+
     static func showCheats() {
         overlay?.releaseAll()
         guard let top = topController() else { return }
@@ -163,15 +195,11 @@ final class RGSSControlOverlay: UIView {
             addSubview(button)
         }
         toggle.addAction(UIAction { _ in RGSSControls.update { $0.visible.toggle() } }, for: .touchUpInside)
-        menu.showsMenuAsPrimaryAction = true
-        menu.menu = UIMenu(children: [
-            UIAction(title: "Cheats", image: UIImage(systemName: "wand.and.stars")) { _ in RGSSControls.showCheats() },
-            UIAction(title: "Edit controls", image: UIImage(systemName: "hand.draw")) { _ in RGSSControls.editLayout() },
-            UIMenu(title: "Control opacity", image: UIImage(systemName: "circle.lefthalf.filled"), children:
-                [0.25, 0.45, 0.65, 0.85].map { value in
-                    UIAction(title: "\(Int(value * 100)) %") { _ in RGSSControls.update { $0.opacity = value } }
-                }),
-        ])
+        // An action sheet, not a UIMenu: mkxp-z's game loop never runs the run loop mode a menu needs.
+        menu.addAction(UIAction { [weak self] _ in
+            guard let self else { return }
+            RGSSControls.showMenu(from: self.menu)
+        }, for: .touchUpInside)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
