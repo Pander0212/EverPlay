@@ -5,7 +5,7 @@ import FoundationNetworking
 
 /// Machine translation of game text (MTool-style): which service, into which language.
 public enum TranslationProvider: String, Codable, CaseIterable, Sendable, Identifiable {
-    case off, google, deepL, openAI, anthropic
+    case off, google, deepL, openAI, anthropic, apple
 
     public var id: String { rawValue }
 
@@ -16,6 +16,7 @@ public enum TranslationProvider: String, Codable, CaseIterable, Sendable, Identi
         case .deepL: return "DeepL"
         case .openAI: return "OpenAI-compatible"
         case .anthropic: return "Claude"
+        case .apple: return "Apple (on device)"
         }
     }
 
@@ -32,6 +33,8 @@ public struct TranslationSettings: Codable, Equatable, Sendable {
     public var model: String
     /// Base URL of an OpenAI-compatible service (OpenAI, OpenRouter, a local server, ...).
     public var baseURL: String
+    /// The games' language for Apple's translation (ISO 639-1); nil or "" detects it per batch.
+    public var sourceLanguage: String?
 
     public init(provider: TranslationProvider = .off, targetLanguage: String = "de", model: String = "", baseURL: String = "") {
         self.provider = provider
@@ -100,7 +103,8 @@ public enum TranslationAPI {
     public static func request(for texts: [String], settings: TranslationSettings, key: String?) throws -> URLRequest {
         let language = settings.targetLanguage.trimmingCharacters(in: .whitespaces).lowercased()
         switch settings.provider {
-        case .off:
+        case .off, .apple:
+            // Apple's translation runs on the device (TranslationEngine), not over HTTP.
             throw TranslationError.badResponse
         case .google:
             var components = URLComponents(string: "https://translate.googleapis.com/translate_a/single")!
@@ -156,7 +160,7 @@ public enum TranslationAPI {
         let object = try JSONSerialization.jsonObject(with: data)
         let lines: [String]
         switch provider {
-        case .off:
+        case .off, .apple:
             throw TranslationError.badResponse
         case .google:
             // [[["Hallo","Hello",...],["Welt","World",...]], ...]: the pieces of one text.
@@ -196,5 +200,50 @@ public enum TranslationAPI {
             throw TranslationError.badResponse
         }
         return strings
+    }
+}
+
+/// The text RPG Maker MV/MZ games show in message windows, read from their data files before
+/// playing, so a whole game can be translated up front. The lines are the same strings
+/// RPGMakerTranslate.js asks for while playing: message and scrolling text lines (401, 405),
+/// choices (102) and MZ speaker names (101).
+public enum RPGMakerText {
+    /// The game's data folder (data/ or www/data/ next to index.html).
+    public static func dataFolder(gameRoot: URL) -> URL? {
+        ["data", "www/data"].map { gameRoot.appendingPathComponent($0, isDirectory: true) }
+            .first { FileManager.default.fileExists(atPath: $0.appendingPathComponent("System.json").path) }
+    }
+
+    /// Every line, once, in the order the files list them.
+    public static func lines(dataFolder: URL) -> [String] {
+        let files = ((try? FileManager.default.contentsOfDirectory(at: dataFolder, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.pathExtension.lowercased() == "json" }
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        var seen = Set<String>(), out: [String] = []
+        func add(_ text: Any?) {
+            guard let text = text as? String, !text.trimmingCharacters(in: .whitespaces).isEmpty, seen.insert(text).inserted else { return }
+            out.append(text)
+        }
+        func walk(_ value: Any) {
+            if let list = value as? [Any] {
+                list.forEach(walk)
+            } else if let object = value as? [String: Any] {
+                if let code = object["code"] as? Int, let parameters = object["parameters"] as? [Any] {
+                    switch code {
+                    case 401, 405: add(parameters.first)
+                    case 102: (parameters.first as? [Any])?.forEach(add)
+                    case 101 where parameters.count > 4: add(parameters[4])
+                    default: break
+                    }
+                    return
+                }
+                object.values.forEach(walk)
+            }
+        }
+        for file in files {
+            guard let data = try? Data(contentsOf: file), let json = try? JSONSerialization.jsonObject(with: data) else { continue }
+            walk(json)
+        }
+        return out
     }
 }

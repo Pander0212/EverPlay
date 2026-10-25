@@ -25,6 +25,7 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 | 12. RPG Maker XP/VX/VX Ace (mit RTP-Import) | läuft (Spotlight), Cheats neu und offen |
 | 13. KiriKiri | offen (neu im Nightly, inkl. verschlüsselte Spiele) |
 | 14. Bibliothek | offen (neu) |
+| 15. Übersetzung: Apple + ganzes Spiel | offen (neu) |
 
 ## 1. Ren'Py-Spiel: Tastatur (Namenseingabe)
 1. Ein Spiel starten, das nach einem Namen fragt.
@@ -131,3 +132,11 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
    (Favorit, Ausblenden, Archivieren/Löschen).
 3. Eigenes Cover: Spieleseite › **Change cover** › aus Fotos oder Dateien wählen. **Use the game's picture**
    setzt es zurück.
+
+## 15. Übersetzung: Apple und ganzes Spiel vorab
+1. Einstellungen › Translation › Service **Apple (on device)** (braucht iOS 26). **Games are in**: Sprache der
+   Spiele (oder automatisch), **Translate into**: deine Sprache. **Download languages** tippen: iOS lädt die
+   Sprachen (eigenes Fenster). Danach geht es offline und gratis.
+2. RPG Maker MV/MZ: Spieleseite › **Translate this game** an › **Translate the whole game now**. Fortschritt läuft,
+   die Seite darf zu, man darf schon spielen. Danach erscheinen die Texte sofort übersetzt.
+3. Ren'Py: Übersetzung auf der Spieleseite an, Spiel starten, ☰ › **Translate whole game**. Läuft im Hintergrund.

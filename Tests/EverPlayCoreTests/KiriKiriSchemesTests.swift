@@ -115,3 +115,32 @@ final class KiriKiriSchemesTests: FixtureTestCase {
               "suggestions for Karakara2.exe:", catalog.suggestions(for: ["Karakara2.exe"]))
     }
 }
+
+final class RPGMakerTextTests: FixtureTestCase {
+    func testReadsMessagesChoicesAndSpeakersOnceFromTheDataFiles() throws {
+        let data = temporary.appendingPathComponent("www/data")
+        try FileManager.default.createDirectory(at: data, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: data.appendingPathComponent("System.json"))
+        let map = """
+        {"events":[null,{"pages":[{"list":[
+          {"code":101,"indent":0,"parameters":["Actor1",0,0,2,"Reid"]},
+          {"code":401,"indent":0,"parameters":["Hello there."]},
+          {"code":102,"indent":0,"parameters":[["Yes","No"],1]},
+          {"code":401,"indent":0,"parameters":["Hello there."]},
+          {"code":122,"indent":0,"parameters":[1,1,0,4,"\\"script\\""]},
+          {"code":0,"indent":0,"parameters":[]}]}]}]}
+        """
+        try Data(map.utf8).write(to: data.appendingPathComponent("Map001.json"))
+        try Data(#"[null,{"list":[{"code":405,"parameters":["The end"]},{"code":401,"parameters":["  "]}]}]"#.utf8)
+            .write(to: data.appendingPathComponent("CommonEvents.json"))
+        let folder = try XCTUnwrap(RPGMakerText.dataFolder(gameRoot: temporary))
+        XCTAssertEqual(RPGMakerText.lines(dataFolder: folder), ["The end", "Reid", "Hello there.", "Yes", "No"])
+    }
+
+    func testOldTranslationSettingsStillDecode() throws {
+        let old = Data(#"{"provider":"google","targetLanguage":"de","model":"","baseURL":""}"#.utf8)
+        let settings = try JSONDecoder().decode(TranslationSettings.self, from: old)
+        XCTAssertEqual(settings.provider, .google)
+        XCTAssertNil(settings.sourceLanguage)
+    }
+}

@@ -1,5 +1,9 @@
 import Foundation
 import Security
+import NaturalLanguage
+#if canImport(Translation)
+import Translation
+#endif
 import EverPlayCore
 
 /// Translates game lines for the embedded Ren'Py runtime, which runs on the main thread and asks
@@ -14,6 +18,11 @@ final class TranslationEngine: @unchecked Sendable {
     private var key: String?
     private var cache: [String: String] = [:]
     private var pending: [String] = []
+    /// A whole game's lines (Translate whole game), sent when nothing is waiting for a line now.
+    private var bulk: [String] = []
+    private var bulkInFlight: Set<String> = []
+    private var bulkTotal = 0
+    private var bulkDone = 0
     private var inFlight: Set<String> = []
     private var failed: Set<String> = []
     private var running = 0
@@ -38,13 +47,16 @@ final class TranslationEngine: @unchecked Sendable {
             self.settings = TranslationSettings(); cacheFile = nil; cache = [:]
             return
         }
+        let file = Self.memoryFile(game: game, language: settings.targetLanguage)
+        // The same game again (it starts while its whole-game translation runs): keep going.
+        if cacheFile == file, self.settings == settings { return }
         self.settings = settings
         key = settings.provider.needsKey ? TranslationKeys.read(settings.provider) : nil
-        let file = Self.memoryFile(game: game, language: settings.targetLanguage)
         try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         cacheFile = file
         cache = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: file))) ?? [:]
         pending = []; inFlight = []; failed = []
+        bulk = []; bulkInFlight = []; bulkTotal = 0; bulkDone = 0
         EverPlayLog.write("Translation on (\(settings.provider.title) → \(settings.targetLanguage)), \(cache.count) lines known")
     }
 
@@ -78,6 +90,37 @@ final class TranslationEngine: @unchecked Sendable {
         enqueue(texts.filter { cache[$0] == nil && !failed.contains($0) && Self.worthTranslating($0) }, first: false)
     }
 
+    /// Queues every line of a game (MTool-style up-front translation); returns how many are new.
+    @discardableResult
+    func translateAll(_ texts: [String]) -> Int {
+        condition.lock(); defer { condition.unlock() }
+        guard settings.provider != .off, cacheFile != nil else { return 0 }
+        var queued = Set(bulk).union(pending).union(inFlight)
+        let fresh = texts.filter { cache[$0] == nil && Self.worthTranslating($0) && queued.insert($0).inserted }
+        bulk.append(contentsOf: fresh)
+        bulkTotal += fresh.count
+        pump()
+        return fresh.count
+    }
+
+    /// Lines of the up-front translation done so far, and in all.
+    var bulkProgress: (done: Int, total: Int) {
+        condition.lock(); defer { condition.unlock() }
+        return (bulkDone, bulkTotal)
+    }
+
+    var knownLines: Int {
+        condition.lock(); defer { condition.unlock() }
+        return cache.count
+    }
+
+    func cancelBulk() {
+        condition.lock(); defer { condition.unlock() }
+        bulkTotal -= bulk.count
+        bulk = []
+        save()
+    }
+
     func flush() {
         condition.lock(); defer { condition.unlock() }
         save()
@@ -98,9 +141,16 @@ final class TranslationEngine: @unchecked Sendable {
 
     private func pump() {
         let parallel = settings.provider == .google ? 4 : 2
-        while running < parallel, !pending.isEmpty {
-            let batch = Array(pending.prefix(settings.provider.batchSize))
-            pending.removeFirst(batch.count)
+        while running < parallel, !pending.isEmpty || !bulk.isEmpty {
+            let batch: [String]
+            if !pending.isEmpty {
+                batch = Array(pending.prefix(settings.provider.batchSize))
+                pending.removeFirst(batch.count)
+            } else {
+                batch = Array(bulk.prefix(settings.provider.batchSize))
+                bulk.removeFirst(batch.count)
+                bulkInFlight.formUnion(batch)
+            }
             inFlight.formUnion(batch)
             running += 1
             send(batch, settings: settings, key: key)
@@ -109,6 +159,10 @@ final class TranslationEngine: @unchecked Sendable {
 
     private func send(_ batch: [String], settings: TranslationSettings, key: String?) {
         let masked = batch.map(TranslationMasking.mask)
+        if settings.provider == .apple {
+            sendToApple(batch, masked: masked, settings: settings)
+            return
+        }
         let request: URLRequest
         do { request = try TranslationAPI.request(for: masked.map { $0.masked }, settings: settings, key: key) }
         catch { finish(batch, results: nil, error: error); return }
@@ -134,6 +188,9 @@ final class TranslationEngine: @unchecked Sendable {
     private func finish(_ batch: [String], results: [String?]?, error: Error?) {
         running = max(0, running - 1)
         inFlight.subtract(batch)
+        let fromBulk = batch.filter { bulkInFlight.contains($0) }
+        bulkDone += fromBulk.count
+        bulkInFlight.subtract(fromBulk)
         if let results {
             for (source, translated) in zip(batch, results) {
                 if let translated { cache[source] = translated } else { failed.insert(source) }
@@ -146,6 +203,52 @@ final class TranslationEngine: @unchecked Sendable {
         }
         condition.broadcast()
         pump()
+    }
+
+    /// Apple's on-device translation (iOS 26: a session for installed languages, outside SwiftUI).
+    /// The source language is the one chosen in Settings, else detected from the batch.
+    private func sendToApple(_ batch: [String], masked: [(masked: String, tokens: [String])], settings: TranslationSettings) {
+        #if canImport(Translation) && compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            let texts = masked.map(\.masked)
+            Task.detached { [weak self] in
+                var results: [String?]?
+                var failure: Error?
+                do {
+                    let target = Locale.Language(identifier: settings.targetLanguage)
+                    let chosen = settings.sourceLanguage?.trimmingCharacters(in: .whitespaces) ?? ""
+                    let recognizer = NLLanguageRecognizer()
+                    recognizer.processString(texts.joined(separator: "\n"))
+                    guard let code = chosen.isEmpty ? recognizer.dominantLanguage?.rawValue : chosen else {
+                        throw TranslationError.badResponse
+                    }
+                    let source = Locale.Language(identifier: code)
+                    if source.languageCode == target.languageCode {
+                        results = batch  // already in that language
+                    } else {
+                        let session = TranslationSession(installedSource: source, target: target)
+                        let requests = texts.enumerated().map {
+                            TranslationSession.Request(sourceText: $0.element, clientIdentifier: String($0.offset))
+                        }
+                        var lines = [String?](repeating: nil, count: texts.count)
+                        for response in try await session.translations(from: requests) {
+                            if let index = response.clientIdentifier.flatMap(Int.init), index < lines.count {
+                                lines[index] = response.targetText
+                            }
+                        }
+                        results = zip(lines, masked).map { line, mask in
+                            line.flatMap { TranslationMasking.unmask($0, tokens: mask.tokens) }
+                        }
+                    }
+                } catch {
+                    failure = error
+                }
+                self?.locked { self?.finish(batch, results: results, error: failure) }
+            }
+            return
+        }
+        #endif
+        finish(batch, results: nil, error: TranslationError.badResponse)
     }
 
     private func save() {
@@ -172,6 +275,11 @@ final class EverPlayTranslator: NSObject {
     /// Lines coming up next, separated by U+001E.
     @objc static func prefetch(_ joined: String) {
         TranslationEngine.shared.prefetch(joined.components(separatedBy: "\u{1E}").filter { !$0.isEmpty })
+    }
+
+    /// Every line of the game (Translate whole game), separated by U+001E; translated in the background.
+    @objc static func translateAll(_ joined: String) -> Int {
+        TranslationEngine.shared.translateAll(joined.components(separatedBy: "\u{1E}").filter { !$0.isEmpty })
     }
 }
 

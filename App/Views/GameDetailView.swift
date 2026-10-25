@@ -18,6 +18,7 @@ struct GameDetailView: View {
     @State private var pickingPhoto = false
     @State private var photo: PhotosPickerItem?
     @State private var coverError: String?
+    @State private var pretranslating: PretranslateJob?
     /// Bumped when the cover changes, so the library and this page show the new one.
     @AppStorage("library.coverVersion") private var coverVersion = 0
 
@@ -43,11 +44,12 @@ struct GameDetailView: View {
                 facts
                 switch current {
                 case .renpy(let game):
-                    translationOptions(key: game.folder)
+                    translationOptions(key: game.folder, gameRoot: nil)
                     runtimeOptions(game)
                 case .web(let game, _):
                     if game.engine == .rpgMakerMV || game.engine == .rpgMakerMZ {
-                        translationOptions(key: GameSession.translationKey(game))
+                        translationOptions(key: GameSession.translationKey(game),
+                                           gameRoot: library.store.map { $0.directory(for: game).appendingPathComponent(game.entryPoint).deletingLastPathComponent() })
                     }
                     if game.engine == .rgss, let directory = library.store?.directory(for: game) {
                         RTPSection(gameFolder: MKXPLauncher.gameFolder(game, directory: directory))
@@ -72,6 +74,7 @@ struct GameDetailView: View {
             ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
         }
         .task { size = await Self.measure(folder) }
+        .sheet(item: $pretranslating) { job in PretranslateView(job: job) }
         .sheet(isPresented: Binding(get: { reportText != nil }, set: { if !$0 { reportText = nil } })) {
             NavigationStack {
                 ScrollView {
@@ -184,7 +187,7 @@ struct GameDetailView: View {
         .surface(cornerRadius: 22)
     }
 
-    private func translationOptions(key: String) -> some View {
+    private func translationOptions(key: String, gameRoot: URL?) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Toggle(isOn: Binding(get: { translate }, set: { translate = $0; TranslationPreferences.setEnabled($0, for: key) })) {
                 Label("Translate this game", systemImage: "character.bubble").font(.headline)
@@ -203,6 +206,19 @@ struct GameDetailView: View {
                     Label("Edit translations", systemImage: "text.badge.checkmark").font(.subheadline.weight(.semibold))
                 }
                 .accessibilityIdentifier("editTranslations")
+                if translate {
+                    if let gameRoot {
+                        Button { pretranslating = PretranslateJob(key: key, gameRoot: gameRoot) } label: {
+                            Label("Translate the whole game now", systemImage: "text.badge.star").font(.subheadline.weight(.semibold))
+                        }
+                        .accessibilityIdentifier("translateWholeGame")
+                        Text("Translates every message and choice before you play, like MTool, so lines appear without waiting.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    } else {
+                        Text("To translate the whole game up front: start it, then ☰ › Translate whole game. It continues in the background while you play.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
             }
         }
         .padding(16)

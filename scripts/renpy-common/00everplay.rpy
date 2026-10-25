@@ -182,7 +182,7 @@ init -1500 python:
         renpy.restart_interaction()
 
     def _everplay_menu_actions():
-        return [
+        return [entry for entry in [
             ("Quick save", QuickSave()),
             ("Quick load", QuickLoad()),
             ("Rollback", Rollback()),
@@ -200,8 +200,10 @@ init -1500 python:
                                        Function(_everplay_unlock))),
             (("Original text", ToggleField(persistent, "_everplay_show_original", True, None)) if _everplay_translation_on()
              else ("Button home", Function(_everplay_button_home))),
+            (("Translate whole game", Function(_everplay_translate_all)) if _everplay_translation_on()
+             else None),
             ("Main menu", [Hide("_everplay_menu"), MainMenu()]),
-        ]
+        ] if entry]
 
     # Machine translation (EVERPLAY_TRANSLATE=1): dialogue and choices go through EverPlay's
     # EverPlayTranslator (Swift, reached with pyobjus), which caches every line per game.
@@ -266,6 +268,8 @@ init -1500 python:
         if kind == "prefetch":
             translator.prefetch_(value)
             return u""
+        if kind == "bulk":
+            return u"%d" % translator.translateAll_(value)
         if kind == "translate":
             return _everplay_from_native(translator.translate_(value))
         return _everplay_from_native(translator.cached_(value))
@@ -289,6 +293,45 @@ init -1500 python:
         except Exception:
             pass
         return texts
+
+    def _everplay_translate_all():
+        """Sends every line of dialogue and every choice to EverPlay, which translates them in the
+        background (MTool-style) while the game goes on."""
+        import renpy.game as _everplay_game
+        previous = _everplay_translation["previous"]
+        seen = _everplay_b.set()
+        texts = []
+        for node in _everplay_b.getattr(_everplay_game.script, "all_stmts", None) or []:
+            found = []
+            what = _everplay_b.getattr(node, "what", None)
+            if _everplay_b.isinstance(what, _everplay_text_types):
+                found.append(what)
+            for item in _everplay_b.getattr(node, "items", None) or []:
+                if item and _everplay_b.isinstance(item[0], _everplay_text_types):
+                    found.append(item[0])
+            for text in found:
+                if previous is not None:
+                    try:
+                        text = previous(text)
+                    except Exception:
+                        pass
+                if text and text not in seen:
+                    seen.add(text)
+                    texts.append(text)
+        queued = 0
+        chunk, size = [], 0
+        for text in texts + [None]:
+            if text is not None:
+                chunk.append(text)
+                size += _everplay_b.len(text)
+            if chunk and (text is None or size > 40000):
+                reply = _everplay_backend("bulk", u"\x1e".join(chunk))
+                try:
+                    queued += _everplay_b.int(reply or 0)
+                except ValueError:
+                    pass
+                chunk, size = [], 0
+        renpy.notify("Translating %d lines in the background" % queued if queued else "Every line is translated already")
 
     def _everplay_translate_filter(text):
         previous = _everplay_translation["previous"]
