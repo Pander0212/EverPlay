@@ -228,6 +228,15 @@ final class ImporterTests: FixtureTestCase {
         XCTAssertEqual(ace.validation.entryPoint, "Game.ini")
         XCTAssertThrowsError(try prepare([("Broken/Data/Scripts.rvdata2", Data([1]))]), "scripts without Game.ini are not a game")
     }
+    func testKiriKiriGamesAreDetectedByDataXP3OrStartupTJS() throws {
+        let game = try prepare([("Sakura/Sakura.exe", Data("MZ".utf8)), ("Sakura/data.xp3", Data([1])),
+                                ("Sakura/patch.xp3", Data([2])), ("Sakura/manual/index.html", html)])
+        XCTAssertEqual(game.validation.engine, .kirikiri)
+        XCTAssertEqual(game.validation.entryPoint, "Sakura/data.xp3")
+        XCTAssertFalse(GameEngine.kirikiri.isWeb)
+        let loose = try prepare([("data/startup.tjs", Data("Scripts.execStorage(\"system/Initialize.tjs\");".utf8))])
+        XCTAssertEqual(loose.validation.entryPoint, "data/startup.tjs")
+    }
     func testONScripterGameIsDetectedByItsScript() throws {
         let game = try prepare([("Tsukihime/Game.exe", Data("MZ".utf8)), ("Tsukihime/nscript.dat", Data([1, 2])),
                                 ("Tsukihime/default.ttf", Data()), ("Tsukihime/readme.html", html)])

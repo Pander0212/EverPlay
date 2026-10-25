@@ -383,3 +383,21 @@ The all-in-one build plays MIDI music of RPG Maker XP and VX games with TimGM6mb
 David Bolton (https://www.timbrechbill.com), taken unchanged from Ubuntu's timgm6mb-soundfont 1.3-5 package
 (http://archive.ubuntu.com/ubuntu/pool/universe/t/timgm6mb-soundfont/). It is distributed WITHOUT ANY WARRANTY;
 see https://www.gnu.org/licenses/old-licenses/gpl-2.0.html.
+
+KiriKit / ShioriKrkr (all-in-one build)
+Mozilla Public License 2.0
+
+The all-in-one build plays KiriKiri games with ShioriKrkr.framework, built unchanged from KiriKit
+(https://github.com/OWCramer/KiriKit, commit fe8a262, MPL-2.0, by Owen Cramer) by .github/workflows/kirikiri-ios.yml.
+Its source is available there; Sources/CShioriKrkr/include/shiorikrkr.h is KiriKit's interface (MPL-2.0).
+KiriKit contains krkr2 (KiriKiri 2 / Z core and plug-ins, KiriKiri licence), wamsoft and krkrsdl3 plug-ins
+(KiriKiri licence), GARbro's Cx and Hx algorithms (MIT, Copyright (C) 2014-2018 morkt), oniguruma, zlib, libpng,
+libwebp, libjpeg-turbo, libvorbis, opusfile, FreeType, plutovg, fmt, spdlog, lz4, xxHash, uchardet (BSD / IJG /
+FTL / MIT / zlib / MPL-1.1), and FFmpeg n8.0.3 (LGPL-2.1-or-later, linked statically; built from source with
+Shiori's Scripts/ffmpeg, https://github.com/OWCramer/shiori, so it can be rebuilt and relinked).
+
+BIZ UDGothic
+SIL Open Font License 1.1
+
+KiriKiri games without their own font show text in BIZ UDGothic, Copyright 2022 The BIZ UDGothic Project Authors
+(https://github.com/googlefonts/morisawa-biz-ud-mincho), under the SIL Open Font License 1.1 (Fonts/BIZUDGothic-OFL.txt).

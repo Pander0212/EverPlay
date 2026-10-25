@@ -8,6 +8,8 @@ public enum GameEngine: String, Codable, Sendable, CaseIterable {
     case onscripter
     /// RPG Maker XP, VX and VX Ace (RGSS 1-3), played natively by mkxp-z.
     case rgss
+    /// KiriKiri 2 / KiriKiri Z visual novels (data.xp3, startup.tjs), played natively by KiriKit's engine.
+    case kirikiri
 
     public var title: String {
         switch self {
@@ -17,6 +19,7 @@ public enum GameEngine: String, Codable, Sendable, CaseIterable {
         case .rpgMaker2000: return "RPG Maker 2000/2003"
         case .onscripter: return "ONScripter"
         case .rgss: return "RPG Maker XP/VX/VX Ace"
+        case .kirikiri: return "KiriKiri"
         }
     }
 
@@ -27,11 +30,12 @@ public enum GameEngine: String, Codable, Sendable, CaseIterable {
         case .rpgMaker2000: return "Native · EasyRPG Player"
         case .onscripter: return "Experimental · OnscripterYuri"
         case .rgss: return "Experimental · mkxp-z"
+        case .kirikiri: return "Experimental · KiriKit"
         }
     }
 
     /// Runs in EverPlay's web player (WKWebView and the loopback game server).
-    public var isWeb: Bool { self != .rpgMaker2000 && self != .rgss }
+    public var isWeb: Bool { self != .rpgMaker2000 && self != .rgss && self != .kirikiri }
 }
 
 public struct EngineCapabilities: OptionSet, Sendable {

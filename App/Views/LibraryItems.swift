@@ -209,7 +209,7 @@ struct GameRow: View {
 
 /// Library filter chips.
 enum LibraryFilter: String, CaseIterable, Identifiable {
-    case all, favorites, renpy, rpgMaker, web
+    case all, favorites, renpy, rpgMaker, novels, web
 
     var id: String { rawValue }
     var title: String {
@@ -218,6 +218,7 @@ enum LibraryFilter: String, CaseIterable, Identifiable {
         case .favorites: return "Favorites"
         case .renpy: return "Ren'Py"
         case .rpgMaker: return "RPG Maker"
+        case .novels: return "Visual novels"
         case .web: return "Web"
         }
     }
@@ -228,7 +229,8 @@ enum LibraryFilter: String, CaseIterable, Identifiable {
         case (.favorites, _): return FavoriteGames.contains(item.id)
         case (.renpy, .renpy): return true
         case (.rpgMaker, .web(let game, _)): return [.rpgMakerMV, .rpgMakerMZ, .rpgMaker2000, .rgss].contains(game.engine)
-        case (.web, .web(let game, _)): return [.html5, .onscripter].contains(game.engine)
+        case (.novels, .web(let game, _)): return [.kirikiri, .onscripter].contains(game.engine)
+        case (.web, .web(let game, _)): return game.engine == .html5
         default: return false
         }
     }

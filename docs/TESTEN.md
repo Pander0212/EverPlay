@@ -23,6 +23,7 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 | 10. Übersetzung und Übersetzungs-Editor | offen |
 | 11. Bibliothek: Filter, Sortierung, Favoriten (langes Drücken auf ein Spiel) | offen |
 | 12. RPG Maker XP/VX/VX Ace (mit RTP-Import) | läuft (Spotlight), Cheats neu und offen |
+| 13. KiriKiri | offen (neu, sobald im Nightly) |
 
 ## 1. Ren'Py-Spiel: Tastatur (Namenseingabe)
 1. Ein Spiel starten, das nach einem Namen fragt.
@@ -105,3 +106,12 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
    (Gold, Gruppe, Level, Tempo, Durch Wände, Zufallskämpfe, Gott-Modus, Items/Waffen/Rüstungen, Variablen, Schalter).
 7. Steuerung: Steuerkreuz unten links (auch schräg), rechts **OK** (Bestätigen), **Back** (Abbrechen/Menü)
    und **Dash** (gedrückt halten = rennen). Das Controller-Symbol oben links blendet die Tasten aus und ein.
+
+## 13. KiriKiri (sobald im Nightly)
+1. Ein KiriKiri-Spiel (Ordner mit `data.xp3` und meist einer `.exe`) als ZIP importieren. Es erscheint unter
+   dem Filter **Visual novels**.
+2. Starten: Das Spiel läuft im Querformat. Tippen = Klick, **zwei Finger tippen** = Rechtsklick (Menü/zurück).
+   Oben links **☰**: Menü, Backlog, Skip an/aus, Auto an/aus, Spiel beenden (EverPlay schließt sich dann).
+3. Spielstände liegen in Dateien unter **EverPlay › Saves › (Spielname)**.
+4. Melden: Startet es? Text, Bild, Ton, Videos? Spiele mit verschlüsselten Archiven (viele kommerzielle) gehen
+   evtl. noch nicht. Bei Problemen das Diagnose-Log schicken (enthält das Engine-Log).
