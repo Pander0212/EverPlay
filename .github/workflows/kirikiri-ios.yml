@@ -47,6 +47,8 @@ jobs:
             git -C "build/$1" fetch -q --depth 1 "https://github.com/OWCramer/$1" "$2"
             git -C "build/$1" checkout -q FETCH_HEAD
           done
+          # Engine/CMakeLists.txt still includes Sources/CShioriKrkr, renamed CKiriKit upstream.
+          [ -e build/KiriKit/Sources/CShioriKrkr ] || ln -s CKiriKit build/KiriKit/Sources/CShioriKrkr
       - name: Build FFmpeg (LGPL, Shiori's configuration)
         run: |
           set -o pipefail
