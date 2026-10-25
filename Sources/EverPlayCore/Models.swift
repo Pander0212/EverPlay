@@ -120,6 +120,16 @@ public struct ControlButton: Codable, Equatable, Sendable, Identifiable {
                 ControlButton(id: id(4), key: "Enter", label: "↵", x: 0.88, y: 0.84),
                 ControlButton(id: id(5), key: "Escape", label: "Esc", x: 0.73, y: 0.90)]
     }
+
+    /// RPG Maker XP/VX/VX Ace (mkxp-z's default bindings): Enter confirms, Esc cancels and opens
+    /// the menu, Shift dashes.
+    public static let rgssLayout: [ControlButton] = {
+        func id(_ number: Int) -> UUID { UUID(uuidString: "E7E7E7E7-0000-4000-8000-00000000010\(number)")! }
+        return [ControlButton(id: id(1), kind: .dpad, key: "", label: "D-pad", x: 0.15, y: 0.70),
+                ControlButton(id: id(2), key: "Enter", label: "OK", x: 0.89, y: 0.66),
+                ControlButton(id: id(3), key: "Escape", label: "Back", x: 0.78, y: 0.84),
+                ControlButton(id: id(4), key: "Shift", label: "Dash", x: 0.78, y: 0.50)]
+    }()
 }
 
 /// Keys the virtual controls may send: KeyboardEvent key, code and the legacy keyCode RPG Maker reads.

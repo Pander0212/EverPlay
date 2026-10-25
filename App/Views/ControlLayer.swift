@@ -153,7 +153,10 @@ struct ControlEditorPanel: View {
                     if let profile = ControlProfiles.load(for: engine) {
                         Button("Use the \(engine.title) default") { settings.buttons = profile; selection = nil }
                     }
-                    Button("Reset to EverPlay's layout", role: .destructive) { settings.buttons = ControlButton.defaultLayout(); selection = nil }
+                    Button("Reset to EverPlay's layout", role: .destructive) {
+                        settings.buttons = engine == .rgss ? ControlButton.rgssLayout : ControlButton.defaultLayout()
+                        selection = nil
+                    }
                 } label: { Label("Layout", systemImage: "square.grid.3x3") }
                 Spacer()
                 Button("Done", action: done)

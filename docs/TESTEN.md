@@ -102,10 +102,14 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
    Darin steht jetzt die Ausgabe von mkxp-z und, falls es abstürzt, die Absturzstelle.
 5. Spielstände: Im Spiel speichern, Spiel beenden, EverPlay neu öffnen. Erwartet: Der Spielstand liegt in
    Dateien unter **Auf meinem iPhone › EverPlay › Saves › (Spielname)** (`Save01.rvdata2` usw.).
-6. Cheats: Oben links neben dem Controller-Symbol ist **☰**. Es öffnet dieselbe Cheat-Seite wie bei MV/MZ
-   (Gold, Gruppe, Level, Tempo, Durch Wände, Zufallskämpfe, Gott-Modus, Items/Waffen/Rüstungen, Variablen, Schalter).
-7. Steuerung: Steuerkreuz unten links (auch schräg), rechts **OK** (Bestätigen), **Back** (Abbrechen/Menü)
-   und **Dash** (gedrückt halten = rennen). Das Controller-Symbol oben links blendet die Tasten aus und ein.
+6. **☰** oben links (neben dem Controller-Symbol) öffnet ein Menü: **Cheats** (dieselbe Seite wie bei MV/MZ:
+   Gold, Gruppe, Level, Tempo, Durch Wände, Zufallskämpfe, Gott-Modus, Items, Variablen, Schalter),
+   **Edit controls** und **Control opacity**.
+7. Steuerung: Steuerkreuz unten links (auch schräg), rechts **OK**, **Back** (Abbrechen/Menü) und **Dash**.
+   Das Controller-Symbol blendet die Tasten aus und ein.
+8. **Edit controls**: Tasten verschieben, antippen zum Vergrößern/Löschen/„Hold“ (gedrückt bleiben), über **Add**
+   neue Tasten hinzufügen (z. B. A/S/D/Q/W für Spiele, die die nutzen), **Done**. Das Layout bleibt pro Spiel
+   gespeichert; **Layout › Save as default** gilt für alle neuen XP/VX-Spiele.
 
 ## 13. KiriKiri
 1. Ein KiriKiri-Spiel (Ordner mit `data.xp3` und meist einer `.exe`) als ZIP importieren. Es erscheint unter
