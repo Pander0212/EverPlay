@@ -1,0 +1,83 @@
+name: KiriKiri engine for iPhone (KiriKit)
+# Builds ShioriKrkr.framework (KiriKiri 2 / Z: krkr2's core with KiriKit's environment, Metal
+# compositor and plug-ins) for iPhone from KiriKit (MPL-2.0, github.com/OWCramer/KiriKit) and
+# the FFmpeg build scripts of Shiori (github.com/OWCramer/shiori), both at pinned commits, and
+# publishes it to the libretro-cores release, which the all-in-one build pins.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/kirikiri-ios.yml
+permissions:
+  contents: read
+concurrency:
+  group: kirikiri-ios-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-26
+    permissions:
+      contents: write  # the libretro-cores release
+    timeout-minutes: 180
+    env:
+      KIRIKIT_COMMIT: fe8a262f751cfa9ce9b8b78a492ca86a579f3765
+      SHIORI_COMMIT: ca037c6a4d04e8fc240c77d751d756d7158554c3
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Reuse vcpkg packages
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .vcpkg-cache
+          key: kirikiri-vcpkg-v1-${{ github.run_id }}
+          restore-keys: kirikiri-vcpkg-v1-
+      - name: Build tools
+        run: |
+          brew install -q cmake ninja autoconf automake libtool pkg-config nasm
+          mkdir -p .vcpkg-cache
+          # KiriKit's scripts use /Applications/Xcode.app.
+          ls -ld /Applications/Xcode.app || sudo ln -s "$(xcode-select -p | sed 's|/Contents/Developer||')" /Applications/Xcode.app
+      - name: Fetch KiriKit and Shiori
+        run: |
+          for pair in "KiriKit $KIRIKIT_COMMIT" "shiori $SHIORI_COMMIT"; do
+            set -- $pair
+            git init -q "build/$1"
+            git -C "build/$1" fetch -q --depth 1 "https://github.com/OWCramer/$1" "$2"
+            git -C "build/$1" checkout -q FETCH_HEAD
+          done
+      - name: Build FFmpeg (LGPL, Shiori's configuration)
+        run: |
+          set -o pipefail
+          cd build/shiori
+          Scripts/ffmpeg/fetch-ffmpeg.sh
+          Scripts/ffmpeg/build-ios-ffmpeg.sh 2>&1 | tail -n 40
+      - name: Fetch the engine sources and build its libraries (vcpkg)
+        run: |
+          set -o pipefail
+          build/KiriKit/Scripts/krkr2/fetch.sh arm64-ios 2>&1 | tail -n 60
+      - name: Build ShioriKrkr.framework for iPhone
+        run: |
+          set -o pipefail
+          SHIORI_FFMPEG="$PWD/build/shiori" build/KiriKit/Scripts/krkr2/build-framework.sh device 2>&1 | tail -n 80
+          framework=build/KiriKit/build/shiorikrkr/frameworks/device/ShioriKrkr.framework
+          ls -la "$framework"
+          nm -gU "$framework/ShioriKrkr" | grep shiorikrkr_ | head -n 40
+          (cd build/KiriKit/build/shiorikrkr/frameworks/device && zip -qry "$GITHUB_WORKSPACE/ShioriKrkr.framework.zip" ShioriKrkr.framework)
+      - name: Publish the framework for the all-in-one build
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          name="ShioriKrkr_ios-arm64-${KIRIKIT_COMMIT:0:7}.framework.zip"
+          cp ShioriKrkr.framework.zip "$name"
+          gh release upload libretro-cores --repo "$GITHUB_REPOSITORY" --clobber "$name"
+          echo "Pin in allinone.yml: $name $(shasum -a 256 "$name" | cut -d' ' -f1)"
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: kirikiri-ios-logs
+          path: |
+            build/KiriKit/build/shiorikrkr/*.log
+            build/KiriKit/Vendor/vcpkg/buildtrees/*/*.log
+          retention-days: 14
