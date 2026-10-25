@@ -96,6 +96,35 @@ patch('src/util/encoding.h', """    iconv_t cd = iconv_open("UTF-8", charset);
         throw Exception(Exception::MKXPError, "Unable to convert string (unsupported encoding: %s)", charset);
 """)
 
+# On iOS the screen is not framebuffer 0: SDL draws the view into its own framebuffer. mkxp-z bound 0
+# for the screen, so the game ran (with sound) on a black screen. Remember SDL's framebuffer, which
+# is bound when the context is created, and use it wherever mkxp-z means "the screen".
+patch('src/display/gl/gl-fun.h', 'extern GLFunctions gl;', 'extern GLFunctions gl;\nextern GLuint mkxpzScreenFramebuffer;')
+patch('src/display/gl/gl-fun.cpp', 'GLFunctions gl;\n', 'GLFunctions gl;\nGLuint mkxpzScreenFramebuffer = 0;\n')
+patch('src/display/gl/gl-fun.cpp', """    const char *ver = (const char*) gl.GetString(GL_VERSION);
+""", """#ifdef MKXPZ_IOS
+    {
+        GLint screen = 0;
+        gl.GetIntegerv(0x8CA6 /* GL_FRAMEBUFFER_BINDING */, &screen);
+        mkxpzScreenFramebuffer = (GLuint) screen;
+    }
+#endif
+    const char *ver = (const char*) gl.GetString(GL_VERSION);
+""")
+patch('src/display/gl/gl-util.h', """	static inline void unbind()
+	{
+		bind(ID(0));
+	}
+
+	static inline void setTarget""", """	static inline void unbind()
+	{
+		bind(ID(mkxpzScreenFramebuffer));
+	}
+
+	static inline void setTarget""")
+patch('src/display/gl/gl-meta.cpp', '\t_blitBegin(FBO::ID(0), size, scaleIsSpecial);',
+      '\t_blitBegin(FBO::ID(mkxpzScreenFramebuffer), size, scaleIsSpecial);')
+
 patch('src/system/system.h', """#ifdef __APPLE__
 void openSettingsWindow();""", f"""#if {MAC_ONLY}
 void openSettingsWindow();""")
