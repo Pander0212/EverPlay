@@ -375,3 +375,11 @@ Public domain
 EverPlay unpacks the official RPG Maker RTP installers with the LZMA and LZMA2 decoders of the LZMA SDK 23.01 by
 Igor Pavlov (https://www.7-zip.org/sdk.html), which is placed in the public domain. The installer layout
 follows the documentation and source of innoextract by Daniel Scharrer (https://constexpr.org/innoextract/).
+
+TimGM6mb SoundFont (all-in-one build)
+GNU General Public License v2.0
+
+The all-in-one build plays MIDI music of RPG Maker XP and VX games with TimGM6mb.sf2 by Tim Brechbill and
+David Bolton (https://www.timbrechbill.com), taken unchanged from Ubuntu's timgm6mb-soundfont 1.3-5 package
+(http://archive.ubuntu.com/ubuntu/pool/universe/t/timgm6mb-soundfont/). It is distributed WITHOUT ANY WARRANTY;
+see https://www.gnu.org/licenses/old-licenses/gpl-2.0.html.

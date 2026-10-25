@@ -100,15 +100,17 @@ public enum RGSSRuntimePackage {
     /// Points mkxp-z at the installed RTPs the game asks for. Returns the names still missing.
     @discardableResult
     /// `preloadScripts` run before the game's own scripts (EverPlay's cheat menu).
-    public static func configure(gameFolder: URL, root: URL, preloadScripts: [URL] = []) throws -> [String] {
+    /// `soundFont` plays MIDI music (XP and VX games use it).
+    public static func configure(gameFolder: URL, root: URL, preloadScripts: [URL] = [], soundFont: URL? = nil) throws -> [String] {
         let wanted = names(gameFolder: gameFolder)
         let installed = wanted.compactMap { name in isInstalled(name, in: root) ? folder(name, in: root) : nil }
         let config = gameFolder.appendingPathComponent("mkxp.json")
         let marker = gameFolder.appendingPathComponent(Self.marker)
         let fileManager = FileManager.default
         if !fileManager.fileExists(atPath: config.path) || fileManager.fileExists(atPath: marker.path) {
-            let json = try JSONSerialization.data(withJSONObject: ["RTP": installed.map(\.path),
-                                                                   "preloadScript": preloadScripts.map(\.path)],
+            var options: [String: Any] = ["RTP": installed.map(\.path), "preloadScript": preloadScripts.map(\.path)]
+            if let soundFont { options["midiSoundFont"] = soundFont.path }
+            let json = try JSONSerialization.data(withJSONObject: options,
                                                   options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
             try json.write(to: config, options: .atomic)
             try Data().write(to: marker)

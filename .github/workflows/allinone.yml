@@ -209,6 +209,9 @@ jobs:
       # mkxp-z for RPG Maker XP/VX/VX Ace, published by mkxp-ios.yml (empty: build without it).
       MKXP_FRAMEWORK: mkxp-z_ios-arm64-61fb3eb.framework.zip  # mkxp-z dev 37a04d1
       MKXP_FRAMEWORK_SHA256: c8930fafccd9470c92ce6f7caa51d065c8a41ce111b41f484fcd393b282a5eb6
+      # General MIDI sounds for XP/VX games' MIDI music: TimGM6mb (GPL-2) from Ubuntu's archive.
+      MIDI_SOUNDFONT_DEB: http://archive.ubuntu.com/ubuntu/pool/universe/t/timgm6mb-soundfont/timgm6mb-soundfont_1.3-5_all.deb
+      MIDI_SOUNDFONT_DEB_SHA256: b70bc29b8f27adef8f92a2d9c1e26cee977b84c68110f0dd4326d97730a7c3ed
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -302,6 +305,10 @@ jobs:
             echo "$MKXP_FRAMEWORK_SHA256  mkxp.zip" | shasum -a 256 -c -
             unzip -o -q mkxp.zip -d mkxp-unpacked
             cp -R mkxp-unpacked/Frameworks/MKXP.framework "$app/Frameworks/"
+            curl --fail --location --show-error --retry 2 --max-time 300 "$MIDI_SOUNDFONT_DEB" --output soundfont.deb
+            echo "$MIDI_SOUNDFONT_DEB_SHA256  soundfont.deb" | shasum -a 256 -c -
+            mkdir -p soundfont && (cd soundfont && ar -x ../soundfont.deb && tar -xf data.tar.xz)
+            cp soundfont/usr/share/sounds/sf2/TimGM6mb.sf2 "$app/"
           fi
           # Ad-hoc placeholder signatures; sideloading tools re-sign every framework and the app.
           for framework in "$app"/Frameworks/*.framework; do codesign --force --sign - --timestamp=none "$framework"; done

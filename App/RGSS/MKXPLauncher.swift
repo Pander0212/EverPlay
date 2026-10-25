@@ -62,7 +62,9 @@ enum MKXPLauncher {
         }
         do {
             let cheats = Bundle.main.url(forResource: "EverPlayRGSS", withExtension: "rb").map { [$0] } ?? []
-            let missing = try RGSSRuntimePackage.configure(gameFolder: folder, root: rtpRoot, preloadScripts: cheats)
+            let soundFont = Bundle.main.url(forResource: "TimGM6mb", withExtension: "sf2")
+            let missing = try RGSSRuntimePackage.configure(gameFolder: folder, root: rtpRoot, preloadScripts: cheats,
+                                                           soundFont: soundFont)
             if !missing.isEmpty { EverPlayLog.write("RTP not imported: \(missing.joined(separator: ", "))") }
         } catch {
             EverPlayLog.write("mkxp.json not written: \(error.localizedDescription)")

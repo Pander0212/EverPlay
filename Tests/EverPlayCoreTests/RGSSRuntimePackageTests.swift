@@ -25,10 +25,12 @@ final class RGSSRuntimePackageTests: FixtureTestCase {
         try FileManager.default.createDirectory(at: game, withIntermediateDirectories: true)
         try Data("[Game]\nRTP=RPGVXAce\n".utf8).write(to: game.appendingPathComponent("Game.ini"))
         let cheats = temporary.appendingPathComponent("EverPlayRGSS.rb")
-        XCTAssertEqual(try RGSSRuntimePackage.configure(gameFolder: game, root: root, preloadScripts: [cheats]), [])
-        let config = try JSONSerialization.jsonObject(with: Data(contentsOf: game.appendingPathComponent("mkxp.json"))) as? [String: [String]]
-        XCTAssertEqual(config?["preloadScript"], [cheats.path])
-        XCTAssertEqual(config?["RTP"], [root.appendingPathComponent("RPGVXAce", isDirectory: true).path])
+        let soundFont = temporary.appendingPathComponent("TimGM6mb.sf2")
+        XCTAssertEqual(try RGSSRuntimePackage.configure(gameFolder: game, root: root, preloadScripts: [cheats], soundFont: soundFont), [])
+        let config = try JSONSerialization.jsonObject(with: Data(contentsOf: game.appendingPathComponent("mkxp.json"))) as? [String: Any]
+        XCTAssertEqual(config?["preloadScript"] as? [String], [cheats.path])
+        XCTAssertEqual(config?["midiSoundFont"] as? String, soundFont.path)
+        XCTAssertEqual(config?["RTP"] as? [String], [root.appendingPathComponent("RPGVXAce", isDirectory: true).path])
     }
 
     func testKeepsTheGamesOwnConfigAndRejectsOtherZips() throws {
