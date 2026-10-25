@@ -68,6 +68,26 @@ patch('src/display/gl/gl-fun.cpp', """    const char *ver = (const char*) gl.Get
                         gl.GetError ? gl.GetError() : 0);
 """)
 
+# The bundled GNU libiconv has no Apple "utf-8-mac"; iconv_open fails and iconv then crashed while
+# mkxp-z indexed the game files. APFS keeps names as stored, so skip the conversion then.
+patch('src/filesystem/filesystem.cpp', """    iconv_close(nfd2nfc);
+#endif
+  }""", """    if (nfd2nfc != (iconv_t) -1)
+      iconv_close(nfd2nfc);
+#endif
+  }""")
+patch('src/filesystem/filesystem.cpp', """#ifdef __APPLE__
+    size_t srcSize = strlen(inout);""", """#ifdef __APPLE__
+    if (nfd2nfc == (iconv_t) -1)
+      return;
+    size_t srcSize = strlen(inout);""")
+
+patch('src/util/encoding.h', """    iconv_t cd = iconv_open("UTF-8", charset);
+""", """    iconv_t cd = iconv_open("UTF-8", charset);
+    if (cd == (iconv_t) -1)
+        throw Exception(Exception::MKXPError, "Unable to convert string (unsupported encoding: %s)", charset);
+""")
+
 patch('src/system/system.h', """#ifdef __APPLE__
 void openSettingsWindow();""", f"""#if {MAC_ONLY}
 void openSettingsWindow();""")
