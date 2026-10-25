@@ -176,6 +176,8 @@ public enum EverPlayError: Error, LocalizedError, Equatable {
     case missingEntryPoint, ambiguousEntryPoints, incompleteEngine(String), unsupportedGame
     case duplicateGame, invalidLibrary, unsupportedSchema(Int), noAvailablePort
     case resourceNotFound, invalidRequest, invalidRange, notRuntimePackage, unsupportedInstaller(String)
+    /// The engine was recognised but EverPlay cannot play it.
+    case recognizedEngine(EngineReport)
 
     public var errorDescription: String? {
         switch self {
@@ -195,6 +197,9 @@ public enum EverPlayError: Error, LocalizedError, Equatable {
         case .invalidRequest: return "Invalid resource request."
         case .invalidRange: return "Invalid resource byte range."
         case .unsupportedInstaller(let reason): return "This installer cannot be unpacked (\(reason))."
+        case .recognizedEngine(let report):
+            let found = report.evidence.isEmpty ? "" : " (found \(report.evidence.joined(separator: ", ")))"
+            return "This is a \(report.engine) game\(found). \(report.outlook)"
         case .notRuntimePackage: return "This ZIP has no Graphics or Audio folder, so it is not an RPG Maker RTP."
         }
     }

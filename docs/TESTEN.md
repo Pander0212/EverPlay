@@ -26,6 +26,7 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 | 13. KiriKiri | offen (neu im Nightly, inkl. verschlüsselte Spiele) |
 | 14. Bibliothek | offen (neu) |
 | 15. Übersetzung: Apple + ganzes Spiel | offen (neu) |
+| 16. Engine-Erkennung | offen (neu) |
 
 ## 1. Ren'Py-Spiel: Tastatur (Namenseingabe)
 1. Ein Spiel starten, das nach einem Namen fragt.
@@ -140,3 +141,8 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 2. RPG Maker MV/MZ: Spieleseite › **Translate this game** an › **Translate the whole game now**. Fortschritt läuft,
    die Seite darf zu, man darf schon spielen. Danach erscheinen die Texte sofort übersetzt.
 3. Ren'Py: Übersetzung auf der Spieleseite an, Spiel starten, ☰ › **Translate whole game**. Läuft im Hintergrund.
+
+## 16. Engine-Erkennung
+1. Ein Spiel importieren, das EverPlay nicht spielen kann (z. B. Unity, Unreal, Godot, GameMaker, Wolf RPG).
+   Erwartet statt „not supported“: „This is a Unity game (found UnityPlayer.dll, …)“ plus Einschätzung, ob es
+   aufs iPhone kommen kann. Bei ZIPs passiert das sofort, ohne erst alles zu entpacken.

@@ -36,6 +36,8 @@ public enum GameDetector {
         var rgssFolders: Set<String> = []
         // KiriKiri: data.xp3 (or other .xp3 archives) or startup.tjs, usually beside the game's .exe.
         var kirikiriEntries: [String] = []
+        // Every file, to name the engine of a game EverPlay cannot play (EngineFingerprint).
+        var allPaths: [String] = []
         let rootComponents = root.pathComponents
         for case let enumeratedURL as URL in enumerator {
             let url = enumeratedURL.standardizedFileURL.resolvingSymlinksInPath()
@@ -46,6 +48,7 @@ public enum GameDetector {
             }
             let relative = components.dropFirst(rootComponents.count).joined(separator: "/")
             if relative.split(separator: "/").contains(where: { $0.hasPrefix(".") || $0 == "__MACOSX" }) { continue }
+            if allPaths.count < 50_000 { allPaths.append(relative) }
             if ["rxdata", "rvdata", "rvdata2", "rpa", "pck", "ldb"].contains(url.pathExtension.lowercased()) { legacy = true }
             switch url.lastPathComponent.lowercased() {
             case "rpg_rt.ldb": databases.append(relative)
@@ -103,7 +106,12 @@ public enum GameDetector {
             let depth = pages.map { $0.path.split(separator: "/").count }.min()!
             entries = [pages.filter { $0.path.split(separator: "/").count == depth }.max { $0.size < $1.size }!.path]
         }
-        guard !entries.isEmpty else { throw legacy ? EverPlayError.unsupportedGame : .missingEntryPoint }
+        guard !entries.isEmpty else {
+            if let report = EngineFingerprint.identify(paths: allPaths), !report.playable {
+                throw EverPlayError.recognizedEngine(report)
+            }
+            throw legacy ? EverPlayError.unsupportedGame : .missingEntryPoint
+        }
         // Prefer a package root, or the conventional NW.js www root. Otherwise require a single shallowest root.
         let entry: String
         if entries.contains("index.html") { entry = "index.html" }
