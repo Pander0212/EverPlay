@@ -61,7 +61,8 @@ enum MKXPLauncher {
             EverPlayLog.write("RPG Maker saves not prepared: \(error.localizedDescription)")
         }
         do {
-            let missing = try RGSSRuntimePackage.configure(gameFolder: folder, root: rtpRoot)
+            let cheats = Bundle.main.url(forResource: "EverPlayRGSS", withExtension: "rb").map { [$0] } ?? []
+            let missing = try RGSSRuntimePackage.configure(gameFolder: folder, root: rtpRoot, preloadScripts: cheats)
             if !missing.isEmpty { EverPlayLog.write("RTP not imported: \(missing.joined(separator: ", "))") }
         } catch {
             EverPlayLog.write("mkxp.json not written: \(error.localizedDescription)")

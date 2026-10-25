@@ -24,8 +24,10 @@ final class RGSSRuntimePackageTests: FixtureTestCase {
         let game = temporary.appendingPathComponent("Game")
         try FileManager.default.createDirectory(at: game, withIntermediateDirectories: true)
         try Data("[Game]\nRTP=RPGVXAce\n".utf8).write(to: game.appendingPathComponent("Game.ini"))
-        XCTAssertEqual(try RGSSRuntimePackage.configure(gameFolder: game, root: root), [])
+        let cheats = temporary.appendingPathComponent("EverPlayRGSS.rb")
+        XCTAssertEqual(try RGSSRuntimePackage.configure(gameFolder: game, root: root, preloadScripts: [cheats]), [])
         let config = try JSONSerialization.jsonObject(with: Data(contentsOf: game.appendingPathComponent("mkxp.json"))) as? [String: [String]]
+        XCTAssertEqual(config?["preloadScript"], [cheats.path])
         XCTAssertEqual(config?["RTP"], [root.appendingPathComponent("RPGVXAce", isDirectory: true).path])
     }
 
