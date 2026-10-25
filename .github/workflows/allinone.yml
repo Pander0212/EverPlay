@@ -207,8 +207,8 @@ jobs:
       ONSYURI_WEB: onsyuri_web-v0.7.7beta-2026-10-24.zip  # OnscripterYuri v0.7.7beta
       ONSYURI_WEB_SHA256: 652ee3df1644fac5b74ca46da42981f1604761182368fe8ab2b55de568b5a2a6
       # mkxp-z for RPG Maker XP/VX/VX Ace, published by mkxp-ios.yml (empty: build without it).
-      MKXP_FRAMEWORK: mkxp-z_ios-arm64-33a7094.framework.zip  # mkxp-z dev 37a04d1
-      MKXP_FRAMEWORK_SHA256: 824ac7c6fa614d626762ad95272a47a1e14c2a4e939150488dc6ec479915ddea
+      MKXP_FRAMEWORK: mkxp-z_ios-arm64-a1e86d8.framework.zip  # mkxp-z dev 37a04d1
+      MKXP_FRAMEWORK_SHA256: 067eb53cd8f49566cda5ed29ee988139495c85ddaf4877fa72abfb5a7b4a3e9f
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
