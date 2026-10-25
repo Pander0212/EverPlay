@@ -87,6 +87,7 @@ enum MKXPLauncher {
             typealias Entry = @convention(c) (UnsafePointer<CChar>) -> Int32
             let entry = unsafeBitCast(symbol, to: Entry.self)
             EverPlayLog.write("mkxp-z loaded; running \(game.title)")
+            RGSSCheatBridge.listen()
             UIApplication.shared.isIdleTimerDisabled = true
             // mkxp-z sends stdout to its log; EverPlay's buffered output would land there too.
             fflush(stdout)

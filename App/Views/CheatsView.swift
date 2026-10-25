@@ -1,8 +1,17 @@
 import SwiftUI
 
-/// RPG Maker MV/MZ cheats, backed by App/Resources/RPGMakerCheats.js inside the running game.
+/// What the cheat screen talks to: RPGMakerCheats.js in an MV/MZ game (GameSession) or
+/// EverPlayRGSS.rb in an XP/VX/VX Ace game (RGSSCheatBridge). Both have the same methods.
+@MainActor
+protocol CheatEngine: AnyObject {
+    func cheat<Result: Decodable>(_ method: String, _ arguments: [Any], as type: Result.Type) async throws -> Result
+}
+
+extension GameSession: CheatEngine {}
+
+/// RPG Maker cheats for the running game: MV/MZ and XP/VX/VX Ace.
 struct CheatsView: View {
-    @ObservedObject var session: GameSession
+    let session: CheatEngine
     @State private var status: CheatStatus?
     @State private var failure: String?
 
@@ -39,13 +48,16 @@ struct CheatsView: View {
                         ForEach([1, 2, 3, 4], id: \.self) { Text("\($0)×").tag($0) }
                     }
                     .pickerStyle(.segmented)
+                    if let god = status.god {
+                        Toggle("God mode (HP and MP stay full)", isOn: Binding(get: { god }, set: { run("setGod", [$0]) }))
+                    }
                     Toggle("Walk through walls", isOn: Binding(get: { status.through ?? false }, set: { run("setThrough", [$0]) }))
                     Toggle("No random encounters", isOn: Binding(get: { status.noEncounters ?? false },
                                                                  set: { run("setNoEncounters", [$0]) }))
                 } header: {
                     Text("Gameplay")
                 } footer: {
-                    Text("Speed runs the game's logic several times per frame. Walk-through and encounters last until the game closes.")
+                    Text("Speed makes the game run faster. These settings last until the game closes.")
                 }
                 Section("Inventory and flags") {
                     NavigationLink("Items") { CheatItemsView(target: RunningGame(session: session), kind: "item", title: "Items") }
@@ -69,7 +81,7 @@ struct CheatsView: View {
     }
 
     private func refresh() async {
-        do { status = try await session.cheat("status", as: CheatStatus.self); failure = nil }
+        do { status = try await session.cheat("status", [], as: CheatStatus.self); failure = nil }
         catch { failure = "The game did not answer: \(error.localizedDescription)" }
     }
 
@@ -94,6 +106,7 @@ struct CheatStatus: Decodable {
     let speed: Double?
     let through: Bool?
     let noEncounters: Bool?
+    let god: Bool?
 }
 
 struct CheatActor: Decodable, Identifiable {
@@ -159,7 +172,7 @@ protocol CheatTarget {
 
 /// The game as it runs now (RPGMakerCheats.js).
 struct RunningGame: CheatTarget {
-    let session: GameSession
+    let session: CheatEngine
 
     func items(_ kind: String, _ query: String) async throws -> [CheatItem] {
         try await session.cheat("items", [kind, query], as: [CheatItem].self)

@@ -1,20 +1,21 @@
-# EverPlay cheats for RPG Maker XP, VX and VX Ace games under mkxp-z. EverPlay loads this file
-# before the game's own scripts (mkxp.json "preloadScript"). The in-game EverPlay menu appends
-# commands to COMMAND; the game applies them at its next frames. Only the fixed commands below
-# exist: nothing read from the file is evaluated as code.
+# EverPlay cheats for RPG Maker XP, VX and VX Ace games under mkxp-z: the same methods as
+# RPGMakerCheats.js for MV/MZ, so EverPlay shows the same cheat screen. EverPlay loads this file
+# before the game's own scripts (mkxp.json "preloadScript"). The cheat screen writes one request per
+# file into DIR ("call <id> <method> <arguments>", tab-separated); the game answers at its next
+# frames with reply-<id>.json. Only the methods below exist: nothing read is evaluated as code.
 module EverPlayCheats
   DIR = File.join(ENV['TMPDIR'] || '/tmp', 'everplay-rgss')
-  COMMAND = File.join(DIR, 'command')
-  REPORT = File.join(DIR, 'report')
+  LIMIT = 400
 
-  @flags = {}
+  @state = { speed: 1, through: false, no_encounters: false, god: false }
   @frame = 0
+  @base_rate = nil
 
   class << self
     def tick
       @frame += 1
-      poll if @frame % 6 == 0
-      apply_flags unless @flags.empty?
+      poll if @frame % 3 == 0
+      hold
     rescue StandardError
       nil
     end
@@ -22,30 +23,56 @@ module EverPlayCheats
     private
 
     def poll
-      return unless File.exist?(COMMAND)
-      taken = COMMAND + '.taking'
-      File.rename(COMMAND, taken)
-      lines = File.read(taken).split("\n")
-      File.delete(taken)
-      lines.each { |line| run(line.split(' ')) }
+      Dir.glob(File.join(DIR, 'request-*')).each do |path|
+        line = File.read(path)
+        File.delete(path)
+        words = line.chomp.split("\t")
+        next unless words[0] == 'call' && words[1] =~ /\A[\w-]+\z/
+        answer(words[1], words[2], words[3..-1].map { |word| argument(word) })
+      end
     end
 
-    def run(words)
-      return if $game_party.nil?
-      case words[0]
-      when 'gold' then $game_party.gain_gold(words[1].to_i)
-      when 'heal' then members.each(&:recover_all)
-      when 'level' then members.each { |actor| max_level(actor) }
-      when 'items' then give_items(words[1].to_i)
-      when 'flag'
-        @flags[words[1]] = (words[2] == 'on')
-        $game_player.instance_variable_set(:@through, false) if words[1] == 'through' && words[2] != 'on' && $game_player
-      when 'variable' then set_variable(words[1].to_i, words[2].to_i)
-      when 'switch' then set_switch(words[1].to_i, words[2] == 'on')
-      when 'report' then report
+    def argument(word)
+      kind, value = word.split(':', 2)
+      case kind
+      when 'n' then value.include?('.') ? value.to_f : value.to_i
+      when 'b' then value == '1'
+      else value.to_s
       end
-    rescue StandardError
-      nil
+    end
+
+    METHODS = %w[status addGold setGold heal levelUp setSpeed setThrough setNoEncounters setGod
+                 variables setVariable switches setSwitch items gainItem].freeze
+
+    def answer(id, method, arguments)
+      result = METHODS.include?(method) ? send(method, *arguments) : nil
+      json = encode(result)
+    rescue StandardError => error
+      json = encode({ 'error' => error.message })
+    ensure
+      path = File.join(DIR, "reply-#{id}.json")
+      File.write(path + '.tmp', json)
+      File.rename(path + '.tmp', path)
+    end
+
+    # RPG Maker data is UTF-8 text, numbers, flags, arrays and hashes.
+    def encode(value)
+      case value
+      when nil then 'null'
+      when true then 'true'
+      when false then 'false'
+      when Integer then value.to_s
+      when Float then value.finite? ? value.to_s : 'null'
+      when Array then '[' + value.map { |entry| encode(entry) }.join(',') + ']'
+      when Hash then '{' + value.map { |key, entry| encode(key.to_s) + ':' + encode(entry) }.join(',') + '}'
+      else
+        text = value.to_s.dup.force_encoding('UTF-8').scrub('?')
+        '"' + text.gsub(/[\\"\u0000-\u001f]/) { |c| c == '\\' || c == '"' ? "\\#{c}" : format('\\u%04x', c.ord) } + '"'
+      end
+    end
+
+    def ready?
+      !$game_party.nil? && !$data_system.nil? && !$game_variables.nil? && !$game_switches.nil?
     end
 
     def members
@@ -54,73 +81,184 @@ module EverPlayCheats
       $game_party.actors
     end
 
-    def max_level(actor)
-      if actor.respond_to?(:change_level)
-        actor.change_level(actor.respond_to?(:max_level) ? actor.max_level : 99, false)
-      else
-        actor.level = 99
+    def engine
+      return 'RPG Maker VX Ace' if defined?(RPG::BaseItem) && $game_party.respond_to?(:all_members)
+      defined?(RPG::BaseItem) ? 'RPG Maker VX' : 'RPG Maker XP'
+    end
+
+    def max_hp(actor) = actor.respond_to?(:mhp) ? actor.mhp : actor.maxhp
+    def mp(actor) = actor.respond_to?(:mp) ? actor.mp : actor.sp
+
+    def max_mp(actor)
+      return actor.mmp if actor.respond_to?(:mmp)
+      actor.respond_to?(:maxmp) ? actor.maxmp : actor.maxsp
+    end
+
+    def max_gold = $game_party.respond_to?(:max_gold) ? $game_party.max_gold : 9_999_999
+
+    def status
+      return { 'engine' => engine, 'ready' => false } unless ready?
+      {
+        'engine' => engine, 'ready' => true, 'gold' => $game_party.gold, 'maxGold' => max_gold,
+        'party' => members.map do |actor|
+          { 'id' => actor.id, 'name' => actor.name, 'level' => actor.level, 'hp' => actor.hp,
+            'mhp' => max_hp(actor), 'mp' => mp(actor), 'mmp' => max_mp(actor) }
+        end,
+        'speed' => @state[:speed], 'through' => @state[:through], 'noEncounters' => @state[:no_encounters],
+        'god' => @state[:god]
+      }
+    end
+
+    def addGold(amount)
+      $game_party.gain_gold(amount.to_i)
+      status
+    end
+
+    def setGold(amount)
+      $game_party.gain_gold(amount.to_i - $game_party.gold)
+      status
+    end
+
+    def heal
+      members.each(&:recover_all)
+      status
+    end
+
+    def levelUp(levels)
+      members.each do |actor|
+        top = actor.respond_to?(:max_level) ? actor.max_level : 99
+        level = [[actor.level + levels.to_i, 1].max, top].min
+        actor.respond_to?(:change_level) ? actor.change_level(level, false) : actor.level = level
       end
-      actor.recover_all
+      status
     end
 
-    # VX and VX Ace take item objects; XP takes ids and has a method per kind.
-    def give_items(count)
-      if defined?(RPG::BaseItem)
-        [$data_items, $data_weapons, $data_armors].each do |list|
-          list.each { |item| $game_party.gain_item(item, count) if item && !item.name.empty? }
-        end
-      else
-        $data_items.each { |item| $game_party.gain_item(item.id, count) if item && !item.name.empty? }
-        $data_weapons.each { |item| $game_party.gain_weapon(item.id, count) if item && !item.name.empty? }
-        $data_armors.each { |item| $game_party.gain_armor(item.id, count) if item && !item.name.empty? }
-      end
+    # Runs the game faster by raising its frame rate (mkxp-z does not wait for the display).
+    def setSpeed(speed)
+      @base_rate ||= Graphics.frame_rate
+      @state[:speed] = [[speed.to_i, 1].max, 4].min
+      Graphics.frame_rate = @base_rate * @state[:speed]
+      status
     end
 
-    def set_variable(id, value)
-      return unless $game_variables && id > 0
-      $game_variables[id] = value
-      $game_map.need_refresh = true if $game_map
+    def setThrough(on)
+      @state[:through] = on ? true : false
+      $game_player.instance_variable_set(:@through, false) if !on && $game_player
+      status
     end
 
-    def set_switch(id, value)
-      return unless $game_switches && id > 0
-      $game_switches[id] = value
-      $game_map.need_refresh = true if $game_map
+    def setNoEncounters(on)
+      @state[:no_encounters] = on ? true : false
+      status
     end
 
-    # Flags hold every frame: games reset these on map changes and battles.
-    def apply_flags
-      return if $game_party.nil?
-      if @flags['god']
-        members.each do |actor|
-          actor.hp = actor.respond_to?(:mhp) ? actor.mhp : actor.maxhp
-          if actor.respond_to?(:mmp) then actor.mp = actor.mmp
-          elsif actor.respond_to?(:maxmp) then actor.mp = actor.maxmp
-          elsif actor.respond_to?(:maxsp) then actor.sp = actor.maxsp
-          end
-        end
-      end
-      $game_player.instance_variable_set(:@through, true) if @flags['through'] && $game_player
-      $game_player.instance_variable_set(:@encounter_count, 9999) if @flags['noencounter'] && $game_player
+    def setGod(on)
+      @state[:god] = on ? true : false
+      status
     end
 
-    # Named variables and switches, and those in use, for the menu's list.
-    def report
-      lines = ["gold\t#{$game_party.gold}"]
+    # "abc" searches names, "#12" an id, "=5" a value (as in RPGMakerCheats.js).
+    def matches(query, id, name, value)
+      q = query.to_s.strip.downcase
+      return true if q.empty?
+      return id.to_s == q[1..-1].strip if q.start_with?('#')
+      return value.to_s.downcase == q[1..-1].strip if q.start_with?('=')
+      name.to_s.downcase.include?(q)
+    end
+
+    def plain(value)
+      value.is_a?(Numeric) || value == true || value == false || value.is_a?(String) ? value : value.inspect[0, 80]
+    end
+
+    def variables(query)
       names = $data_system.variables
+      out = []
       (1...names.size).each do |id|
+        break if out.size >= LIMIT
+        name = names[id].to_s
         value = $game_variables[id]
-        next if (names[id].nil? || names[id].empty?) && (value.nil? || value == 0)
-        lines << "variable\t#{id}\t#{names[id]}\t#{value.is_a?(Numeric) ? value : value.inspect}"
+        next if name.empty? && (value.nil? || value == 0)
+        next unless matches(query, id, name, plain(value))
+        out << { 'id' => id, 'name' => name, 'value' => plain(value), 'number' => value.is_a?(Numeric) }
       end
+      out
+    end
+
+    def setVariable(id, value)
+      value = value.to_i if value.is_a?(Float) && value == value.floor
+      $game_variables[id.to_i] = value
+      $game_map.need_refresh = true if $game_map
+      true
+    end
+
+    def switches(query)
       names = $data_system.switches
+      out = []
       (1...names.size).each do |id|
-        value = $game_switches[id]
-        next if (names[id].nil? || names[id].empty?) && !value
-        lines << "switch\t#{id}\t#{names[id]}\t#{value ? 'on' : 'off'}"
+        break if out.size >= LIMIT
+        name = names[id].to_s
+        value = $game_switches[id] ? true : false
+        next if name.empty? && !value
+        next unless matches(query, id, name, value)
+        out << { 'id' => id, 'name' => name, 'value' => value }
       end
-      File.write(REPORT + '.tmp', lines.join("\n"))
-      File.rename(REPORT + '.tmp', REPORT)
+      out
+    end
+
+    def setSwitch(id, on)
+      $game_switches[id.to_i] = on ? true : false
+      $game_map.need_refresh = true if $game_map
+      true
+    end
+
+    def data_for(kind)
+      { 'item' => $data_items, 'weapon' => $data_weapons, 'armor' => $data_armors }.fetch(kind)
+    end
+
+    # VX and VX Ace count and give item objects; XP uses ids and a method per kind.
+    def count(kind, entry)
+      return $game_party.item_number(entry) if defined?(RPG::BaseItem)
+      $game_party.send({ 'item' => :item_number, 'weapon' => :weapon_number, 'armor' => :armor_number }[kind], entry.id)
+    end
+
+    def max_count(entry)
+      $game_party.respond_to?(:max_item_number) ? $game_party.max_item_number(entry) : 99
+    end
+
+    def items(kind, query)
+      out = []
+      data_for(kind).each_with_index do |entry, id|
+        break if out.size >= LIMIT
+        next if entry.nil? || entry.name.to_s.empty?
+        number = count(kind, entry)
+        next unless matches(query, id, entry.name, number)
+        out << { 'id' => id, 'name' => entry.name, 'count' => number, 'max' => max_count(entry) }
+      end
+      out
+    end
+
+    def gainItem(kind, id, amount)
+      entry = data_for(kind)[id.to_i]
+      raise 'unknown item' unless entry
+      if defined?(RPG::BaseItem)
+        $game_party.gain_item(entry, amount.to_i)
+      else
+        $game_party.send({ 'item' => :gain_item, 'weapon' => :gain_weapon, 'armor' => :gain_armor }[kind], entry.id, amount.to_i)
+      end
+      true
+    end
+
+    # These hold every frame: games reset them on map changes and battles.
+    def hold
+      return if $game_party.nil?
+      if @state[:god]
+        members.each do |actor|
+          actor.hp = max_hp(actor)
+          actor.respond_to?(:mp=) ? actor.mp = max_mp(actor) : actor.sp = max_mp(actor)
+        end
+      end
+      $game_player.instance_variable_set(:@through, true) if @state[:through] && $game_player
+      $game_player.instance_variable_set(:@encounter_count, 9999) if @state[:no_encounters] && $game_player
     end
   end
 end

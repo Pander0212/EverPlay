@@ -101,9 +101,7 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
    Darin steht jetzt die Ausgabe von mkxp-z und, falls es abstürzt, die Absturzstelle.
 5. Spielstände: Im Spiel speichern, Spiel beenden, EverPlay neu öffnen. Erwartet: Der Spielstand liegt in
    Dateien unter **Auf meinem iPhone › EverPlay › Saves › (Spielname)** (`Save01.rvdata2` usw.).
-6. Cheats: Oben links neben dem Controller-Symbol ist **☰**. Dort: +10.000 Gold, Heilen, Max-Level,
-   +10 von jedem Item, Gott-Modus, Durch Wände, Keine Zufallskämpfe (die drei letzten an/aus).
-   **Variables & switches…** zeigt Variablen und Schalter mit Suche: Variable antippen = Wert setzen,
-   Schalter antippen = umschalten, Gold antippen = Betrag setzen. Melden: Wirkt alles im Spiel?
+6. Cheats: Oben links neben dem Controller-Symbol ist **☰**. Es öffnet dieselbe Cheat-Seite wie bei MV/MZ
+   (Gold, Gruppe, Level, Tempo, Durch Wände, Zufallskämpfe, Gott-Modus, Items/Waffen/Rüstungen, Variablen, Schalter).
 7. Steuerung: Steuerkreuz unten links (auch schräg), rechts **OK** (Bestätigen), **Back** (Abbrechen/Menü)
    und **Dash** (gedrückt halten = rennen). Das Controller-Symbol oben links blendet die Tasten aus und ein.
