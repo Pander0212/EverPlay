@@ -27,6 +27,19 @@ enum MKXPLauncher {
             .appendingPathComponent("EverPlay/mkxp-z.log")
     }
 
+    /// The last game's folder and its visible Saves folder, to collect its saves at the next start.
+    private static let lastGameKey = "mkxpLastGame"
+
+    /// After a game has run (it closes EverPlay): its saves go to On My iPhone › EverPlay › Saves.
+    static func collectSaves() {
+        guard let paths = UserDefaults.standard.stringArray(forKey: lastGameKey), paths.count == 2 else { return }
+        do {
+            try RGSSSaves.collect(gameFolder: URL(fileURLWithPath: paths[0]), saveFolder: URL(fileURLWithPath: paths[1]))
+        } catch {
+            EverPlayLog.write("RPG Maker saves not copied to Saves: \(error.localizedDescription)")
+        }
+    }
+
     /// Copies the last game's mkxp-z output into the diagnostics log once (at app start).
     static func collectPreviousLog() {
         guard let text = try? String(contentsOf: logFile, encoding: .utf8), !text.isEmpty else { return }
@@ -40,6 +53,13 @@ enum MKXPLauncher {
         guard let binary else { return "This EverPlay build does not include mkxp-z for RPG Maker XP/VX/VX Ace." }
         let folder = gameFolder(game, directory: directory)
         EverPlayLog.write("Starting \(game.title) with mkxp-z")
+        let saves = SaveFolders.libretro(game)
+        do {
+            try RGSSSaves.prepare(gameFolder: folder, saveFolder: saves)
+            UserDefaults.standard.set([folder.path, saves.path], forKey: lastGameKey)
+        } catch {
+            EverPlayLog.write("RPG Maker saves not prepared: \(error.localizedDescription)")
+        }
         do {
             let missing = try RGSSRuntimePackage.configure(gameFolder: folder, root: rtpRoot)
             if !missing.isEmpty { EverPlayLog.write("RTP not imported: \(missing.joined(separator: ", "))") }

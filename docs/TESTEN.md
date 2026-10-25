@@ -99,5 +99,7 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 3. Starten: mkxp-z übernimmt den Bildschirm im Querformat. Beenden schließt EverPlay (wie bei Ren'Py).
 4. Melden: Startet es? Bild, Ton? Bei einem Absturz EverPlay neu öffnen und das Diagnose-Log schicken:
    Darin steht jetzt die Ausgabe von mkxp-z und, falls es abstürzt, die Absturzstelle.
-5. Steuerung: Steuerkreuz unten links (auch schräg), rechts **OK** (Bestätigen), **Back** (Abbrechen/Menü)
+5. Spielstände: Im Spiel speichern, Spiel beenden, EverPlay neu öffnen. Erwartet: Der Spielstand liegt in
+   Dateien unter **Auf meinem iPhone › EverPlay › Saves › (Spielname)** (`Save01.rvdata2` usw.).
+6. Steuerung: Steuerkreuz unten links (auch schräg), rechts **OK** (Bestätigen), **Back** (Abbrechen/Menü)
    und **Dash** (gedrückt halten = rennen). Das Controller-Symbol oben links blendet die Tasten aus und ein.

@@ -53,3 +53,30 @@ final class RGSSRuntimePackageTests: FixtureTestCase {
         XCTAssertNotNil(RGSSRuntimePackage.officialDownload(for: "RPGVXAce"))
     }
 }
+
+final class RGSSSavesTests: FixtureTestCase {
+    func testMirrorsOnlySavesBothWays() throws {
+        let game = temporary.appendingPathComponent("Game"), saves = temporary.appendingPathComponent("Saves")
+        try FileManager.default.createDirectory(at: game, withIntermediateDirectories: true)
+        try Data([1]).write(to: game.appendingPathComponent("Save01.rvdata2"))
+        try Data([9]).write(to: game.appendingPathComponent("Game.ini"))
+
+        // First start: the game's saves seed the visible folder.
+        try RGSSSaves.prepare(gameFolder: game, saveFolder: saves)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: saves.path), ["Save01.rvdata2"])
+
+        // The player deletes it in Files and adds another: the game gets exactly that.
+        try FileManager.default.removeItem(at: saves.appendingPathComponent("Save01.rvdata2"))
+        try Data([2]).write(to: saves.appendingPathComponent("Save02.rvdata2"))
+        try RGSSSaves.prepare(gameFolder: game, saveFolder: saves)
+        XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: game.path)), ["Game.ini", "Save02.rvdata2"])
+
+        // The game saves: collected back.
+        try Data([3]).write(to: game.appendingPathComponent("Save02.rvdata2"))
+        try Data([4]).write(to: game.appendingPathComponent("Save3.rxdata"))
+        try RGSSSaves.collect(gameFolder: game, saveFolder: saves)
+        XCTAssertEqual(try Data(contentsOf: saves.appendingPathComponent("Save02.rvdata2")), Data([3]))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: saves.appendingPathComponent("Save3.rxdata").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: saves.appendingPathComponent("Game.ini").path))
+    }
+}

@@ -218,8 +218,13 @@ struct GameDetailView: View {
                 }
                 .accessibilityIdentifier("manageSaves")
             case .web(let game, _) where game.engine == .rgss:
-                Text("Saves stay in the game's folder, as on the PC.")
+                Text("Saves: On My iPhone › EverPlay › Saves › \(game.title). EverPlay copies them into the game when it starts and back after you play.")
                     .font(.footnote).foregroundStyle(.secondary)
+                NavigationLink {
+                    SaveManagerView(title: game.title, folder: SaveFolders.libretro(game))
+                } label: {
+                    Label("Manage saves", systemImage: "externaldrive")
+                }
             case .web(let game, _) where !game.engine.isWeb:
                 Text("Saves: On My iPhone › EverPlay › Saves › \(game.title)").font(.footnote).foregroundStyle(.secondary)
                 NavigationLink {
