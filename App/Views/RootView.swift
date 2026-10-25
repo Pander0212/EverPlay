@@ -7,7 +7,6 @@ struct RootView: View {
     @EnvironmentObject private var renpy: RenPyLibrary
     @StateObject private var downloads = URLImporter()
     @State private var showSettings = false
-    @State private var showLog = false
     @State private var showHelp = false
     @State private var showLinkPrompt = false
     @State private var link = ""
@@ -19,6 +18,12 @@ struct RootView: View {
             LibraryView(archiveCandidate: $archiveCandidate, deleteCandidate: $deleteCandidate,
                         pickArchive: pickArchive, pickFolder: pickFolder)
                 .safeAreaInset(edge: .bottom) { bottomBar }
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { showSettings = true } label: { Image(systemName: "gearshape") }
+                            .accessibilityLabel("Settings").accessibilityIdentifier("openSettings")
+                    }
+                }
         }
         .task {
             await library.refresh()
@@ -64,7 +69,6 @@ struct RootView: View {
                     }
             }
         }
-        .sheet(isPresented: $showLog) { NavigationStack { DiagnosticsLogView() } }
         .sheet(isPresented: $showHelp) { NavigationStack { ImportHelpView() } }
         .fullScreenCover(item: $library.selectedGame, onDismiss: { Task { await library.refresh() } }) { game in
             if let store = library.store {
@@ -89,16 +93,6 @@ struct RootView: View {
         VStack(spacing: 12) {
             if let busy { ImportToast(detail: busy) }
             HStack(alignment: .center) {
-                HStack(spacing: 26) {
-                    Button { showSettings = true } label: { Image(systemName: "gearshape") }
-                        .accessibilityLabel("Settings").accessibilityIdentifier("openSettings")
-                    Button { showLog = true } label: { Image(systemName: "doc.text.magnifyingglass") }
-                        .accessibilityLabel("Diagnostics log")
-                }
-                .font(.system(size: 22, weight: .medium))
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 26).padding(.vertical, 18)
-                .surface(Capsule())
                 Spacer()
                 Menu {
                     Button("ZIP from Files", systemImage: "doc.zipper") { pickArchive() }
@@ -558,6 +552,23 @@ struct SettingsView: View {
     @AppStorage("appearanceStyle") private var appearance = AppearanceStyle.standard.rawValue
     var body: some View {
         Form {
+            Section {
+                HStack(spacing: 14) {
+                    Image(systemName: "gamecontroller.fill")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 56, height: 56)
+                        .background(LinearGradient(colors: [Theme.accent, Color(red: 0.36, green: 0.62, blue: 0.78)],
+                                                   startPoint: .topLeading, endPoint: .bottomTrailing),
+                                    in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("EverPlay").font(.title3.weight(.bold))
+                        Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
             Section {
                 Picker("Style", selection: $appearance) {
                     ForEach(AppearanceStyle.allCases) { Text($0.title).tag($0.rawValue) }
