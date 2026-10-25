@@ -19,7 +19,8 @@ struct RootView: View {
                         pickArchive: pickArchive, pickFolder: pickFolder)
                 .safeAreaInset(edge: .bottom) { bottomBar }
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        addMenu
                         Button { showSettings = true } label: { Image(systemName: "gearshape") }
                             .accessibilityLabel("Settings").accessibilityIdentifier("openSettings")
                     }
@@ -89,33 +90,29 @@ struct RootView: View {
         return nil
     }
 
+    /// Only the import progress; adding games is in the top bar (the search field sits at the bottom on iOS 26).
     private var bottomBar: some View {
         VStack(spacing: 12) {
             if let busy { ImportToast(detail: busy) }
-            HStack(alignment: .center) {
-                Spacer()
-                Menu {
-                    Button("ZIP from Files", systemImage: "doc.zipper") { pickArchive() }
-                    Button("Game folder", systemImage: "folder") { pickFolder() }
-                    Button("Direct link", systemImage: "link") { link = ""; showLinkPrompt = true }
-                    Divider()
-                    Button("Demo game", systemImage: "leaf") { Task { await library.importDemo() } }
-                    Button("Import help", systemImage: "questionmark.circle") { showHelp = true }
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 26, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 64, height: 64)
-                        .background(Theme.accent, in: Circle())
-                        .shadow(color: Theme.accent.opacity(0.5), radius: 14, y: 6)
-                }
-                .accessibilityLabel("Add game").accessibilityIdentifier("addGame")
-                .disabled(busy != nil || library.store == nil)
-            }
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 6)
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: busy)
+    }
+
+    private var addMenu: some View {
+        Menu {
+            Button("ZIP from Files", systemImage: "doc.zipper") { pickArchive() }
+            Button("Game folder", systemImage: "folder") { pickFolder() }
+            Button("Direct link", systemImage: "link") { link = ""; showLinkPrompt = true }
+            Divider()
+            Button("Demo game", systemImage: "leaf") { Task { await library.importDemo() } }
+            Button("Import help", systemImage: "questionmark.circle") { showHelp = true }
+        } label: {
+            Image(systemName: "plus")
+        }
+        .accessibilityLabel("Add game").accessibilityIdentifier("addGame")
+        .disabled(busy != nil || library.store == nil)
     }
 
     private func pickArchive() {

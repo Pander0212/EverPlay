@@ -55,6 +55,18 @@ enum LibraryItem: Identifiable {
         if seconds < 3600 { return "\(seconds / 60) min" }
         return "\(seconds / 3600) h \(seconds % 3600 / 60) min"
     }
+    /// The engine's symbol for generated covers.
+    var symbol: String {
+        switch self {
+        case .renpy: return "text.bubble.fill"
+        case .web(let game, _):
+            switch game.engine {
+            case .rpgMakerMV, .rpgMakerMZ, .rpgMaker2000, .rgss: return "map.fill"
+            case .kirikiri, .onscripter: return "book.closed.fill"
+            case .html5: return "globe"
+            }
+        }
+    }
     var tint: Color {
         switch self {
         case .web(let game, _): return Theme.engineColor(game.engine)
@@ -157,24 +169,65 @@ struct CoverView: View {
     @State private var image: UIImage?
 
     var body: some View {
-        ZStack {
-            if let image {
-                Image(uiImage: image).resizable().scaledToFill()
-            } else {
-                Theme.cover(for: item.title)
-                LinearGradient(colors: [.white.opacity(0.10), .clear], startPoint: .top, endPoint: .center)
-                Text(Theme.initials(item.title))
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.88))
+        // The picture fills the space it is given; it never decides the size (wide pictures overflowed).
+        Rectangle().fill(.clear)
+            .overlay {
+                if let image {
+                    Image(uiImage: image).resizable().scaledToFill()
+                } else {
+                    GeneratedCover(title: item.title, symbol: item.symbol)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).stroke(.white.opacity(0.08), lineWidth: 1))
+            .task(id: item.cover) {
+                image = nil
+                if let cover = item.cover { image = await CoverCache.image(for: cover) }
+            }
+            .accessibilityHidden(true)
+    }
+}
+
+/// A cover for games without a picture: colours from the title, the engine's symbol large and
+/// faint, and the title set like a box cover.
+struct GeneratedCover: View {
+    let title: String
+    let symbol: String
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width, height = proxy.size.height
+            let hues = Self.hues(title)
+            ZStack(alignment: .bottomLeading) {
+                LinearGradient(colors: [Color(hue: hues.0, saturation: 0.55, brightness: 0.55),
+                                        Color(hue: hues.1, saturation: 0.60, brightness: 0.22)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                RadialGradient(colors: [Color(hue: hues.1, saturation: 0.35, brightness: 0.95).opacity(0.45), .clear],
+                               center: UnitPoint(x: 0.85, y: 0.12), startRadius: 0, endRadius: max(width, height) * 0.75)
+                Image(systemName: symbol)
+                    .font(.system(size: width * 0.62, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.13))
+                    .rotationEffect(.degrees(-14))
+                    .position(x: width * 0.72, y: height * 0.36)
+                LinearGradient(colors: [.clear, .black.opacity(0.55)], startPoint: .center, endPoint: .bottom)
+                Text(title)
+                    .font(.system(size: max(11, width * 0.13), weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.5)
+                    .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
+                    .padding(width * 0.09)
+                    .frame(width: width, alignment: .leading)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).stroke(.white.opacity(0.08), lineWidth: 1))
-        .task(id: item.cover) {
-            image = nil
-            if let cover = item.cover { image = await CoverCache.image(for: cover) }
-        }
-        .accessibilityHidden(true)
+    }
+
+    private static func hues(_ title: String) -> (Double, Double) {
+        var hash: UInt64 = 1469598103934665603
+        for byte in title.utf8 { hash = (hash ^ UInt64(byte)) &* 1099511628211 }
+        let first = Double(hash % 360) / 360
+        let second = (first + 0.08 + Double((hash >> 16) % 10) / 100).truncatingRemainder(dividingBy: 1)
+        return (first, second)
     }
 }
 
