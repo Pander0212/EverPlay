@@ -23,7 +23,7 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 | 10. Übersetzung und Übersetzungs-Editor | offen |
 | 11. Bibliothek: Filter, Sortierung, Favoriten (langes Drücken auf ein Spiel) | offen |
 | 12. RPG Maker XP/VX/VX Ace (mit RTP-Import) | läuft (Spotlight), Cheats neu und offen |
-| 13. KiriKiri | offen (neu, sobald im Nightly) |
+| 13. KiriKiri | offen (neu im Nightly, inkl. verschlüsselte Spiele) |
 
 ## 1. Ren'Py-Spiel: Tastatur (Namenseingabe)
 1. Ein Spiel starten, das nach einem Namen fragt.
@@ -107,11 +107,14 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 7. Steuerung: Steuerkreuz unten links (auch schräg), rechts **OK** (Bestätigen), **Back** (Abbrechen/Menü)
    und **Dash** (gedrückt halten = rennen). Das Controller-Symbol oben links blendet die Tasten aus und ein.
 
-## 13. KiriKiri (sobald im Nightly)
+## 13. KiriKiri
 1. Ein KiriKiri-Spiel (Ordner mit `data.xp3` und meist einer `.exe`) als ZIP importieren. Es erscheint unter
    dem Filter **Visual novels**.
 2. Starten: Das Spiel läuft im Querformat. Tippen = Klick, **zwei Finger tippen** = Rechtsklick (Menü/zurück).
    Oben links **☰**: Menü, Backlog, Skip an/aus, Auto an/aus, Spiel beenden (EverPlay schließt sich dann).
 3. Spielstände liegen in Dateien unter **EverPlay › Saves › (Spielname)**.
-4. Melden: Startet es? Text, Bild, Ton, Videos? Spiele mit verschlüsselten Archiven (viele kommerzielle) gehen
-   evtl. noch nicht. Bei Problemen das Diagnose-Log schicken (enthält das Engine-Log).
+4. Verschlüsselte Spiele (viele kommerzielle, z. B. Steam-Versionen): Beim ersten Start erkennt EverPlay das
+   und zeigt **Encrypted game** mit einer Liste aus GARbro (braucht einmal Internet). Oben stehen Vorschläge
+   passend zum Spielnamen – das richtige Spiel antippen. Falsch gewählt? Beim Fehler **Choose another key**
+   tippen und neu starten. Steht das Spiel nicht in der Liste, geht es noch nicht.
+5. Melden: Startet es? Text, Bild, Ton, Videos? Bei Problemen das Diagnose-Log schicken (enthält das Engine-Log).

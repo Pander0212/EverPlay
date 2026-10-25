@@ -11,13 +11,14 @@ import EverPlayCore
 struct KiriKiriPlayerView: UIViewControllerRepresentable {
     let game: GameRecord
     let store: LibraryStore
+    let scheme: URL?
     @Environment(\.dismiss) private var dismiss
 
     func makeUIViewController(context: Context) -> KiriKiriGameViewController {
         let root = store.directory(for: game).appendingPathComponent(game.entryPoint).deletingLastPathComponent()
         let close = dismiss
-        return KiriKiriGameViewController(title: game.title, gameRoot: root, saves: SaveFolders.libretro(game),
-                                          close: { close() })
+        return KiriKiriGameViewController(title: game.title, gameRoot: root, saves: SaveFolders.libretro(game), scheme: scheme,
+                                          forgetKey: { [game] in KiriKiriKeys.forget(game) }, close: { close() })
     }
 
     func updateUIViewController(_ controller: KiriKiriGameViewController, context: Context) {}
@@ -27,6 +28,8 @@ final class KiriKiriGameViewController: UIViewController {
     private let gameTitle: String
     private let gameRoot: URL
     private let saves: URL
+    private let scheme: URL?
+    private let forgetKey: () -> Void
     private let close: () -> Void
     private var engine: KiriKiriEngine?
     private var presenter: KiriKiriPresenter?
@@ -37,10 +40,12 @@ final class KiriKiriGameViewController: UIViewController {
     private var skipping = false
     private let menuButton = UIButton(configuration: .filled())
 
-    init(title: String, gameRoot: URL, saves: URL, close: @escaping () -> Void) {
+    init(title: String, gameRoot: URL, saves: URL, scheme: URL?, forgetKey: @escaping () -> Void, close: @escaping () -> Void) {
         gameTitle = title
         self.gameRoot = gameRoot
         self.saves = saves
+        self.scheme = scheme
+        self.forgetKey = forgetKey
         self.close = close
         super.init(nibName: nil, bundle: nil)
         modalPresentationStyle = .fullScreen
@@ -108,7 +113,7 @@ final class KiriKiriGameViewController: UIViewController {
             }
             EverPlayLog.write("Starting \(gameTitle) with KiriKiri")
             do {
-                try engine.run(gameRoot: gameRoot, saves: saves)
+                try engine.run(gameRoot: gameRoot, saves: saves, scheme: scheme)
             } catch {
                 EverPlayLog.write("KiriKiri: \(error.localizedDescription)")
                 fail(error.localizedDescription)
@@ -152,7 +157,14 @@ final class KiriKiriGameViewController: UIViewController {
 
     private func fail(_ message: String) {
         let alert = UIAlertController(title: "Cannot start this game", message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in self?.close() })
+        if scheme != nil {
+            // A wrong title from GARbro's list: asked again at the next start.
+            alert.addAction(UIAlertAction(title: "Choose another key", style: .default) { [weak self] _ in
+                self?.forgetKey()
+                self?.close()
+            })
+        }
+        alert.addAction(UIAlertAction(title: "OK", style: .cancel) { [weak self] _ in self?.close() })
         present(alert, animated: true)
     }
 

@@ -69,7 +69,7 @@ struct RootView: View {
         .fullScreenCover(item: $library.selectedGame, onDismiss: { Task { await library.refresh() } }) { game in
             if let store = library.store {
                 if game.engine.isWeb { GamePlayerView(game: game, store: store) }
-                else if game.engine == .kirikiri { KiriKiriPlayerView(game: game, store: store).ignoresSafeArea() }
+                else if game.engine == .kirikiri { KiriKiriLaunchView(game: game, store: store).ignoresSafeArea() }
                 else { LibretroPlayerView(game: game, store: store) }
             }
         }

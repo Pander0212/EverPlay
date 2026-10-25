@@ -396,6 +396,12 @@ libwebp, libjpeg-turbo, libvorbis, opusfile, FreeType, plutovg, fmt, spdlog, lz4
 FTL / MIT / zlib / MPL-1.1), and FFmpeg n8.0.3 (LGPL-2.1-or-later, linked statically; built from source with
 Shiori's Scripts/ffmpeg, https://github.com/OWCramer/shiori, so it can be rebuilt and relinked).
 
+GARbro's game database (MIT)
+
+For encrypted KiriKiri games EverPlay downloads GARbro's Formats.dat
+(https://github.com/crskycode/GARbro, MIT, Copyright (C) 2014-2018 morkt and contributors) and writes the key of
+the game the player picks for the engine. The database is not part of the app.
+
 BIZ UDGothic
 SIL Open Font License 1.1
 

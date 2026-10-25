@@ -58,7 +58,7 @@ final class KiriKiriEngine {
     nonisolated(unsafe) static var ask: ((String, String, [String]) -> Int32)?
 
     /// Starts the game in `gameRoot` (the folder with data.xp3 or startup.tjs).
-    func run(gameRoot: URL, saves: URL) throws {
+    func run(gameRoot: URL, saves: URL, scheme: URL?) throws {
         try KiriKiriGame.linkSaves(gameRoot: gameRoot, saveFolder: saves)
         try? FileManager.default.createDirectory(at: Self.logFile.deletingLastPathComponent(), withIntermediateDirectories: true)
         FileManager.default.createFile(atPath: Self.logFile.path, contents: nil)
@@ -72,6 +72,8 @@ final class KiriKiriEngine {
         let copies = arguments.map { strdup($0) }
         defer { copies.forEach { free($0) } }
         var pointers: [UnsafePointer<CChar>?] = copies.map { $0.map { UnsafePointer($0) } }
+        let schemePath: UnsafeMutablePointer<CChar>? = scheme.flatMap { strdup($0.path) }
+        defer { free(schemePath) }
         let status = gameRoot.path.withCString { root in
             exe.withCString { exeName in
                 pointers.withUnsafeMutableBufferPointer { list in
@@ -79,6 +81,7 @@ final class KiriKiriEngine {
                     config.struct_size = UInt32(MemoryLayout<shiorikrkr_config_t>.size)
                     config.game_root = root
                     config.exe_name = exeName
+                    config.cx_scheme_path = UnsafePointer(schemePath)
                     config.arguments = UnsafePointer(list.baseAddress)
                     config.argument_count = UInt32(list.count)
                     config.log = { _, line in
@@ -97,9 +100,16 @@ final class KiriKiriEngine {
             }
         }
         guard status == Int32(SHIORIKRKR_OK) else {
-            let detail = status == Int32(SHIORIKRKR_ERROR_START)
-                ? "The game did not start. Its archives may be encrypted, which EverPlay cannot open yet."
-                : "The KiriKiri engine refused to start (\(status))."
+            let detail = switch Int(status) {
+            case Int(SHIORIKRKR_ERROR_START) where scheme != nil:
+                "The game did not start. The key chosen from GARbro's list may belong to another game."
+            case Int(SHIORIKRKR_ERROR_START):
+                "The game did not start. Its archives may be encrypted with a key EverPlay does not know."
+            case Int(SHIORIKRKR_ERROR_SCHEME):
+                "The game's key could not be read. Choose it again."
+            default:
+                "The KiriKiri engine refused to start (\(status))."
+            }
             throw KiriKiriError(detail)
         }
     }
