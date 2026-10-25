@@ -207,8 +207,8 @@ jobs:
       ONSYURI_WEB: onsyuri_web-v0.7.7beta-2026-10-24.zip  # OnscripterYuri v0.7.7beta
       ONSYURI_WEB_SHA256: 652ee3df1644fac5b74ca46da42981f1604761182368fe8ab2b55de568b5a2a6
       # mkxp-z for RPG Maker XP/VX/VX Ace, published by mkxp-ios.yml (empty: build without it).
-      MKXP_FRAMEWORK: mkxp-z_ios-arm64-61fb3eb.framework.zip  # mkxp-z dev 37a04d1
-      MKXP_FRAMEWORK_SHA256: c8930fafccd9470c92ce6f7caa51d065c8a41ce111b41f484fcd393b282a5eb6
+      MKXP_FRAMEWORK: mkxp-z_ios-arm64-01b7241.framework.zip  # mkxp-z dev 37a04d1
+      MKXP_FRAMEWORK_SHA256: b40024c7c5f7ed6129c8b32a22b7651804e07862f8878ef1d7fa28392e02791a
       # General MIDI sounds for XP/VX games' MIDI music: TimGM6mb (GPL-2) from Ubuntu's archive.
       MIDI_SOUNDFONT_DEB: http://archive.ubuntu.com/ubuntu/pool/universe/t/timgm6mb-soundfont/timgm6mb-soundfont_1.3-5_all.deb
       MIDI_SOUNDFONT_DEB_SHA256: b70bc29b8f27adef8f92a2d9c1e26cee977b84c68110f0dd4326d97730a7c3ed
