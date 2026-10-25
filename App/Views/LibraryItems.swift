@@ -29,7 +29,9 @@ enum LibraryItem: Identifiable {
         guard case .renpy(let game) = self else { return nil }
         return game.runtime.map { "runs on \($0.version)" } ?? "no matching runtime"
     }
+    /// The player's own picture if they chose one, else the one the game ships.
     var cover: URL? {
+        if let custom = CustomCovers.url(for: id) { return custom }
         switch self {
         case .web(_, let cover): return cover
         case .renpy(let game): return game.cover
@@ -72,6 +74,16 @@ enum WebCover {
             return titles.filter { ["png", "bmp", "jpg"].contains($0.pathExtension.lowercased()) }
                 .sorted { $0.lastPathComponent < $1.lastPathComponent }.first
         }
+        if entryPoint.lowercased().hasSuffix("game.ini") {
+            // RPG Maker XP/VX/VX Ace: a title picture, when the game keeps its graphics as loose files.
+            for folder in ["Graphics/Titles1", "Graphics/Titles"] {
+                let pictures = (try? FileManager.default.contentsOfDirectory(at: base.appendingPathComponent(folder),
+                                                                             includingPropertiesForKeys: nil)) ?? []
+                if let picture = pictures.filter({ ["png", "jpg"].contains($0.pathExtension.lowercased()) })
+                    .sorted(by: { $0.lastPathComponent < $1.lastPathComponent }).first { return picture }
+            }
+            return nil
+        }
         var candidates = ["icon/icon.png", "www/icon/icon.png", "favicon.png", "img/icon.png"]
         // RPG Maker MV/MZ: the title screen picture named in data/System.json.
         for data in ["data/System.json", "www/data/System.json"] {
@@ -83,6 +95,44 @@ enum WebCover {
             }
         }
         return candidates.map { base.appendingPathComponent($0) }.first { FileManager.default.fileExists(atPath: $0.path) }
+    }
+}
+
+/// Pictures the player chose for games (Photos or Files), kept in Application Support. Each change
+/// gets a new file name, so cached thumbnails of the old picture are not shown again.
+enum CustomCovers {
+    private static let key = "library.customCovers"
+    private static var folder: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("EverPlay/Covers", isDirectory: true)
+    }
+    private static var names: [String: String] { UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:] }
+
+    static func url(for id: String) -> URL? {
+        guard let name = names[id] else { return nil }
+        let url = folder.appendingPathComponent(name)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// Stores the picture as a JPEG of at most 1200 pixels on its long side.
+    static func set(_ image: UIImage, for id: String) throws {
+        let scale = min(1, 1200 / max(image.size.width, image.size.height, 1))
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let resized = UIGraphicsImageRenderer(size: size).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+        guard let data = resized.jpegData(compressionQuality: 0.85) else { throw CocoaError(.fileWriteUnknown) }
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let name = UUID().uuidString + ".jpg"
+        try data.write(to: folder.appendingPathComponent(name), options: .atomic)
+        remove(id)
+        var all = names
+        all[id] = name
+        UserDefaults.standard.set(all, forKey: key)
+    }
+
+    static func remove(_ id: String) {
+        var all = names
+        if let old = all.removeValue(forKey: id) { try? FileManager.default.removeItem(at: folder.appendingPathComponent(old)) }
+        UserDefaults.standard.set(all, forKey: key)
     }
 }
 

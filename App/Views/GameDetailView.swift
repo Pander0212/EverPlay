@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
 import EverPlayCore
 
 /// A game's page: big cover, facts, per-game options and the actions that do not belong on the
@@ -13,6 +15,11 @@ struct GameDetailView: View {
     @State private var size: Int64?
     @State private var translate = false
     @State private var reportText: String?
+    @State private var pickingPhoto = false
+    @State private var photo: PhotosPickerItem?
+    @State private var coverError: String?
+    /// Bumped when the cover changes, so the library and this page show the new one.
+    @AppStorage("library.coverVersion") private var coverVersion = 0
 
     /// The current version from the library, so a changed runtime shows right away.
     private var current: LibraryItem {
@@ -78,26 +85,77 @@ struct GameDetailView: View {
     }
 
     private var header: some View {
-        ZStack(alignment: .bottomLeading) {
-            CoverView(item: current, cornerRadius: 28)
-                .frame(height: 210)
-                .frame(maxWidth: .infinity)
-            LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-            VStack(alignment: .leading, spacing: 8) {
-                Text(current.title)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-                Text(current.engineLabel)
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .foregroundStyle(.white)
-                    .background(current.tint.opacity(0.55), in: Capsule())
+        let _ = coverVersion
+        return ZStack(alignment: .bottomLeading) {
+            CoverView(item: current, cornerRadius: 0)
+                .scaleEffect(1.4)
+                .blur(radius: 30)
+                .overlay(LinearGradient(colors: [.black.opacity(0.1), .black.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+            HStack(alignment: .bottom, spacing: 16) {
+                CoverView(item: current, cornerRadius: 18)
+                    .frame(width: 120, height: 160)
+                    .shadow(color: .black.opacity(0.5), radius: 14, y: 8)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(current.title)
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(3)
+                    Text(current.engineLabel)
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .foregroundStyle(.white)
+                        .background(current.tint.opacity(0.55), in: Capsule())
+                    Menu {
+                        Button("Choose from Photos", systemImage: "photo") { pickingPhoto = true }
+                        Button("Choose from Files", systemImage: "folder") {
+                            FilePicker.present(types: [.image], asCopy: true) { url in
+                                setCover(UIImage(contentsOfFile: url.path))
+                            }
+                        }
+                        if CustomCovers.url(for: current.id) != nil {
+                            Button("Use the game's picture", systemImage: "arrow.uturn.backward") {
+                                CustomCovers.remove(current.id)
+                                coverVersion += 1
+                            }
+                        }
+                    } label: {
+                        Label("Change cover", systemImage: "photo.badge.plus")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .background(.white.opacity(0.15), in: Capsule())
+                    }
+                    .accessibilityIdentifier("changeCover")
+                }
+                Spacer(minLength: 0)
             }
             .padding(18)
         }
+        .frame(height: 240)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: .black.opacity(0.35), radius: 16, y: 8)
+        .photosPicker(isPresented: $pickingPhoto, selection: $photo, matching: .images)
+        .onChange(of: photo) { _, item in
+            guard let item else { return }
+            Task {
+                let data = try? await item.loadTransferable(type: Data.self)
+                setCover(data.flatMap(UIImage.init(data:)))
+                photo = nil
+            }
+        }
+        .alert("Cover not changed", isPresented: Binding(get: { coverError != nil }, set: { if !$0 { coverError = nil } })) {
+            Button("OK") { coverError = nil }
+        } message: { Text(coverError ?? "") }
+    }
+
+    private func setCover(_ image: UIImage?) {
+        guard let image else { coverError = "The picture could not be read."; return }
+        do {
+            try CustomCovers.set(image, for: current.id)
+            coverVersion += 1
+        } catch {
+            coverError = error.localizedDescription
+        }
     }
 
     private var facts: some View {

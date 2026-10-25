@@ -24,6 +24,7 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 | 11. Bibliothek: Filter, Sortierung, Favoriten (langes Drücken auf ein Spiel) | offen |
 | 12. RPG Maker XP/VX/VX Ace (mit RTP-Import) | läuft (Spotlight), Cheats neu und offen |
 | 13. KiriKiri | offen (neu im Nightly, inkl. verschlüsselte Spiele) |
+| 14. Bibliothek | offen (neu) |
 
 ## 1. Ren'Py-Spiel: Tastatur (Namenseingabe)
 1. Ein Spiel starten, das nach einem Namen fragt.
@@ -122,3 +123,11 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
    passend zum Spielnamen – das richtige Spiel antippen. Falsch gewählt? Beim Fehler **Choose another key**
    tippen und neu starten. Steht das Spiel nicht in der Liste, geht es noch nicht.
 5. Melden: Startet es? Text, Bild, Ton, Videos? Bei Problemen das Diagnose-Log schicken (enthält das Engine-Log).
+
+## 14. Bibliothek
+1. Startseite: Oben das zuletzt gespielte Spiel groß mit **Play**, darunter **Recently played** (ab 4 Spielen),
+   dann alle Spiele als Cover-Raster. Das Symbol neben dem Sortieren-Knopf schaltet zwischen Cover und Liste um.
+2. Cover antippen = Spieleseite, runder ▶-Knopf auf dem Cover = sofort spielen, lange drücken = Menü
+   (Favorit, Ausblenden, Archivieren/Löschen).
+3. Eigenes Cover: Spieleseite › **Change cover** › aus Fotos oder Dateien wählen. **Use the game's picture**
+   setzt es zurück.

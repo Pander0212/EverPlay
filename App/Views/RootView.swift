@@ -152,6 +152,8 @@ private struct LibraryView: View {
     @AppStorage("library.showHidden") private var showHidden = false
     @AppStorage("library.filter") private var filter = LibraryFilter.all
     @AppStorage("library.sort") private var sort = LibrarySort.recent
+    @AppStorage("library.layout") private var layout = LibraryLayout.grid
+    @AppStorage("library.coverVersion") private var coverVersion = 0
     /// Changes when a game is hidden, shown or marked as a favorite, so the list updates.
     @State private var hiddenVersion = 0
     /// Why a game could not start (RPG Maker XP/VX/VX Ace without mkxp-z in this build).
@@ -163,10 +165,18 @@ private struct LibraryView: View {
         let web = library.games.map { LibraryItem.web($0, cover: webCovers[$0.id]) }
         let renpyItems = renpy.games.map { LibraryItem.renpy($0) }
         _ = hiddenVersion
+        _ = coverVersion
         return sort.ordered((web + renpyItems).filter { showHidden || !HiddenGames.contains($0.id) })
     }
     private var visibleItems: [LibraryItem] {
         items.filter { filter.includes($0) && (search.isEmpty || $0.title.localizedCaseInsensitiveContains(search)) }
+    }
+    /// Played games after the one on top, newest first.
+    private var recent: [LibraryItem] {
+        guard search.isEmpty, filter == .all, items.count > 3 else { return [] }
+        return items.filter { $0.lastPlayed != nil && $0.id != hero?.id }
+            .sorted { $0.lastPlayed! > $1.lastPlayed! }
+            .prefix(10).map { $0 }
     }
     /// The most recently played game, shown on top when there is more than one game.
     private var hero: LibraryItem? {
@@ -183,17 +193,27 @@ private struct LibraryView: View {
                     EmptyLibrary(pickArchive: pickArchive)
                 } else {
                     if !library.inbox.isEmpty { inboxSection }
-                    if items.count > 1 { filterBar }
                     if let hero {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Label("Continue playing", systemImage: "play.circle.fill")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            row(hero, identifier: "continue-\(hero.title)")
-                        }
+                        ContinueCard(item: hero, open: { detail = hero }, play: { play(hero) })
+                            .contextMenu { menu(for: hero) }
                     }
-                    ForEach(visibleItems.filter { $0.id != hero?.id }) { item in
-                        row(item, identifier: "game-\(item.title)")
+                    if recent.count > 1 {
+                        RecentShelf(items: recent, play: play, menu: { AnyView(menu(for: $0)) })
+                    }
+                    if items.count > 1 { filterBar }
+                    switch layout {
+                    case .grid:
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 230), spacing: 16)], spacing: 22) {
+                            ForEach(visibleItems) { item in
+                                PosterCard(item: item, favorite: FavoriteGames.contains(item.id),
+                                           open: { detail = item }, play: { play(item) })
+                                    .contextMenu { menu(for: item) }
+                            }
+                        }
+                    case .list:
+                        ForEach(visibleItems) { item in
+                            row(item, identifier: "game-\(item.title)")
+                        }
                     }
                     if visibleItems.isEmpty {
                         Text(search.isEmpty ? "No \(filter.title) games yet." : "No games match “\(search)”.").foregroundStyle(.secondary)
@@ -272,6 +292,17 @@ private struct LibraryView: View {
                 }
             }
             .scrollIndicators(.hidden)
+            Button {
+                withAnimation(.snappy) { layout = layout == .grid ? .list : .grid }
+            } label: {
+                Image(systemName: layout == .grid ? LibraryLayout.list.icon : LibraryLayout.grid.icon)
+                    .font(.subheadline.weight(.semibold))
+                    .frame(width: 36, height: 36)
+                    .background(.white.opacity(0.08), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(layout == .grid ? "Show as list" : "Show as covers")
+            .accessibilityIdentifier("libraryLayout")
             Menu {
                 Picker("Sort by", selection: $sort) {
                     ForEach(LibrarySort.allCases) { Text($0.title).tag($0) }
@@ -290,26 +321,29 @@ private struct LibraryView: View {
     private func row(_ item: LibraryItem, identifier: String) -> some View {
         GameRow(item: item, identifier: identifier, favorite: FavoriteGames.contains(item.id),
                 open: { detail = item }, play: { play(item) })
-            .contextMenu {
-                Button("Play", systemImage: "play.fill") { play(item) }
-                Button("Details", systemImage: "info.circle") { detail = item }
-                if FavoriteGames.contains(item.id) {
-                    Button("Remove from favorites", systemImage: "star.slash") { FavoriteGames.set(item.id, favorite: false); hiddenVersion += 1 }
-                } else {
-                    Button("Add to favorites", systemImage: "star") { FavoriteGames.set(item.id, favorite: true); hiddenVersion += 1 }
-                }
-                if HiddenGames.contains(item.id) {
-                    Button("Show in library", systemImage: "eye") { HiddenGames.set(item.id, hidden: false); hiddenVersion += 1 }
-                } else {
-                    Button("Hide from library", systemImage: "eye.slash") { HiddenGames.set(item.id, hidden: true); hiddenVersion += 1 }
-                }
-                switch item {
-                case .web:
-                    Button("Archive game", systemImage: "archivebox") { remove(item) }
-                case .renpy:
-                    Button("Delete game", systemImage: "trash", role: .destructive) { remove(item) }
-                }
-            }
+            .contextMenu { menu(for: item) }
+    }
+
+    @ViewBuilder
+    private func menu(for item: LibraryItem) -> some View {
+        Button("Play", systemImage: "play.fill") { play(item) }
+        Button("Details", systemImage: "info.circle") { detail = item }
+        if FavoriteGames.contains(item.id) {
+            Button("Remove from favorites", systemImage: "star.slash") { FavoriteGames.set(item.id, favorite: false); hiddenVersion += 1 }
+        } else {
+            Button("Add to favorites", systemImage: "star") { FavoriteGames.set(item.id, favorite: true); hiddenVersion += 1 }
+        }
+        if HiddenGames.contains(item.id) {
+            Button("Show in library", systemImage: "eye") { HiddenGames.set(item.id, hidden: false); hiddenVersion += 1 }
+        } else {
+            Button("Hide from library", systemImage: "eye.slash") { HiddenGames.set(item.id, hidden: true); hiddenVersion += 1 }
+        }
+        switch item {
+        case .web:
+            Button("Archive game", systemImage: "archivebox") { remove(item) }
+        case .renpy:
+            Button("Delete game", systemImage: "trash", role: .destructive) { remove(item) }
+        }
     }
 
     private func remove(_ item: LibraryItem) {
@@ -384,7 +418,7 @@ private struct EmptyLibrary: View {
             .frame(height: 210)
             VStack(spacing: 8) {
                 Text("Make room for play").font(.title2.weight(.bold))
-                Text("Add Ren'Py, RPG Maker (2000/2003, MV, MZ), TyranoBuilder or HTML games with the + button: a ZIP, a game folder or a direct link. You can also copy games into On My iPhone › EverPlay.")
+                Text("Add Ren'Py, RPG Maker (2000/2003, XP, VX, VX Ace, MV, MZ), KiriKiri, TyranoBuilder or HTML games with the + button: a ZIP, a game folder or a direct link. You can also copy games into On My iPhone › EverPlay.")
                     .multilineTextAlignment(.center).foregroundStyle(.secondary)
             }
             VStack(spacing: 12) {
@@ -444,9 +478,11 @@ private struct ImportHelpView: View {
                 Text("Ren'Py 6–8 desktop games (built-in Ren'Py 8.5, 8.4, 8.3, 8.2, 8.1 and 7.8; games that ship their own engine of an included version use it).")
                 Text("RPG Maker MV/MZ, TyranoScript, NW.js and Electron builds (package.nw, app.asar), Twine and other HTML5 games.")
                 Text("RPG Maker 2000/2003 games with EasyRPG Player (on iPhone and iPad).")
+                Text("RPG Maker XP, VX and VX Ace games with mkxp-z; the free RTP is downloaded on the game's page.")
+                Text("KiriKiri visual novels; encrypted ones with a key from GARbro's list.")
             }
             Section("Saves") {
-                Text("Ren'Py saves: On My iPhone › EverPlay › Saves › game folder. Web games keep their saves in EverPlay's private storage.")
+                Text("Ren'Py, RPG Maker 2000/2003, XP/VX/VX Ace and KiriKiri saves: On My iPhone › EverPlay › Saves › game. Web games keep their saves in EverPlay's private storage.")
             }
         }
         .navigationTitle("Import help")
