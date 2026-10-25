@@ -23,7 +23,8 @@ BUILD = WORK / 'build'
 MINIMUM_IOS = '17.0'
 NAME = 'MKXP'
 
-ENTRY = r'''#include <execinfo.h>
+ENTRY = r'''#include <CoreFoundation/CoreFoundation.h>
+#include <execinfo.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,6 +47,17 @@ static void everplay_crash(int signal_number) {
     backtrace_symbols_fd(frames, count, STDERR_FILENO);
     signal(signal_number, SIG_DFL);
     raise(signal_number);
+}
+
+/* NFC file names for mkxp-z's path cache (its iconv has no "utf-8-mac"). */
+void everplay_nfc(char *name, size_t capacity) {
+    CFMutableStringRef text = CFStringCreateMutable(NULL, 0);
+    CFStringAppendCString(text, name, kCFStringEncodingUTF8);
+    CFStringNormalize(text, kCFStringNormalizationFormC);
+    char normal[1024];
+    if (CFStringGetCString(text, normal, sizeof normal, kCFStringEncodingUTF8) && strlen(normal) < capacity)
+        strcpy(name, normal);
+    CFRelease(text);
 }
 
 __attribute__((visibility("default")))

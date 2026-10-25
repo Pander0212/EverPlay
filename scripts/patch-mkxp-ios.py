@@ -68,8 +68,12 @@ patch('src/display/gl/gl-fun.cpp', """    const char *ver = (const char*) gl.Get
                         gl.GetError ? gl.GetError() : 0);
 """)
 
-# The bundled GNU libiconv has no Apple "utf-8-mac"; iconv_open fails and iconv then crashed while
-# mkxp-z indexed the game files. APFS keeps names as stored, so skip the conversion then.
+# mkxp-z turns decomposed (NFD) file names into NFC with iconv's Apple-only "utf-8-mac", which the
+# bundled GNU libiconv lacks: iconv_open failed and iconv then crashed while mkxp-z indexed the
+# game files. On iOS EverPlay's framework entry normalises with CoreFoundation instead (kept out of
+# this file: Apple's MacTypes.h would clash with mkxp-z's Rect).
+patch('src/filesystem/filesystem.cpp', '#include <iconv.h>\n',
+      '#include <iconv.h>\n#ifdef MKXPZ_IOS\nextern "C" void everplay_nfc(char *name, size_t capacity);\n#endif\n')
 patch('src/filesystem/filesystem.cpp', """    iconv_close(nfd2nfc);
 #endif
   }""", """    if (nfd2nfc != (iconv_t) -1)
@@ -78,8 +82,12 @@ patch('src/filesystem/filesystem.cpp', """    iconv_close(nfd2nfc);
   }""")
 patch('src/filesystem/filesystem.cpp', """#ifdef __APPLE__
     size_t srcSize = strlen(inout);""", """#ifdef __APPLE__
-    if (nfd2nfc == (iconv_t) -1)
+    if (nfd2nfc == (iconv_t) -1) {
+#ifdef MKXPZ_IOS
+      everplay_nfc(inout, 512);  // cacheEnumCB's buffer
+#endif
       return;
+    }
     size_t srcSize = strlen(inout);""")
 
 patch('src/util/encoding.h', """    iconv_t cd = iconv_open("UTF-8", charset);
