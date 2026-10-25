@@ -372,6 +372,6 @@ struct AppleTranslationError: LocalizedError {
         let to = Locale.current.localizedString(forLanguageCode: target) ?? target
         return unsupported
             ? "Apple cannot translate \(from) into \(to)."
-            : "\(from) → \(to) is not downloaded. Settings › Translation: set “Games are in” to \(from), then Download languages."
+            : "\(from) → \(to) is not downloaded yet. Download both in iOS Settings › Apps › Translate › Downloaded Languages, or EverPlay Settings › Translation › Download languages."
     }
 }

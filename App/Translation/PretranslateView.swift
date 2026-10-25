@@ -16,7 +16,6 @@ struct PretranslateView: View {
     @State private var done = 0
     @State private var known = 0
     @State private var state = Stage.reading
-    @State private var preparing = false
     @State private var failure: String?
 
     private enum Stage { case reading, running, finished, failed(String) }
@@ -65,8 +64,6 @@ struct PretranslateView: View {
             .background(Theme.background.ignoresSafeArea())
             .navigationTitle("Translate game").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .modifier(PrepareAppleTranslation(active: $preparing, source: AppleTranslation.downloadSource(TranslationPreferences.settings),
-                                              target: TranslationPreferences.settings.targetLanguage))
         }
         .task { await run() }
     }
@@ -79,16 +76,19 @@ struct PretranslateView: View {
     private func run() async {
         let settings = TranslationPreferences.settings
         guard settings.provider != .off else { state = .failed("Choose a translation service in Settings › Translation first."); return }
-        if settings.provider == .apple {
-            guard AppleTranslation.available else { state = .failed("Apple's translation needs iOS 26."); return }
-            preparing = true  // iOS shows its download sheet when a language is missing
-            while preparing && !Task.isCancelled { try? await Task.sleep(for: .milliseconds(200)) }
+        if settings.provider == .apple, !AppleTranslation.available {
+            state = .failed("Apple's translation needs iOS 26.")
+            return
         }
         let root = job.gameRoot
         let lines = await Task.detached(priority: .userInitiated) { () -> [String] in
             RPGMakerText.dataFolder(gameRoot: root).map(RPGMakerText.lines(dataFolder:)) ?? []
         }.value
         guard !lines.isEmpty else { state = .failed("No messages found in this game's data files."); return }
+        if settings.provider == .apple, let missing = await AppleTranslation.missingLanguages(settings, sample: lines) {
+            state = .failed(missing)
+            return
+        }
         if settings.provider.needsKey, (TranslationKeys.read(settings.provider) ?? "").isEmpty {
             state = .failed("\(settings.provider.title) needs an API key: Settings › Translation.")
             return
