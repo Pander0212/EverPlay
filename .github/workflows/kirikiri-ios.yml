@@ -73,8 +73,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           name="ShioriKrkr_ios-arm64-${KIRIKIT_COMMIT:0:7}.framework.zip"
+          # Never replace a published engine: allinone.yml pins its checksum (a rebuild from another
+          # branch overwrote it once and broke the nightly). A new KiriKit commit gets a new name.
+          if gh release view libretro-cores --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | grep -qx "$name"; then
+            echo "$name is already published; kept as it is."
+            exit 0
+          fi
           cp ShioriKrkr.framework.zip "$name"
-          gh release upload libretro-cores --repo "$GITHUB_REPOSITORY" --clobber "$name"
+          gh release upload libretro-cores --repo "$GITHUB_REPOSITORY" "$name"
           echo "Pin in allinone.yml: $name $(shasum -a 256 "$name" | cut -d' ' -f1)"
       - name: Keep the logs
         if: always()

@@ -211,7 +211,7 @@ jobs:
       MKXP_FRAMEWORK_SHA256: 40d8c1afc7acd30d32a51eab9f93d1058691f728be23d100b59c432a413af68c
       # KiriKiri: ShioriKrkr.framework from KiriKit, published by kirikiri-ios.yml (empty: build without it).
       KIRIKIRI_FRAMEWORK: ShioriKrkr_ios-arm64-fe8a262.framework.zip
-      KIRIKIRI_FRAMEWORK_SHA256: 63e1e23bc92d7891d342d5ccd22a9cb7fb66405737720c896c2a09e6c2d13dbc
+      KIRIKIRI_FRAMEWORK_SHA256: ad26e389acebe9a9d378c4044d50af533afd247cfcf54a59d747021b8125b702
       # General MIDI sounds for XP/VX games' MIDI music: TimGM6mb (GPL-2) from Ubuntu's archive.
       MIDI_SOUNDFONT_DEB: http://archive.ubuntu.com/ubuntu/pool/universe/t/timgm6mb-soundfont/timgm6mb-soundfont_1.3-5_all.deb
       MIDI_SOUNDFONT_DEB_SHA256: b70bc29b8f27adef8f92a2d9c1e26cee977b84c68110f0dd4326d97730a7c3ed
