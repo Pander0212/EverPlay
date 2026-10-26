@@ -12,13 +12,26 @@ Stand: 2026-10-26. Alles ist **[R]**; nichts wurde im Simulator oder auf dem iPh
 
 ## Ergebnis
 
-**Geht nicht, für die vorliegenden Testspiele. Abbruchgrenze erreicht:** Es ist kein Weg erkennbar, auf dem eines
-der Testspiele in absehbarer Zeit auch nur ein Bild zeigt. Beide geprüften Spiele sind IL2CPP (x86-64-Spielcode) und
-haben nur D3D11-Shader. Dafür bräuchte es gleichzeitig einen x86-64→ARM64-Übersetzer mit Win32-Nachbau im Prozess
-und eine Shader-Umwandlung DXBC → GLES/Metal, beides Projekte in der Größenordnung von Monaten bis Jahren.
+**Geht unter Bedingungen, aber nicht durch eigenen Bau in EverPlay, sondern über Madeira.** (Neu, 2026-10-26.)
 
-Für Mono-Spiele allgemein: **geht nicht auf dem im Auftrag vermuteten Weg; höchstens unter starken Bedingungen**
-(Weg A unten, Forschungsaufwand in Monaten), und auch dann nur mit Shader-Umwandlung.
+[Madeira](https://github.com/willfaust/Madeira) (GPL-3.0-or-later + Converter-Ausnahme, Release 0.1.x, letzter Commit
+2026-10-23) führt **unveränderte Windows-Spiele auf dem iPhone ohne Jailbreak** aus: FEX (x86/x86-64 → ARM64) +
+Wine 11.4 als ARM64EC (Wine selbst nativ, nur Spielcode übersetzt) + DXMT (D3D9/10/11 → Metal, DXBC → Metal über
+airconv/LLVM) + eigenes D3D12. Alles in **einem Prozess**, `wineserver` als Thread. Voraussetzungen: iOS 26+, JIT
+(StikDebug oder eingebautes StikJIT), „Memory+“ (increased-memory-limit). Laut README und Berichten spielbar u. a.
+Thumper und ULTRAKILL (Unity, Mono); im Code wird an Unity-Spielen gearbeitet (Unity-Raw-Input, ein FEX-Fehler in
+Unitys `mono-2.0-bdwgc.dll`-JIT bei ULTRAKILL, Unitys „Failed to load il2cpp“-Dialog). [R, Code und Doku gelesen]
+
+Das ist genau Weg D, den diese Studie als „Jahre“ eingeschätzt hat, und er existiert schon. Damit:
+- **Eigener Hybrid lohnt sich nicht mehr.** Er wäre Monate Arbeit, nur für Unity-IL2CPP und mit Shader-Umwandlung;
+  Madeira deckt Mono, IL2CPP und alle anderen Windows-Spiele ab und wird von anderen gepflegt.
+- **Empfehlung:** EverPlay erkennt Unity- und andere Windows-Spiele (gibt es schon, `EngineFingerprint`) und bietet
+  „Mit Madeira spielen“ an (Anleitung + `madeira://play?exe=…`, siehe unten). Aufwand: Tage.
+- Testspiele (Fellworld, FantasyStudio) in Madeira auf dem iPhone ausprobieren; das wäre der erste Wert der Stufe
+  „auf dem iPhone bestätigt“.
+
+Frühere Einschätzung (gilt weiter für einen *eigenen* Bau ohne Madeira): Beide Testspiele sind IL2CPP mit nur
+D3D11-Shadern; ein Android-Unity-Player hilft dafür nicht, und Mono-ARM64 gibt es auf Android nicht.
 
 1. **Den vermuteten Hauptweg gibt es nicht** [R]: Ein „Android-Unity-Player ARM64 mit Mono“ existiert nicht.
    Unity baut Mono auf Android nur für **ARMv7 (32 Bit)**; ARM64 auf Android gibt es nur mit IL2CPP. Unitys
@@ -203,6 +216,37 @@ DXBC → GLSL/Metal (so baut Unity selbst GLES/Metal-Shader). Ein Offline-Konver
 D3D11-Unterprogramme übersetzen und als GLES3-Unterprogramme samt Parameter-/Binding-Tabellen eintragen. Aufwand: Wochen
 bis Monate, versionsabhängig (Shader-Serialisierung ändert sich zwischen Unity-Versionen).
 
+## Madeira im Detail und Anbindung an EverPlay
+
+Gelesen bei Commit `e3a88fd` (2026-10-23). [R]
+- Aufbau: `wine/`, `FEX/`, `dxmt/`, `madeira-dock/` sind Madeiras eigene Forks (Submodule); `app/` die iOS-App,
+  `madeira-d3d12/` D3D12 auf Metal (DXIL über Apples proprietären Metal Shader Converter, per `dlopen`).
+- Lizenz: App GPL-3.0-or-later mit Ausnahme für Apples Converter; Wine-Fork LGPL-2.1+ (statisch gelinkt, mit
+  Relink-Pflichten); FEX- und DXMT-Fork: Upstream MIT, Madeiras Änderungen GPL-3.0+. VC++-Runtime nicht enthalten.
+- Spiele hinzufügen: Ordner per Dateien-App nach **Madeira › wine › drive_c** kopieren, dann `+` und die `.exe`
+  wählen (`docs/LIBRARY.md`). Start von außen: URL-Schema `madeira://play?exe=…` (Home-Bildschirm-Kurzbefehle,
+  `ShortcutRouter`). EverPlay kann nicht in Madeiras Container schreiben; der Nutzer muss den Ordner selbst kopieren.
+
+Varianten für EverPlay:
+1. **Weiterreichen (empfohlen, Tage):** Bei Unity/Windows-Spielen auf der Spieleseite „Mit Madeira spielen“:
+   Anleitung (installieren, JIT, Ordner nach `drive_c` kopieren), danach Knopf, der `madeira://play?exe=…` öffnet.
+   Genaues Parameterformat vorher in `SavesAndShortcuts.swift`/`ShortcutRouter` nachlesen.
+2. **Madeira in EverPlay einbauen (Monate, Dauerpflege):** FEX, Wine (ARM64EC) und DXMT in EverPlays Prozess, ein
+   Spiel pro Start wie bei mkxp-z. Lizenz: EverPlay müsste als Ganzes GPL-3.0 sein; die Converter-Ausnahme gilt
+   nicht für EasyRPG oder mkxp-z, also `madeira-d3d12` und den Apple-Converter weglassen (D3D11 über DXMT braucht
+   ihn nicht). Riesiger Build (Wine, LLVM, FEX), JIT/Memory+-Pflicht für die ganze App. Nicht empfohlen.
+3. **Eigener Hybrid** (siehe unten): durch Madeira überholt.
+
+Weitere neue Projekte [R, nur gelesen, nicht gebaut]:
+- [Leviidev/Fathom](https://github.com/Leviidev/Fathom): FEXCore im Prozess auf iOS für statische Linux-x86-64-ELFs,
+  eigene Syscall-Schicht, noch ohne Threads und GPU. Zeigt FEX auf iOS, für Spiele zu früh.
+- [AetherPS4](https://github.com/Leviidev/AetherPS4): PS4 (x86-64) auf iOS mit FEXCore und HLE, experimentell.
+- [DXMT](https://github.com/3Shain/dxmt): D3D11 → Metal inklusive DXBC → Metal (airconv); für einen eigenen Hybrid
+  wäre das der Shader-Konverter. DXVK 3.0 nutzt seit Juni 2026 `dxbc-spirv` (DXBC → SPIR-V).
+- Switch-Emulatoren auf iOS: `eden-ios` (Switch 1) zeigt laut eigenem Stand (2026-09-11) noch kein Bild; Switch-2-
+  Projekte (pound, oboromi) laufen noch keine kommerziellen Spiele. Switch-Code ist ohnehin ARM64, also ein anderes
+  Problem als x86-64.
+
 ## IL2CPP (nur dokumentiert, nicht gebaut)
 
 Windows-IL2CPP-Spiel = `GameAssembly.dll` (x86-64, Windows-PE, enthält den gesamten Spielcode als nativen Code) +
@@ -255,7 +299,15 @@ Aufwand: Größenordnung eines eigenen Emulatorprojekts (viele Monate, Experten)
 
 ## Nächste Schritte (Checkliste)
 
-Nur sinnvoll, wenn Unity trotz des Ergebnisses weiterverfolgt werden soll:
+Mit Madeira (empfohlen):
+
+- [ ] Auf dem iPhone: Madeira installieren (Release-IPA, JIT, Memory+), Fellworld und FantasyStudio nach `drive_c`
+      kopieren und starten. Ergebnis (Bild? FPS? Absturz?) hier unter „auf dem iPhone bestätigt“ eintragen.
+- [ ] `madeira://play?exe=…` nachlesen (`app/Madeira/SavesAndShortcuts.swift`, `ShortcutRouter`) und testen, ob ein
+      Start aus einer anderen App (EverPlay) funktioniert.
+- [ ] In EverPlay: Unity-/Windows-Meldung beim Import um „Mit Madeira spielen“ erweitern (Anleitung + Knopf).
+
+Ohne Madeira (eigener Bau, nur falls Madeira ausfällt):
 
 - [ ] Die zwei Gofile-Testspiele prüfen (`python3 -I scripts/unity_probe.py <Spielordner>`); als Mega-Link schicken lassen,
       falls Gofile weiter nicht geht. Ein **Mono**-Spiel mit **OpenGLCore- oder Vulkan-Shadern** wäre der einzig
