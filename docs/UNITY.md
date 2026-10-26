@@ -87,13 +87,19 @@ Erkennung (nur Dateinamen und Header lesen, nichts ausführen):
     **WineD3D/DXVK**. „Unity games keep their existing runtime.“
   - **0.9.7**: Runtime 1.0.0-beta4, läuft auf Android 15/16, Sprachwahl.
 
-  **Schluss daraus (Vermutung, nicht belegt):** Eine einzige 150-MB-Runtime für alle Unity-Versionen, die
-  `UnityPlayer.dll` verlangt, Spiele beim ersten Start „vorbereitet“ und „borderless fullscreen“ (ein Windows-
-  Fenstermodus) anbietet, führt sehr wahrscheinlich den **Windows-Player des Spiels selbst** aus, also
-  x86-64-Emulation (Box64 oder FEX) + Wine + D3D11-Übersetzung (DXVK/WineD3D), auf Unity zugeschnitten. Ein
-  Android-Unity-Player passender Version kann es nicht sein: das wären Dutzende Versionen à mehrere 10 MB, und IL2CPP-
-  Spiele (die Mehrheit) liefen damit gar nicht. Das passt zum Befund dieser Studie, dass es keinen anderen Weg gibt.
-  Belegen ließe es sich, indem man die Dateiliste der Runtime-APK ansieht (`libbox64`, `wine`, `dxvk` o. ä.).
+  **Belegt durch die Dateilisten der APKs** [R, nur `unzip -l` und `strings` auf `classes.dex`, nichts ausgeführt]:
+  - MinHub 0.9.7 selbst enthält keinen Unity-Player. Es lädt `Plugin/Unity/1.0.0-beta4/MinHubUnityRuntime.apk`
+    (Paket `com.minhub.unityruntime`, Signatur geprüft) und startet darin `com.winlator.MinHubLaunchActivity`.
+    Die EXE-Runtime (`com.minhub.exeruntime`) startet `com.winlator.ExeLaunchActivity`.
+  - Die Unity-Runtime (157 MB) ist ein **Winlator-Fork**: `assets/box64/box64-0.4.4.tzst`, `assets/rootfs.tzst`
+    (65 MB, Linux-Userland mit Wine), `dxwrapper/dxvk-1.10.3`, `dxvk-2.4.1`, `vkd3d-2.14.1`, `d7vk`, `d8vk`,
+    `cnc-ddraw`, `wincomponents/direct3d`, `vcrun2005/2010`, `xaudio`, GPU-Treiber `turnip-26.2.0`, `zink`, `virgl`,
+    `vortek`, `gladio`, dazu `libwinlator.so`, `libvortekrenderer.so`, `libvirglrenderer.so`, PulseAudio.
+  - **MinHub führt also den Windows-Player des Spiels unverändert aus**: Box64 (x86-64→ARM64) + Wine + DXVK
+    (D3D11→Vulkan). Kein Android-Unity-Player, kein Mono-Trick. Damit laufen IL2CPP- und Mono-Spiele gleich, und
+    D3D11-Shader sind kein Problem. Die „Unity-Runtime“ ist ein auf Unity voreingestelltes Winlator.
+  - Das bestätigt den Befund dieser Studie: Es gibt keinen Unity-spezifischen Abkürzungsweg; auch auf Android geht es
+    nur über Windows-Emulation (Weg D).
 
 - Laut Auftraggeber gibt es unter den gewünschten Spielen **fast keine Mono-Spiele**; die Mehrheit ist IL2CPP.
   Damit ist Weg A (Mono) auch praktisch bedeutungslos.
@@ -160,7 +166,7 @@ Technisch der „echte“ Mono-Android-Player, aber iPhones haben kein AArch32. 
 
 ### Weg D: Windows-Spiel unverändert (Wine + Box64-artig + DXVK/MoltenVK)
 
-Das, was Winlator auf Android macht, und sehr wahrscheinlich auch MinHubs Unity-Runtime (siehe oben). Es ist der
+Das, was Winlator auf Android macht, und nachweislich auch MinHubs Unity-Runtime (siehe oben). Es ist der
 einzige Weg, der IL2CPP-Spiele und D3D11-Shader ohne Umbau abdeckt, weil Unitys eigener Windows-Player läuft.
 Auf iOS fehlt dafür fast alles [R]:
 - Box64 setzt Linux voraus (Syscalls, ELF-Loader, eingepackte Linux-Bibliotheken). Für iOS müsste der Dynarec in
@@ -223,8 +229,9 @@ Nur sinnvoll, wenn Unity trotz des Ergebnisses weiterverfolgt werden soll:
       falls Gofile weiter nicht geht. Ein **Mono**-Spiel mit **OpenGLCore- oder Vulkan-Shadern** wäre der einzig
       realistische Kandidat für Weg A.
 - [x] MinHub-Changelog gelesen (PDF vom Auftraggeber).
-- [ ] MinHubs Unity-Runtime-APK (ca. 150 MB) nur auflisten (`unzip -l`, Namen der `.so`-Dateien in `lib/arm64-v8a/`),
-      um die Vermutung Box64/FEX + Wine + DXVK zu bestätigen oder zu widerlegen. Nichts davon ausführen, nichts ins Repo.
+- [x] MinHubs Unity-Runtime-APK aufgelistet: Winlator-Fork (Box64 + Wine + DXVK), siehe oben.
+- [ ] Falls Weg D je angegangen wird: prüfen, ob es Box64-, Wine- oder Winlator-Portierungen für iOS/Darwin mit
+      Debugger-JIT gibt (Stand 2026), und Winlators Lizenz im Wortlaut festhalten.
 - [ ] Unity-Lizenzbedingungen zur Weitergabe der Runtime im Wortlaut zitieren.
 - [ ] Für Weg A: von einer frei verfügbaren Android-APK mit Unity (IL2CPP, ARM64) gleicher Version die `il2cpp_*`-Importe
       von `libunity.so` auflisten (nur `readelf`, nichts ausführen). Ergibt die API-Fläche des Shims.
