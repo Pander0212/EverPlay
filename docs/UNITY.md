@@ -181,6 +181,21 @@ Auf iOS fehlt dafür fast alles [R]:
 Aufwand: ein eigenes „Winlator für iOS“, Größenordnung Jahre. Davon würden alle Windows-Spiele profitieren, nicht
 nur Unity. Für diese Studie nicht weiterverfolgt.
 
+### Weg E: UTM (QEMU, ganzer PC emuliert)
+
+[UTM](https://github.com/utmapp/UTM) läuft auf iOS (mit JIT per Sideload/StikDebug; UTM SE ohne JIT nur interpretiert)
+und emuliert einen ganzen Rechner mit QEMU-TCG. iOS hat keinen Hypervisor, also wird jede Anweisung übersetzt, mit
+Software-MMU; Husk nennt genau diesen Modus „much slower“ als seine Translation Layer. [R, nicht gemessen]
+- Windows-Gast: keine 3D-Beschleunigung in UTM → D3D11 nur über WARP (Software) auf emulierter CPU. Für Unity unbrauchbar.
+- Linux-Gast mit Wine: OpenGL über virgl (→ ANGLE/Metal) ist beschleunigt, WineD3D macht D3D11 → OpenGL. Spielcode doppelt
+  übersetzt (ARM-Gast + Box64, oder x86-Gast über TCG). Ein Bild ist denkbar, flüssiges Spielen kaum; Gast-RAM von
+  mehreren GB ist auf dem iPhone knapp.
+- Lizenz: QEMU ist GPLv2-only, mit GPLv3-Code (EasyRPG) im selben Prozess nicht kombinierbar; UTMs App-Code ist
+  Apache-2.0, ebenfalls nicht GPLv2-kompatibel (siehe Husks `docs/01-licensing.md`). Für EverPlay also höchstens:
+  auf UTM verweisen, nicht einbauen.
+- Prüfbar ohne Code: UTM mit JIT installieren, ARM64-Linux + Box64 + Wine + virgl, Fellworld starten, FPS notieren.
+  Das wäre der erste echte Messwert dieser Studie (Stufe „auf dem iPhone bestätigt“).
+
 ### Gemeinsamer Baustein für A und B: Shader-Umwandlung
 
 DXBC → GLSL ES / MSL. Unitys eigener Übersetzer [HLSLcc](https://github.com/Unity-Technologies/HLSLcc) macht genau
