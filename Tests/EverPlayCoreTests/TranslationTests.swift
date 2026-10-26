@@ -13,6 +13,14 @@ final class TranslationTests: XCTestCase {
         XCTAssertEqual(TranslationMasking.mask("Plain text").tokens, [])
     }
 
+    func testOpenAICompatibleBaseURLWithOrWithoutTheEndpoint() throws {
+        for base in ["https://api.electronhub.ai/v1", "https://api.electronhub.ai/v1/", "https://api.electronhub.ai/v1/chat/completions"] {
+            let settings = TranslationSettings(provider: .openAI, targetLanguage: "de", model: "m", baseURL: base)
+            let request = try TranslationAPI.request(for: ["Hi"], settings: settings, key: "k")
+            XCTAssertEqual(request.url?.absoluteString, "https://api.electronhub.ai/v1/chat/completions", base)
+        }
+    }
+
     func testGoogleRequestAndReply() throws {
         let settings = TranslationSettings(provider: .google, targetLanguage: "DE")
         let request = try TranslationAPI.request(for: ["Good morning"], settings: settings, key: nil)
