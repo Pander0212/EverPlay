@@ -151,8 +151,8 @@ jobs:
             if limited 30 xcrun simctl io "$udid" screenshot artifacts/warmup.png; then break; fi
             sleep 15
           done
-          limited 60 xcrun simctl launch --stdout="$PWD/artifacts/probe-stdout.log" --stderr="$PWD/artifacts/probe-stderr.log" \
-            "$udid" "$bundle" -EverPlayAutoplayZip GodotProbe.zip || echo "launch failed or timed out"
+          # No --stdout: simctl would stay attached (and the app end with it); Godot logs to godot.log anyway.
+          limited 60 xcrun simctl launch "$udid" "$bundle" -EverPlayAutoplayZip GodotProbe.zip || echo "launch failed or timed out"
           sleep 20
           limited 60 xcrun simctl io "$udid" screenshot artifacts/godot-probe.png || true
           sleep 30
