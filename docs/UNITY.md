@@ -247,6 +247,60 @@ Weitere neue Projekte [R, nur gelesen, nicht gebaut]:
   Projekte (pound, oboromi) laufen noch keine kommerziellen Spiele. Switch-Code ist ohnehin ARM64, also ein anderes
   Problem als x86-64.
 
+## Hybrid: Arbeitsstand
+
+Entscheidung des Auftraggebers (2026-10-26): Der Hybrid wird trotz Madeira verfolgt (schneller für Unity, neu).
+Schritte: M0 GameAssembly analysieren → M1 Android-`libunity.so` analysieren und abgleichen → M2 FEX + PE-Loader +
+Mini-Win32 auf dem iPhone, `il2cpp_init` → M3 Husk-Unity-Treiber + Ersatz-`libil2cpp.so`, Engine startet →
+M4 Shader-Umwandlung, erstes Bild.
+
+### M0: `GameAssembly.dll` von Fellworld (2021.3.18f1) — erledigt [R, Dateien gelesen, nichts ausgeführt]
+
+Werkzeuge: `pefile` (Python) für den PE-Kopf; ein eigener Parser für `global-metadata.dat` v29 (r2unity zu bauen
+wurde in der Cloud-Umgebung als „fremden Code kompilieren“ blockiert). Spielspezifisches steht hier nicht, nur Zahlen
+und Unity-/Windows-API-Namen.
+
+- **PE**: x86-64 (`0x8664`), Abschnitte `.text` 2,4 MB + `il2cpp` 14,7 MB Code, `.rdata` 4,6 MB, `.data` 4,1 MB,
+  **TLS-Verzeichnis** vorhanden (statisches TLS nötig), **77 489 `.pdata`-Einträge** (x64-Unwind-Info), 527 Reloc-Blöcke.
+- **Importe: 206 Funktionen aus 10 DLLs** = Umfang des Mini-Win32:
+  - `KERNEL32` 158: Speicher (`VirtualAlloc/Protect/Query`, `Heap*`), Threads und Sync (`CreateThread`, SRW-Locks,
+    CriticalSection, Condition Variables, Events, Semaphoren, Mutex, `Tls*`, `Fls*`, `QueueUserAPC`), Dateien
+    (`CreateFileW`, `FindFirstFileExW`, Mapping, …), Zeit/Zeitzone, Locale/Codepages, Konsole,
+    **Ausnahmen** (`RaiseException`, `RtlUnwindEx`, `RtlVirtualUnwind`, `RtlLookupFunctionEntry`, `RtlCaptureContext`),
+    **GC-Thread-Stopp** (`SuspendThread`, `GetThreadContext`, `ResumeThread`).
+  - `USER32` 5 (Fenster aufzählen, `MessageBoxA`) → Stubs. `ADVAPI32` 3 (Zufall). `ole32` 6 / `OLEAUT32` 10 (COM-Minimum,
+    SafeArray/BSTR). `SHELL32` 2 (Ordnerpfade). `WS2_32` 4, `IPHLPAPI` 3 (Netz). `dbghelp` 2 (Stacktraces → Stub).
+  - `baselib.dll` 13 (Unitys eigene Plattformschicht als zweite x64-DLL: Semaphoren, Thread-ID, DynamicLibrary) →
+    nativ nachbauen statt übersetzen.
+- **Exporte: 380, davon 235 `il2cpp_*`** = die Schnittstelle, über die die Engine mit dem Spielcode spricht. Dazu
+  Brotli, ZStream und ~130 `mono_*`-Funktionen (Debugger-Unterstützung, für den Hybrid unwichtig).
+- **Metadaten**: Version 29 (r2unity und Il2CppDumper können sie), 49 597 Methoden.
+  - **45 P/Invokes**, alle aus der .NET-Bibliothek, Windows-APIs, die zur Laufzeit per `LoadLibrary`/`GetProcAddress`
+    geholt werden: Registry (`RegOpenKeyEx` …), ntdll-Dateifunktionen (`NtCreateFile`, `NtQueryDirectoryFile`),
+    Zeitzonen, Konsole, `BCryptGenRandom`, drei Fensterfunktionen (`GetActiveWindow`, `GetWindowRect`, `SetWindowPos`).
+    → kommen zum Mini-Win32 dazu, meist als Stub.
+  - **1 689 InternalCalls** (1 541 verschiedene Namen) = Aufrufe des Spielcodes in die Engine. Im Hybrid sind das
+    ARM64-Funktionen der Android-`libunity`, die x86-64-Code aufruft → je ein Übergang x64 (Microsoft-Konvention) →
+    ARM64 (AAPCS64). Lässt sich generisch erzeugen, wenn die Signaturen aus den Metadaten gelesen werden.
+
+**Bewertung M0: kein Blocker.** Das Mini-Win32 ist mit rund 250 Funktionen überschaubar, die meisten sind dünne
+Hüllen über Darwin/pthreads. Die drei schweren Stellen sind:
+1. **x64-Ausnahmen** (C++-Exceptions, mit denen IL2CPP .NET-Exceptions umsetzt): ein x64-Unwinder auf `.pdata`
+   (`RtlVirtualUnwind`, `RtlUnwindEx`) im übersetzten Code. Vorlage: Wines `ntdll` (LGPL), FEX hat Hilfen dafür.
+2. **GC-Stopp** (Boehm): `SuspendThread` + `GetThreadContext` müssen den x86-Registerstand eines übersetzten
+   Threads liefern. FEX kennt ihn, aber nur an sicheren Punkten.
+3. **Übergänge** in beide Richtungen: 235 `il2cpp_*` (ARM → x64) und 1 689 InternalCalls plus Callbacks (x64 → ARM).
+
+### M1: Android-`libunity.so` 2021.3.18f1 (IL2CPP, arm64) — offen
+
+Braucht die Android-Engine genau dieser Version. Quellen: das Android-Modul des Unity-Editors 2021.3.18f1
+(`PlaybackEngines/AndroidPlayer/Variations/il2cpp/Release/Libs/arm64-v8a/libunity.so`) oder eine beliebige Android-APK,
+die mit 2021.3.18f1 und IL2CPP gebaut ist. Nur lesen (`readelf`/`nm`), nichts ins Repo. Zu prüfen:
+- welche `il2cpp_*`-Funktionen `libunity` importiert bzw. per `dlsym` holt (Abgleich mit den 235 Exporten oben);
+- ob `libunity` il2cpp-Strukturen direkt liest (Feld-Offsets von `Il2CppClass`, `Il2CppObject`) statt über die API;
+- welche InternalCalls `libunity` per `il2cpp_add_internal_call` registriert (Abgleich mit den 1 689 aus M0;
+  Windows-only-Klassen fehlen dann).
+
 ## IL2CPP (nur dokumentiert, nicht gebaut)
 
 Windows-IL2CPP-Spiel = `GameAssembly.dll` (x86-64, Windows-PE, enthält den gesamten Spielcode als nativen Code) +
