@@ -6,21 +6,31 @@ import Foundation
 /// Data/…), or packed in Data.wolf or one archive per folder (Data/BasicData.wolf, …) beside
 /// Game.exe (GamePro.exe for WOLF RPG Editor Pro).
 public enum WolfGame {
+    /// The extensions of WOLF archives: .wolf, and others WOLF RPG Editor Pro games may use.
+    static let archiveExtensions: Set<String> = ["wolf", "data", "pak", "bin", "assets", "content", "res", "resource"]
+
+    /// The key file of a Pro game's archives, in Data (lowercase names without extension).
+    static let proKeyFiles: Set<String> = ["game", "list", "data2", "gamefile", "basicdata2"]
+
+    private static func isArchive(_ lower: String) -> Bool { archiveExtensions.contains((lower as NSString).pathExtension) }
+
     /// Whether a file (its path in the import) marks a WOLF game; it is then the entry point.
     static func marker(_ relative: String) -> Bool {
         let lower = relative.lowercased()
-        return lower == "data/basicdata/game.dat" || lower.hasSuffix("/data/basicdata/game.dat")
-            || lower == "data/basicdata.wolf" || lower.hasSuffix("/data/basicdata.wolf")
-            || (lower as NSString).lastPathComponent == "data.wolf"
+        if lower == "data/basicdata/game.dat" || lower.hasSuffix("/data/basicdata/game.dat") { return true }
+        guard isArchive(lower) else { return false }
+        let base = (lower as NSString).deletingPathExtension
+        return base == "data/basicdata" || base.hasSuffix("/data/basicdata") || (base as NSString).lastPathComponent == "data"
     }
 
     /// Whether the marker is a packed archive (which needs Game.exe beside it to count).
-    static func isArchiveMarker(_ relative: String) -> Bool { relative.lowercased().hasSuffix(".wolf") }
+    static func isArchiveMarker(_ relative: String) -> Bool { !relative.lowercased().hasSuffix("game.dat") }
 
     /// The game folder (relative to the import, "" for its top) of an entry point from `marker`.
     public static func folder(ofEntryPoint entry: String) -> String {
         let lower = entry.lowercased()
-        let levels = lower.hasSuffix("basicdata/game.dat") ? 3 : lower.hasSuffix("data/basicdata.wolf") ? 2 : 1
+        let base = (lower as NSString).deletingPathExtension
+        let levels = lower.hasSuffix("basicdata/game.dat") ? 3 : base.hasSuffix("data/basicdata") ? 2 : 1
         var components = entry.split(separator: "/").map(String.init)
         components.removeLast(min(levels, components.count))
         return components.joined(separator: "/")
@@ -29,16 +39,21 @@ public enum WolfGame {
     /// The executables WOLF games ship with, lowercased.
     static let executables: Set<String> = ["game.exe", "gamepro.exe"]
 
-    /// Archives of WOLF RPG Editor Pro, which need the game's own key; EverPlay cannot open those yet.
-    /// They are DxLib version 8 archives whose header names an encryption version of 1000 or more.
+    /// Archives of WOLF RPG Editor Pro that EverPlay cannot open: their key comes from a key file in
+    /// Data (Game.wolf, List.wolf, …), and these games have none. Pro archives are DxLib version 8
+    /// archives whose header names an encryption version of 1000 or more.
     public static func proArchives(gameFolder: URL) -> [String] {
         var candidates: [URL] = []
         if let top = try? FileManager.default.contentsOfDirectory(at: gameFolder, includingPropertiesForKeys: nil) {
-            candidates += top.filter { $0.lastPathComponent.lowercased() == "data.wolf" }
+            candidates += top.filter { $0.deletingPathExtension().lastPathComponent.lowercased() == "data"
+                && archiveExtensions.contains($0.pathExtension.lowercased()) }
         }
         if let data = caseInsensitiveFile("Data", in: gameFolder),
            let inside = try? FileManager.default.contentsOfDirectory(at: data, includingPropertiesForKeys: nil) {
-            candidates += inside.filter { $0.pathExtension.lowercased() == "wolf" }
+            let archives = inside.filter { archiveExtensions.contains($0.pathExtension.lowercased()) }
+            let hasKeyFile = archives.contains { proKeyFiles.contains($0.deletingPathExtension().lastPathComponent.lowercased()) }
+            if hasKeyFile { return [] }
+            candidates += archives
         }
         return candidates.filter { url in
             guard let handle = try? FileHandle(forReadingFrom: url) else { return false }

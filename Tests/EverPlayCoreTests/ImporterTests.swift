@@ -261,6 +261,11 @@ final class ImporterTests: FixtureTestCase {
         try FileManager.default.createDirectory(at: proGame, withIntermediateDirectories: true)
         try Data(head).write(to: proGame.appendingPathComponent("BasicData.wolf"))
         XCTAssertEqual(WolfGame.proArchives(gameFolder: proGame.deletingLastPathComponent()), ["BasicData.wolf"])
+        try Data([0xA0, 1, 2]).write(to: proGame.appendingPathComponent("Game.wolf"))
+        XCTAssertEqual(WolfGame.proArchives(gameFolder: proGame.deletingLastPathComponent()), [], "the key file opens them")
+        let renamed = try prepare([("GamePro.exe", Data("MZ".utf8)), ("Data/BasicData.data", Data([1])), ("Data/List.data", Data([1]))])
+        XCTAssertEqual(renamed.validation.entryPoint, "Data/BasicData.data")
+        XCTAssertEqual(WolfGame.folder(ofEntryPoint: "X/Data/BasicData.pak"), "X")
         let single = try prepare([("Game/Game.exe", Data("MZ".utf8)), ("Game/Data.wolf", Data([1]))])
         XCTAssertEqual(WolfGame.folder(ofEntryPoint: single.validation.entryPoint), "Game")
         // A game with both: the loose data wins over its archives.

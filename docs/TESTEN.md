@@ -166,9 +166,10 @@ EverPlay spielt WOLF-RPG-Editor-Spiele (Version 2 und 3) jetzt mit einer eigenen
 6. Spiel beenden: über das Spielmenü (EverPlay schließt sich dann, wie bei RPG Maker XP/VX).
 
 Noch nicht möglich:
-- Spiele aus WOLF RPG Editor **Pro**, deren Archive einen spieleigenen Schlüssel brauchen. EverPlay sagt das
-  beim Import und beim Start. Abhilfe: entpackte Spieldateien verwenden. Normale `.wolf`-Archive (WOLF 2.x
-  und 3.x bis 3.5) gehen.
+- WOLF RPG Editor **Pro**: Archive mit spieleigenem Schlüssel öffnet EverPlay über die Schlüsseldatei des
+  Spiels (`Data/Game.wolf`, `List.wolf` o. ä.). Das ist mangels Testspiel **ungetestet**. Fehlt die
+  Schlüsseldatei, sagt EverPlay das beim Import und beim Start. Normale `.wolf`-Archive (WOLF 2.x und 3.x bis 3.5)
+  sind mit Bodywork Clinic geprüft.
 - Spiele mit eigenem Nachrichtensystem zeigen manchmal keinen Text (bekannt bei „MY“).
 - Videos und Tastatur-Texteingabe fehlen noch; das Mausrad gibt es per Touch nicht.
 

@@ -45,7 +45,7 @@ public enum EngineFingerprint {
         },
         Rule(engine: "Wolf RPG Editor", playable: true,
              outlook: "EverPlay plays WOLF RPG Editor games with its own engine (experimental).") {
-            ext($0) == "wolf" || $0.hasSuffix("basicdata/game.dat") || name($0) == "game.wolf"
+            ext($0) == "wolf" || WolfGame.marker($0)
         },
         Rule(engine: "Unity", playable: false,
              outlook: "Unity games are compiled for Windows, Mac or Android; only a version the developer builds for iOS can run on iPhone.") {

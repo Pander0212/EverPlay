@@ -106,7 +106,7 @@ public enum GameDetector {
             let folder = WolfGame.folder(ofEntryPoint: entry)
             let pro = WolfGame.proArchives(gameFolder: folder.isEmpty ? root : root.appendingPathComponent(folder))
             return GameValidationResult(engine: .wolfRPG, entryPoint: entry, warnings: pro.isEmpty ? [] : [
-                "Made with WOLF RPG Editor Pro: its archives need the game's own key, which EverPlay cannot read yet."
+                "Made with WOLF RPG Editor Pro: its archives need the game's key file (Data/Game.wolf or the like), which is missing."
             ])
         }
         if let entry = kirikiriEntries.min(by: { ($0.split(separator: "/").count, $0.hasSuffix(".tjs") ? 1 : 0)

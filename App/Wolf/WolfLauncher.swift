@@ -37,7 +37,7 @@ enum WolfLauncher {
         let pro = WolfGame.proArchives(gameFolder: folder)
         if !pro.isEmpty {
             return "This game was made with WOLF RPG Editor Pro; its archives (\(pro.joined(separator: ", "))) "
-                + "need the game's own key, which EverPlay cannot read yet."
+                + "need the game's own key file, which is missing."
         }
         EverPlayLog.write("Starting \(game.title) with the WOLF RPG engine")
         let saves = SaveFolders.libretro(game)
