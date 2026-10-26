@@ -35,6 +35,13 @@ struct RootView: View {
                let game = renpy.games.first(where: { $0.folder == arguments[index + 1] }) {
                 renpy.play(game)
             }
+            // CI: import a ZIP from Documents (once) and start it, e.g. the Godot probe.
+            if let index = arguments.firstIndex(of: "-EverPlayAutoplayZip"), index + 1 < arguments.count {
+                let zip = library.documents.appendingPathComponent(arguments[index + 1])
+                let title = zip.deletingPathExtension().lastPathComponent
+                if !library.games.contains(where: { $0.title == title }) { await library.importZIP(zip) }
+                library.selectedGame = library.games.first { $0.title == title }
+            }
         }
         .alert("EverPlay", isPresented: Binding(get: { notice != nil }, set: { if !$0 { clearNotices() } })) {
             Button("OK") { clearNotices() }

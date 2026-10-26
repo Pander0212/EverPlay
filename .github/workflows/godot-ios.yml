@@ -8,6 +8,8 @@ on:
     paths:
       - .github/workflows/godot-ios.yml
       - scripts/godot/**
+      - Tests/Fixtures/GodotProbe/**
+      - App/Godot/**
 permissions:
   contents: read
 concurrency:
@@ -32,7 +34,7 @@ jobs:
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: .scons-cache
-          key: godot-ios-${{ matrix.version }}-${{ matrix.kind }}-v1-${{ hashFiles('scripts/godot/**') }}
+          key: godot-ios-${{ matrix.version }}-${{ matrix.kind }}-v1-${{ github.run_id }}
           restore-keys: godot-ios-${{ matrix.version }}-${{ matrix.kind }}-v1-
       - name: Build tools
         run: python3 -m pip install --break-system-packages --quiet 'scons==4.9.1'
@@ -58,7 +60,7 @@ jobs:
           set -euo pipefail
           id="$(echo '${{ matrix.version }}' | cut -d. -f1,2 | tr -d .)"
           arch=ios-arm64; [ '${{ matrix.kind }}' = simulator ] && arch=ios-arm64-simulator
-          patch="$(cat scripts/godot/* | shasum -a 256 | cut -c1-7)"
+          patch="$(cat scripts/godot/everplay_godot.mm scripts/godot/patch-godot-ios.py scripts/godot/build-godot-ios.sh | shasum -a 256 | cut -c1-7)"
           name="Godot${id}_${arch}-${{ matrix.version }}-${patch}.framework.zip"
           # Never replace a published engine: allinone.yml pins its checksum. Changed patches get a new name.
           if gh release view libretro-cores --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | grep -qx "$name"; then
@@ -68,10 +70,97 @@ jobs:
           cp godot.framework.zip "$name"
           gh release upload libretro-cores --repo "$GITHUB_REPOSITORY" "$name"
           echo "Pin in allinone.yml: $name $(shasum -a 256 "$name" | cut -d' ' -f1)"
+      - name: Keep the simulator engine for the test job (Godot only, no games)
+        if: matrix.kind == 'simulator'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: godot-${{ matrix.version }}-simulator-framework
+          path: godot.framework.zip
+          retention-days: 7
       - name: Keep the logs
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: godot-ios-${{ matrix.version }}-${{ matrix.kind }}-logs
           path: build-godot.log
+          retention-days: 14
+
+  # EverPlay's own MIT probe (Tests/Fixtures/GodotProbe), packed into a stand-in .exe, imported and
+  # started from EverPlay's library in the simulator: the screenshot should show "Gold: 37", and
+  # Saves/GodotProbe/probe.txt should record the start and the quit after 30 s.
+  simulator-test:
+    needs: build
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: godot-4.7.2-simulator-framework
+      - name: Reuse the pinned XcodeGen source build
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .build-tools/XcodeGen
+          key: ${{ runner.os }}-${{ runner.arch }}-xcode26.6-xcodegen-21ac9944b0ab546a07422dbed86f33dd2ebd76f8-v1
+      - name: Build EverPlay for the simulator with Godot inside
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          bash scripts/generate-project.sh > artifacts/project-generation.log 2>&1 || { tail -n 60 artifacts/project-generation.log; exit 1; }
+          set -o pipefail
+          xcodebuild build -project EverPlay.xcodeproj -scheme EverPlay -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            -derivedDataPath DerivedData -clonedSourcePackagesDirPath .build/xcode-packages CODE_SIGN_IDENTITY=- \
+            2>&1 | tee artifacts/everplay-build.log | grep -E 'error:|\*\* BUILD' || true
+          grep -q '\*\* BUILD SUCCEEDED \*\*' artifacts/everplay-build.log
+          app=DerivedData/Build/Products/Debug-iphonesimulator/EverPlay.app
+          mkdir -p "$app/Frameworks"
+          unzip -o -q godot.framework.zip -d "$app/Frameworks"
+          for framework in "$app"/Frameworks/*.framework; do codesign --force --sign - --timestamp=none "$framework"; done
+          codesign --force --sign - --timestamp=none "$app"
+      - name: Start the Godot probe from EverPlay's library
+        run: |
+          set -euo pipefail
+          printf 'MZ EverPlay test stand-in, not a program\n' > stand-in.exe
+          mkdir -p probe
+          python3 scripts/godot/make-pck.py Tests/Fixtures/GodotProbe probe/GodotProbe.exe 4.7.2 --embed stand-in.exe
+          (cd probe && zip -q ../GodotProbe.zip GodotProbe.exe)
+          app=DerivedData/Build/Products/Debug-iphonesimulator/EverPlay.app
+          bundle="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")"
+          udid="$(xcrun simctl list devices available -j | python3 -c '
+          import json,sys
+          items=json.load(sys.stdin)["devices"]
+          print(next(d["udid"] for r,ds in items.items() if "iOS" in r for d in ds if "iPhone" in d["name"]))')"
+          limited() { python3 -c 'import subprocess,sys; sys.exit(subprocess.run(sys.argv[2:], timeout=float(sys.argv[1])).returncode)' "$@"; }
+          limited 600 xcrun simctl bootstatus "$udid" -b
+          xcrun simctl install "$udid" "$app"
+          data="$(xcrun simctl get_app_container "$udid" "$bundle" data)"
+          mkdir -p "$data/Documents"
+          cp GodotProbe.zip "$data/Documents/"
+          for attempt in $(seq 1 20); do
+            if limited 30 xcrun simctl io "$udid" screenshot artifacts/warmup.png; then break; fi
+            sleep 15
+          done
+          limited 60 xcrun simctl launch --stdout="$PWD/artifacts/probe-stdout.log" --stderr="$PWD/artifacts/probe-stderr.log" \
+            "$udid" "$bundle" -EverPlayAutoplayZip GodotProbe.zip || echo "launch failed or timed out"
+          sleep 20
+          limited 60 xcrun simctl io "$udid" screenshot artifacts/godot-probe.png || true
+          sleep 30
+          limited 60 xcrun simctl io "$udid" screenshot artifacts/godot-probe-after-quit.png || true
+          echo "== probe.txt"; cat "$data/Documents/Saves/GodotProbe/probe.txt" || true
+          echo "== Saves"; ls -la "$data/Documents/Saves/GodotProbe" || true
+          echo "== EverPlay-log.txt"; cat "$data/Documents/EverPlay-log.txt" || true
+          echo "== godot.log"; cat "$data/Library/Application Support/EverPlay/godot.log" || true
+          find ~/Library/Logs/DiagnosticReports -name 'EverPlay*' -newer "$app/Info.plist" -exec cp {} artifacts/ \; || true
+          for report in artifacts/EverPlay*.ips; do [ -f "$report" ] && head -c 6000 "$report"; done || true
+          grep -q '^start gold 37' "$data/Documents/Saves/GodotProbe/probe.txt"
+          grep -q '^quit' "$data/Documents/Saves/GodotProbe/probe.txt"
+      - name: Keep screenshots and logs (EverPlay's own probe only)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: godot-simulator-test
+          path: artifacts/
           retention-days: 14
