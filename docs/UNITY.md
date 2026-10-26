@@ -291,15 +291,55 @@ Hüllen über Darwin/pthreads. Die drei schweren Stellen sind:
    Threads liefern. FEX kennt ihn, aber nur an sicheren Punkten.
 3. **Übergänge** in beide Richtungen: 235 `il2cpp_*` (ARM → x64) und 1 689 InternalCalls plus Callbacks (x64 → ARM).
 
-### M1: Android-`libunity.so` 2021.3.18f1 (IL2CPP, arm64) — offen
+### M1: Android-`libunity.so` 2021.3.18f1 (IL2CPP, arm64) — erledigt [R, gelesen, nichts ausgeführt]
 
-Braucht die Android-Engine genau dieser Version. Quellen: das Android-Modul des Unity-Editors 2021.3.18f1
-(`PlaybackEngines/AndroidPlayer/Variations/il2cpp/Release/Libs/arm64-v8a/libunity.so`) oder eine beliebige Android-APK,
-die mit 2021.3.18f1 und IL2CPP gebaut ist. Nur lesen (`readelf`/`nm`), nichts ins Repo. Zu prüfen:
-- welche `il2cpp_*`-Funktionen `libunity` importiert bzw. per `dlsym` holt (Abgleich mit den 235 Exporten oben);
-- ob `libunity` il2cpp-Strukturen direkt liest (Feld-Offsets von `Il2CppClass`, `Il2CppObject`) statt über die API;
-- welche InternalCalls `libunity` per `il2cpp_add_internal_call` registriert (Abgleich mit den 1 689 aus M0;
-  Windows-only-Klassen fehlen dann).
+Quelle: Unitys offizielles Android-Modul für den Editor 2021.3.18f1 (Changeset `3129e69bc0c7`, macOS-Paket
+`MacEditorTargetInstaller/UnitySetup-Android-Support-for-Editor-2021.3.18f1.pkg`, 553 MB; ein Linux-Paket gibt es
+für diese Version nicht). Darin `Variations/il2cpp/Release/Libs/arm64-v8a/libunity.so` (25,6 MB), `libmain.so`,
+`Classes/classes.dex`. Mit `bsdtar` ausgepackt, nur mit `readelf`/`strings` gelesen; nichts davon im Repo.
+
+- **Laden**: `libmain.so` lädt per `dlopen` `libunity.so` **und `libil2cpp.so`**; `libunity` selbst hat keinen
+  `NEEDED`-Eintrag für il2cpp und holt die API per Name. `NEEDED`: nur `libandroid`, `liblog`, `libz`, `libEGL`,
+  `libm`, `libdl`, `libc` (Husk stellt alle bereit).
+- **il2cpp-API: 228 Funktionsnamen** in `libunity`, **alle 228 exportiert die Windows-`GameAssembly.dll`** von
+  Fellworld (dort 235; die 7 übrigen sind `il2cpp_profiler_*`). → Der Ersatz-`libil2cpp.so` kann jede Funktion 1:1 an
+  den gleichnamigen Export der übersetzten DLL durchreichen.
+- **InternalCalls**: Von den 1 670 InternalCall-Namen der Metadaten liegen alle `UnityEngine.*`-Aufrufe als
+  Registrierungsnamen in `libunity` vor, **bis auf 8 `UnityEngine.Windows.WebCam.*`** (nur Windows; als Stub, der eine
+  Ausnahme wirft). Die übrigen ~300 fehlenden sind `System.*`/`Mono.*`; die implementiert il2cpp selbst in
+  `GameAssembly.dll`, sie gehen nicht an die Engine.
+- **API-Funktionen mit Funktionszeigern** (brauchen Übergänge ARM64 ↔ x64 für Rückrufe):
+  `il2cpp_set_memory_callbacks` (Allokator der Engine, häufig aufgerufen!), `il2cpp_register_log_callback`,
+  `il2cpp_set_find_plugin_callback`, `il2cpp_unity_install_unitytls_interface` (Tabelle vieler Funktionszeiger),
+  `il2cpp_gc_foreach_heap`, `il2cpp_gchandle_foreach_get_target`, `il2cpp_gc_set_external_allocation_tracker`,
+  `il2cpp_gc_set_external_wbarrier_tracker`, `il2cpp_register_debugger_agent_transport` (Debugger, weglassen).
+- **16-KiB-Seiten**: `libunity` ist mit 4-KiB-Ausrichtung gelinkt. Code endet bei `0x17e06ec`, Daten beginnen bei
+  `0x17e2210` in derselben 16-KiB-Seite, aber dieser Anfang ist `GNU_RELRO` (nur beim Relozieren beschrieben). Laut
+  Husks Seitenplanung (`husk-tl-elf.c`) ist das ohne Schreib-Emulation ladbar.
+
+**Bewertung M1: Der Hybrid trägt.** Die Engine spricht den Spielcode über eine benannte API an, die die Windows-DLL
+vollständig anbietet, und fast alle Engine-Aufrufe des Spielcodes gibt es in der Android-Engine.
+
+Offene Risiken, die sich erst ab M3 auf dem Gerät klären:
+- Ob `libunity` außer über die API auch **direkt in il2cpp-Strukturen** liest (etwa `Il2CppObject::klass`,
+  Array-Länge, String-Zeichen). Gleiche Unity-Version → gleiche Strukturdefinitionen; Unterschiede zwischen
+  MSVC (Windows) und Clang (Android) gibt es bei **Bitfeldern** (z. B. in `Il2CppClass`) und bei `long`
+  (32 Bit unter Windows). Prüfbar durch Disassemblieren der Aufrufer von `il2cpp_object_get_class` u. ä.
+- Aufrufkonventionen: Microsoft x64 ↔ AAPCS64, vor allem Strukturen als Wert und Rückgabe großer Strukturen bei
+  InternalCalls. Signaturen aus den Metadaten lesen und Übergänge daraus erzeugen.
+- Plattformkennung in den Daten (`StandaloneWindows64`) gegenüber dem Android-Player und die D3D11-Shader (M4).
+
+### M2: x64-Seite auf dem iPhone — nächster Schritt
+
+Ziel: In einer Test-App (oder einem versteckten EverPlay-Modus) mit JIT `GameAssembly.dll` laden und `il2cpp_init`
+bis zum Log „il2cpp initialisiert“ bringen, ohne Unity-Engine.
+- [ ] FEXCore für iOS als Bibliothek: aus Madeiras FEX-Fork (Upstream MIT, Madeiras Änderungen GPL-3.0+) oder
+      Fathoms Build. Zuerst prüfen, welcher Fork ohne Wine nutzbar ist (Fathom nutzt FEXCore ohne Wine).
+- [ ] PE-Loader (Abschnitte, Relocs, Importe, TLS-Callbacks, `.pdata` registrieren).
+- [ ] Mini-Win32 für die 206 Importe + 45 P/Invokes (Liste oben), `baselib.dll` nativ.
+- [ ] Übergang ARM64 → x64 für die 228 `il2cpp_*`, x64 → ARM64 für Rückrufe.
+- [ ] Build über GitHub Actions (macOS), Test auf dem iPhone mit StikDebug/StikJIT; Spieldateien kommen vom Nutzer
+      aufs Gerät, nie in Build oder Artefakte.
 
 ## IL2CPP (nur dokumentiert, nicht gebaut)
 
