@@ -578,7 +578,8 @@ void Game::updateHeroInput() {
     // A route given to the hero runs instead of the player's input.
     if (!hero_.routeDone) return;
     int dir = 0;
-    bool u = input_.down[KeyUp], d = input_.down[KeyDown], l = input_.down[KeyLeft], r = input_.down[KeyRight];
+    auto walk = [&](int k) { return input_.down[k] && inputBanned_[k] == 0; };
+    bool u = walk(KeyUp), d = walk(KeyDown), l = walk(KeyLeft), r = walk(KeyRight);
     bool eight = project_->game.setting(2) == 8;
     if (eight) {
         if (d && l) dir = 1; else if (d && r) dir = 3; else if (u && l) dir = 7; else if (u && r) dir = 9;
@@ -613,7 +614,7 @@ void Game::updateHeroInput() {
             (void)oldY;
         }
     }
-    if (pressed(KeyOK)) checkAction();
+    if (pressed(KeyOK) && inputBanned_[KeyOK] == 0) checkAction();
 }
 
 void Game::checkTouch(int px, int py, bool heroMoved) {

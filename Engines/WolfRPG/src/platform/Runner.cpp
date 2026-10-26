@@ -11,6 +11,9 @@
 #include <map>
 #include <sstream>
 
+#include <dirent.h>
+#include <unistd.h>
+
 #include "../engine/Game.hpp"
 #include "SdlAudio.hpp"
 #include "SdlGfx.hpp"
@@ -86,6 +89,42 @@ void applyKey(InputState& in, SDL_Keycode k, SDL_Scancode sc, bool down) {
     if (code >= 0 && code < 512) in.keyboard[code] = down;
 }
 
+// EverPlay's cheat screen writes "request-<id>" files ("call\t<id>\t<method>\t<typed args>…",
+// args as n:/s:/b: values) and waits for "reply-<id>.json".
+void serveCheats(Game& game, const std::string& folder) {
+    DIR* d = opendir(folder.c_str());
+    if (!d) return;
+    std::vector<std::string> requests;
+    while (dirent* e = readdir(d)) {
+        std::string name = e->d_name;
+        if (name.rfind("request-", 0) == 0) requests.push_back(name);
+    }
+    closedir(d);
+    for (const auto& name : requests) {
+        std::string path = folder + "/" + name;
+        std::ifstream in(path);
+        std::stringstream ss;
+        ss << in.rdbuf();
+        in.close();
+        unlink(path.c_str());
+        std::vector<std::string> parts;
+        std::string part;
+        std::istringstream fields(ss.str());
+        while (std::getline(fields, part, '\t')) parts.push_back(part);
+        if (parts.size() < 3 || parts[0] != "call") continue;
+        std::vector<std::string> args;
+        for (size_t i = 3; i < parts.size(); i++) args.push_back(parts[i].size() > 2 ? parts[i].substr(2) : std::string());
+        std::string reply = game.cheat(parts[2], args);
+        std::string out = folder + "/reply-" + parts[1] + ".json";
+        std::string temp = out + ".tmp";
+        if (FILE* f = std::fopen(temp.c_str(), "w")) {
+            std::fputs(reply.c_str(), f);
+            std::fclose(f);
+            std::rename(temp.c_str(), out.c_str());
+        }
+    }
+}
+
 }  // namespace
 
 int runGame(const RunOptions& o) {
@@ -156,6 +195,7 @@ int runGame(const RunOptions& o) {
     host.quit = [&quit]() { quit = true; };
     Game game(std::move(project), gfx, audio, o.saves, host);
     game.trace = std::getenv("WOLF_TRACE") != nullptr;
+    if (const char* from = std::getenv("WOLF_TRACE_FROM")) game.traceFrom = std::atoi(from);
     game.start();
 
     InputState input;
@@ -273,6 +313,7 @@ int runGame(const RunOptions& o) {
             input.wheel = 0;
             frame++;
         }
+        if (!o.cheats.empty() && frame % 10 == 0) serveCheats(game, o.cheats);
         game.draw();
         if (o.headless) {
             auto range = script.equal_range(frame - 1);

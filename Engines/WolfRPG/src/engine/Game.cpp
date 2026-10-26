@@ -563,7 +563,6 @@ void Game::frame(const InputState& in) {
         prevInput_ = input_;
         input_ = in;
         for (int k = 0; k < KeyCount; k++) {
-            if (inputBanned_[k]) input_.down[k] = false;
             repeatCounter_[k] = input_.down[k] ? repeatCounter_[k] + 1 : 0;
         }
         frameCount_++;
@@ -574,6 +573,10 @@ void Game::frame(const InputState& in) {
         sys_[71] = input_.mouseX;
         sys_[72] = input_.mouseY;
 
+        if (titleRequest_) {
+            titleRequest_ = false;
+            returnToTitle();
+        }
         if (loadRequest_ >= 0) {
             int slot = loadRequest_;
             loadRequest_ = -1;

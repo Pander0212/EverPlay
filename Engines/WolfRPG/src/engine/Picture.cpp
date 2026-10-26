@@ -739,21 +739,21 @@ void Game::updateMessage() {
         int n = int(msg_.choices.size());
         if (n == 0) { msg_.choosing = false; msg_.result = -2; return; }
         int se = -1;
-        if (repeated(KeyDown)) { msg_.cursor = (msg_.cursor + 1) % n; se = sysVar(18); }
-        if (repeated(KeyUp)) { msg_.cursor = (msg_.cursor + n - 1) % n; se = sysVar(18); }
+        if (systemRepeated(KeyDown)) { msg_.cursor = (msg_.cursor + 1) % n; se = sysVar(18); }
+        if (systemRepeated(KeyUp)) { msg_.cursor = (msg_.cursor + n - 1) % n; se = sysVar(18); }
         sys_[20] = msg_.cursor;
-        if (pressed(KeyOK)) {
+        if (systemPressed(KeyOK)) {
             msg_.result = msg_.cursor;
             msg_.choosing = false;
             se = sysVar(17);
-        } else if (pressed(KeyCancel) && msg_.allowCancel) {
+        } else if (systemPressed(KeyCancel) && msg_.allowCancel) {
             msg_.result = msg_.cancelCase == -2 ? -2 : std::clamp(msg_.cancelCase, 0, n - 1);
             msg_.choosing = false;
             se = sysVar(19);
-        } else if (msg_.leftBranch && pressed(KeyLeft)) {
+        } else if (msg_.leftBranch && systemPressed(KeyLeft)) {
             msg_.result = -3;
             msg_.choosing = false;
-        } else if (msg_.rightBranch && pressed(KeyRight)) {
+        } else if (msg_.rightBranch && systemPressed(KeyRight)) {
             msg_.result = -4;
             msg_.choosing = false;
         }
@@ -768,16 +768,16 @@ void Game::updateMessage() {
     if (!msg_.done) {
         if (msg_.keyPause) {
             msg_.pauseAnim++;
-            if (pressed(KeyOK)) msg_.keyPause = false;
+            if (systemPressed(KeyOK)) msg_.keyPause = false;
             return;
         }
         if (msg_.pauseFrames > 0) {
             msg_.pauseFrames--;
-            if (!pressed(KeyOK)) return;
+            if (!systemPressed(KeyOK)) return;
             msg_.pauseFrames = 0;
         }
         int speed = msg_.speed != 0 ? msg_.speed : sysVar(9);
-        bool all = speed <= 0 || msg_.instant || pressed(KeyOK);
+        bool all = speed <= 0 || msg_.instant || systemPressed(KeyOK);
         msg_.progress += all ? 1e9 : double(speed) / fps_;
         const std::string& t = msg_.text;
         while (msg_.pos < t.size() && (msg_.progress >= 1 || msg_.instant)) {
@@ -823,7 +823,7 @@ void Game::updateMessage() {
     }
     if (msg_.waitingKey) {
         msg_.pauseAnim++;
-        if (pressed(KeyOK)) {
+        if (systemPressed(KeyOK)) {
             msg_.waitingKey = false;
             msg_.open = false;
         }

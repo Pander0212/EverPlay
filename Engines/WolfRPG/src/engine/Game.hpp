@@ -194,6 +194,24 @@ struct AudioState {
     int bgmLoop = 0, bgsLoop = 0;
 };
 
+// Everything a save holds.
+struct SaveState {
+    int mapId = 0;
+    Character hero;
+    std::vector<Character> events;
+    std::vector<int32_t> vars, sys;
+    std::array<std::vector<int32_t>, 10> spare;
+    std::vector<std::string> strs, sysStr;
+    std::map<int, std::array<int32_t, 100>> cself;
+    std::map<int, std::array<std::string, 5>> cselfStr;
+    std::map<int, std::map<int, std::array<int, 10>>> mapSelf;
+    std::vector<std::vector<DBRecord>> cdb, udb;
+    AudioState audio;
+    double r = 100, g = 100, b = 100;
+    uint64_t frames = 0;
+    std::map<int, Picture> pictures;
+};
+
 // What the platform layer asks for besides drawing and sound.
 struct HostCallbacks {
     std::function<void(const std::string&)> log;
@@ -229,6 +247,9 @@ public:
     std::vector<int32_t>& normalVars() { return vars_; }
     const std::vector<std::string>& stringVars() const { return strs_; }
     std::string variableName(int index);
+    // A cheat request from EverPlay; returns the JSON reply (Cheats.cpp).
+    std::string cheat(const std::string& method, const std::vector<std::string>& args);
+    int32_t moneyAddress();
 
     // Saves: slot 1..; SaveData<NN>.sav in the save folder.
     bool save(int slot);
@@ -239,6 +260,7 @@ public:
     // A summary of what is running, for diagnostics.
     std::string debugState();
     bool trace = false;          // log every command executed
+    int traceFrom = 0;           // … from this frame on
 
 private:
     friend struct MapScene;
@@ -330,7 +352,12 @@ private:
 
     // ---- saves (Save.cpp)
     std::vector<uint8_t> serialize();
-    bool deserialize(const std::vector<uint8_t>& data);
+    void captureState(SaveState& s);
+    std::vector<uint8_t> encodeState(const SaveState& s);
+    bool decodeState(const std::vector<uint8_t>& data, SaveState& s);
+    void applyState(SaveState& s);
+    bool stateValue(SaveState& s, int32_t address, int32_t* number, std::string* text, bool write);
+    bool readSave(int slot, std::vector<uint8_t>& data) const;
     std::string savePath(int slot) const;
     std::vector<int32_t>& spare(int set);
 
@@ -404,7 +431,7 @@ private:
     AudioState audioState_;
     InputState input_, prevInput_;
     int repeatCounter_[KeyCount] = {};
-    bool inputBanned_[KeyCount] = {};
+    int inputBanned_[KeyCount] = {};  // 0 allowed, 1 not for walking, 2 not at all
     bool pictureOnly_ = false;                        // "Stop non-picture updates"
     std::map<std::string, TexturePtr> imageCache_;
     std::vector<std::string> debugLines_;
@@ -412,9 +439,13 @@ private:
     bool started_ = false;
     int titleMap_ = 0;
     int loadRequest_ = -1;
+    bool titleRequest_ = false;
 
     bool pressed(int key) const { return input_.down[key] && !prevInput_.down[key]; }
     bool repeated(int key) const;
+    // The engine's own use of a key (messages, choices) unless "basic key input control" denies it.
+    bool systemPressed(int key) const { return inputBanned_[key] < 2 && pressed(key); }
+    bool systemRepeated(int key) const { return inputBanned_[key] < 2 && repeated(key); }
 };
 
 }  // namespace wolf

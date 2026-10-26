@@ -23,17 +23,29 @@ add_library(wolfengine STATIC
   src/engine/Interpreter.cpp
   src/engine/Map.cpp
   src/engine/Picture.cpp
-  src/engine/Save.cpp)
+  src/engine/Save.cpp
+  src/engine/Cheats.cpp)
 target_link_libraries(wolfengine PUBLIC wolfdata)
+
+option(WOLF_TESTS "Build the tests" ON)
+if(WOLF_TESTS)
+  enable_testing()
+  add_executable(wolftests tests/EngineTests.cpp)
+  target_link_libraries(wolftests wolfengine)
+  add_test(NAME wolftests COMMAND wolftests)
+endif()
 
 option(WOLF_SDL "Build the SDL platform layer" ON)
 if(WOLF_SDL)
-  if(NOT TARGET SDL2::SDL2)
+  # iOS: the static SDL2 and SDL2_ttf from scripts/build-wolfrpg-ios.sh; Linux: pkg-config.
+  find_package(SDL2 CONFIG QUIET)
+  find_package(SDL2_ttf CONFIG QUIET)
+  if(TARGET SDL2::SDL2-static AND TARGET SDL2_ttf::SDL2_ttf-static)
+    set(WOLF_SDL_LIBS SDL2::SDL2-static SDL2_ttf::SDL2_ttf-static)
+  else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2 SDL2_ttf)
     set(WOLF_SDL_LIBS PkgConfig::SDL2)
-  else()
-    set(WOLF_SDL_LIBS SDL2::SDL2 SDL2_ttf::SDL2_ttf)
   endif()
   add_library(wolfsdl STATIC
     src/platform/SdlGfx.cpp

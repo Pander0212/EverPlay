@@ -12,6 +12,9 @@ namespace wolf {
 
 struct Project {
     explicit Project(const std::string& gameFolder);
+    // Only the files, no data: for tests that fill in the data themselves.
+    struct Empty {};
+    Project(const std::string& gameFolder, Empty) : vfs(gameFolder) {}
 
     Vfs vfs;
     GameDat game;

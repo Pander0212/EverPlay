@@ -223,9 +223,9 @@ void Game::callCommon(Context& ctx, int commonId, const Command* call, int32_t r
     f.eventId = ctx.frames.empty() ? ctx.mapEventId : ctx.frames.back().eventId;
     auto& self = commonSelf_[commonId];
     auto& selfStr = commonSelfStr_[commonId];
-    // Arguments: CSelf0.. for numbers, CSelf5.. for strings; missing ones take their defaults.
+    // Arguments: CSelf0.. for numbers, CSelf5.. for strings. (The "initial values" of arguments
+    // are only what the editor's call dialog proposes; calls always carry their values.)
     for (size_t i = 0; i < numArgs.size() && i < 5; i++) self[i] = numArgs[i];
-    for (size_t i = numArgs.size(); i < c.argDefaults.size() && i < 5 && i < c.numArgs; i++) self[i] = c.argDefaults[i];
     if (hasStrArgs)
         for (size_t i = 0; i < strArgs.size() && i < 5; i++) selfStr[i] = strArgs[i];
     ctx.frames.push_back(std::move(f));
@@ -335,7 +335,9 @@ void Game::runContext(Context& ctx) {
     int budget = 300000;
     while (!ctx.finished() && ctx.wait == Context::Wait::None && ctx.waitFrames == 0) {
         if (--budget <= 0) {
-            log("event command limit reached in one frame");
+            const Frame& f = ctx.frames.back();
+            log("event command limit reached in one frame: common " + std::to_string(f.commonId) + " event " +
+                std::to_string(f.eventId) + " at " + std::to_string(f.pc));
             break;
         }
         if (!step(ctx)) break;
@@ -373,7 +375,7 @@ bool Game::step(Context& ctx) {
     size_t index = f.pc;
     const Command& c = list[index];
     f.pc++;
-    if (trace) {
+    if (trace && frameCount_ >= traceFrom) {
         std::string line = "trace c" + std::to_string(f.commonId) + " e" + std::to_string(f.eventId) + " @" +
                            std::to_string(index) + " " + std::to_string(c.code);
         for (auto a : c.args) line += " " + std::to_string(a);
@@ -481,7 +483,7 @@ bool Game::step(Context& ctx) {
             int target = (v >> 24) & 0xFF;
             if (target == 0) {
                 int keys = v & 0xFF;
-                bool deny = ((v >> 8) & 0xFF) != 0;
+                int deny = std::clamp((v >> 8) & 0xFF, 0, 2);  // 0 allow, 1 not for walking, 2 not at all
                 // Bits: 0x01 OK, 0x02 Cancel, 0x04 Sub, 0x10 down, 0x20 left, 0x40 right, 0x80 up.
                 int map[8] = {KeyOK, KeyCancel, KeySub, -1, KeyDown, KeyLeft, KeyRight, KeyUp};
                 for (int b = 0; b < 8; b++)
@@ -553,7 +555,14 @@ bool Game::step(Context& ctx) {
             if (s < 0) return true;
             // The innermost loop record for this start.
             while (!f.loops.empty() && f.loops.back().start != size_t(s)) f.loops.pop_back();
-            if (f.loops.empty()) { f.pc = size_t(s) + 1; f.loops.push_back({size_t(s), 0, true}); return false; }
+            if (f.loops.empty()) {
+                // Reached without passing the loop start (a label jumped in): a counted loop
+                // ends here, an endless one goes round.
+                if (list[size_t(s)].code == 179) return true;
+                f.pc = size_t(s) + 1;
+                f.loops.push_back({size_t(s), 0, true});
+                return true;
+            }
             auto& loop = f.loops.back();
             if (!loop.infinite && --loop.remaining <= 0) {
                 f.loops.pop_back();
@@ -606,7 +615,9 @@ bool Game::step(Context& ctx) {
             return true;
         }
         case 174:
-            returnToTitle();
+            // Handled between frames: it replaces every running event, this one included.
+            titleRequest_ = true;
+            ctx.frames.clear();
             return false;
         case 175:
             quit_ = true;
@@ -661,7 +672,8 @@ bool Game::step(Context& ctx) {
             for (int k = 0; k < nNum; k++) nums.push_back(getValue(c.arg(a++), &f));
             for (int k = 0; k < nStr; k++) {
                 int32_t addr = c.arg(a++);
-                if ((strLiteral >> k) & 1) strs.push_back(expandText(c.string(size_t(1 + k)), &f));
+                // Byte 1, bits 4-7: string argument k is written in the command (else an address).
+                if ((strLiteral >> (4 + k)) & 1) strs.push_back(expandText(c.string(size_t(1 + k)), &f));
                 else strs.push_back(getString(addr, &f));
             }
             int32_t returnTo = returns ? c.arg(a) : 0;
@@ -680,7 +692,13 @@ bool Game::step(Context& ctx) {
                 if (list[k].code == 212 && list[k].string(0) == label) {
                     f.pc = k + 1;
                     // Loops the jump leaves are no longer active.
-                    f.loops.clear();
+                    const Flow& flow = flowOf(&list);
+                    while (!f.loops.empty()) {
+                        size_t st = f.loops.back().start;
+                        int en = flow.end[st];
+                        if (k > st && (en < 0 || int(k) < en)) break;
+                        f.loops.pop_back();
+                    }
                     return true;
                 }
             }
@@ -703,50 +721,32 @@ bool Game::step(Context& ctx) {
             int32_t var = c.arg(2);
             if (c.arg(3) & 1) var = getValue(var, &f);
             std::vector<uint8_t> data;
-            if (FILE* fp = std::fopen(savePath(slot).c_str(), "rb")) {
-                std::fseek(fp, 0, SEEK_END);
-                long n = std::ftell(fp);
-                std::fseek(fp, 0, SEEK_SET);
-                data.resize(size_t(std::max(n, 0L)));
-                size_t got = std::fread(data.data(), 1, data.size(), fp);
-                std::fclose(fp);
-                data.resize(got);
-            }
-            if (data.empty()) {
+            SaveState st;
+            if (!readSave(slot, data) || !decodeState(data, st)) {
                 if (c.code == 221) {
                     if (isStringAddress(target)) setString(target, "", &f);
                     else setValue(target, 0, &f);
-                    sys_[24] = 0;
                 }
+                sys_[24] = 0;
                 return true;
             }
-            // Swap the save in, read or write, and swap back.
-            std::vector<uint8_t> current = serialize();
-            if (!deserialize(data)) {
-                deserialize(current);
-                return true;
-            }
+            bool str = isStringAddress(c.code == 221 ? target : var) || isStringAddress(var);
             if (c.code == 221) {
-                bool str = isStringAddress(var);
-                std::string sv = str ? getString(var, &f) : std::string();
-                int32_t nv = str ? 0 : getValue(var, &f);
-                deserialize(current);
-                if (str) setString(target, sv, &f);
-                else setValue(target, nv, &f);
+                int32_t number = 0;
+                std::string text;
+                stateValue(st, var, str ? nullptr : &number, str ? &text : nullptr, false);
+                if (str) setString(target, text, &f);
+                else setValue(target, number, &f);
                 sys_[24] = 1;
             } else {
-                bool str = isStringAddress(target);
-                deserialize(current);
-                std::string sv = str ? getString(target, &f) : std::string();
-                int32_t nv = str ? 0 : getValue(target, &f);
-                deserialize(data);
-                if (str) setString(var, sv, nullptr);
-                else setValue(var, nv, nullptr);
-                std::vector<uint8_t> updated = serialize();
-                deserialize(current);
-                if (FILE* fp = std::fopen(savePath(slot).c_str(), "wb")) {
-                    std::fwrite(updated.data(), 1, updated.size(), fp);
-                    std::fclose(fp);
+                int32_t number = str ? 0 : getValue(target, &f);
+                std::string text = str ? getString(target, &f) : std::string();
+                if (stateValue(st, var, str ? nullptr : &number, str ? &text : nullptr, true)) {
+                    std::vector<uint8_t> updated = encodeState(st);
+                    if (FILE* fp = std::fopen(savePath(slot).c_str(), "wb")) {
+                        std::fwrite(updated.data(), 1, updated.size(), fp);
+                        std::fclose(fp);
+                    }
                 }
             }
             return true;

@@ -11,6 +11,7 @@ struct RunOptions {
     std::string soundFont;      // .sf2 for MIDI music (optional)
     std::string fallbackFont;   // a Japanese font for games whose fonts are missing
     std::string log;            // log file (empty: stderr)
+    std::string cheats;         // folder with cheat requests from EverPlay (empty: none)
     // Headless (tests): no window, software rendering, scripted input, screenshots.
     bool headless = false;
     int frames = 0;             // headless: frames to run

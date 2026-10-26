@@ -10,7 +10,7 @@ namespace wolf {
 
 namespace {
 
-constexpr uint32_t kMagic = 0x57455053;  // "SPEW"
+constexpr uint32_t kMagic = 0x57455053;
 constexpr uint32_t kVersion = 1;
 
 struct Writer {
@@ -23,11 +23,11 @@ struct Writer {
     void strs(const std::vector<std::string>& v) { u32(uint32_t(v.size())); for (auto& x : v) str(x); }
 };
 
-struct ReaderB {
+struct In {
     const std::vector<uint8_t>& in;
     size_t pos = 0;
     bool ok = true;
-    explicit ReaderB(const std::vector<uint8_t>& d) : in(d) {}
+    explicit In(const std::vector<uint8_t>& d) : in(d) {}
     uint32_t u32() {
         if (pos + 4 > in.size()) { ok = false; return 0; }
         uint32_t v = 0;
@@ -76,7 +76,7 @@ void writeChar(Writer& w, const Character& c) {
     for (int i = 0; i < 10; i++) w.i32(c.selfVars[i]);
 }
 
-void readChar(ReaderB& r, Character& c) {
+void readChar(In& r, Character& c) {
     c.eventId = r.i32(); c.px = r.i32(); c.py = r.i32(); c.direction = r.i32(); c.pattern = r.i32();
     c.graphic = r.str(); c.tileId = r.i32(); c.opacity = r.i32(); c.blend = r.i32(); c.height = r.i32();
     c.moveSpeed = r.i32(); c.moveFrequency = r.i32(); c.animSpeed = r.i32();
@@ -85,22 +85,31 @@ void readChar(ReaderB& r, Character& c) {
     for (int i = 0; i < 10; i++) c.selfVars[i] = r.i32();
 }
 
-void writeDb(Writer& w, const Database& db) {
-    w.u32(uint32_t(db.types.size()));
-    for (const auto& t : db.types) {
-        w.u32(uint32_t(t.records.size()));
-        for (const auto& r : t.records) { w.str(r.name); w.ints(r.ints); w.strs(r.strings); }
+void writeDb(Writer& w, const std::vector<std::vector<DBRecord>>& db) {
+    w.u32(uint32_t(db.size()));
+    for (const auto& t : db) {
+        w.u32(uint32_t(t.size()));
+        for (const auto& r : t) { w.str(r.name); w.ints(r.ints); w.strs(r.strings); }
     }
 }
 
-void readDb(ReaderB& r, Database& db) {
+std::vector<std::vector<DBRecord>> readDb(In& r) {
+    std::vector<std::vector<DBRecord>> db;
     uint32_t types = r.u32();
-    for (uint32_t i = 0; i < types && r.ok; i++) {
+    for (uint32_t i = 0; i < types && r.ok && i < 1000; i++) {
         uint32_t n = r.u32();
+        if (!r.ok || n > 1000000) { r.ok = false; break; }
         std::vector<DBRecord> records(n);
         for (auto& rec : records) { rec.name = r.str(); rec.ints = r.ints(); rec.strings = r.strs(); }
-        if (i < db.types.size() && r.ok) db.types[i].records = std::move(records);
+        db.push_back(std::move(records));
     }
+    return db;
+}
+
+std::vector<std::vector<DBRecord>> recordsOf(const Database& db) {
+    std::vector<std::vector<DBRecord>> out;
+    for (const auto& t : db.types) out.push_back(t.records);
+    return out;
 }
 
 }  // namespace
@@ -111,117 +120,124 @@ std::string Game::savePath(int slot) const {
     return saveFolder_ + name;
 }
 
-std::vector<uint8_t> Game::serialize() {
-    // The current map's event self variables go with the map table.
+void Game::captureState(SaveState& s) {
     if (mapId_ >= 0)
         for (const auto& e : events_)
             for (int i = 0; i < 10; i++) mapSelf_[mapId_][e.eventId][size_t(i)] = e.selfVars[i];
+    s.mapId = mapId_;
+    s.hero = hero_;
+    s.events = events_;
+    s.vars = vars_;
+    s.spare = spare_;
+    s.strs = strs_;
+    s.sys = sys_;
+    s.sysStr = sysStr_;
+    s.cself = commonSelf_;
+    s.cselfStr = commonSelfStr_;
+    s.mapSelf = mapSelf_;
+    s.cdb = recordsOf(project_->cdb);
+    s.udb = recordsOf(project_->udb);
+    s.audio = audioState_;
+    s.r = fx_.r; s.g = fx_.g; s.b = fx_.b;
+    s.frames = playFrames_;
+    s.pictures.clear();
+    for (const auto& [n, p] : pictures_) {
+        Picture copy = p;
+        copy.texture.reset();
+        if (copy.moveFrames > 0) copy.cur = copy.to;
+        s.pictures[n] = std::move(copy);
+    }
+}
+
+std::vector<uint8_t> Game::encodeState(const SaveState& s) {
     Writer w;
     w.u32(kMagic);
     w.u32(kVersion);
     w.str(project_->game.title());
-    w.i32(mapId_);
-    writeChar(w, hero_);
-    w.u32(uint32_t(events_.size()));
-    for (const auto& e : events_) writeChar(w, e);
-    w.ints(vars_);
-    for (int s = 1; s <= 9; s++) w.ints(spare_[size_t(s)]);
-    w.strs(strs_);
-    w.ints(sys_);
-    w.strs(sysStr_);
-    w.u32(uint32_t(commonSelf_.size()));
-    for (const auto& [id, v] : commonSelf_) {
-        w.i32(id);
-        for (auto x : v) w.i32(x);
-    }
-    w.u32(uint32_t(commonSelfStr_.size()));
-    for (const auto& [id, v] : commonSelfStr_) {
-        w.i32(id);
-        for (auto& x : v) w.str(x);
-    }
-    w.u32(uint32_t(mapSelf_.size()));
-    for (const auto& [map, events] : mapSelf_) {
+    w.i32(s.mapId);
+    writeChar(w, s.hero);
+    w.u32(uint32_t(s.events.size()));
+    for (const auto& e : s.events) writeChar(w, e);
+    w.ints(s.vars);
+    for (int k = 1; k <= 9; k++) w.ints(s.spare[size_t(k)]);
+    w.strs(s.strs);
+    w.ints(s.sys);
+    w.strs(s.sysStr);
+    w.u32(uint32_t(s.cself.size()));
+    for (const auto& [id, v] : s.cself) { w.i32(id); for (auto x : v) w.i32(x); }
+    w.u32(uint32_t(s.cselfStr.size()));
+    for (const auto& [id, v] : s.cselfStr) { w.i32(id); for (auto& x : v) w.str(x); }
+    w.u32(uint32_t(s.mapSelf.size()));
+    for (const auto& [map, events] : s.mapSelf) {
         w.i32(map);
         w.u32(uint32_t(events.size()));
-        for (const auto& [ev, v] : events) {
-            w.i32(ev);
-            for (auto x : v) w.i32(x);
-        }
+        for (const auto& [ev, v] : events) { w.i32(ev); for (auto x : v) w.i32(x); }
     }
-    writeDb(w, project_->cdb);
-    writeDb(w, project_->udb);
-    w.str(audioState_.bgmFile); w.i32(audioState_.bgmId); w.i32(audioState_.bgmVolume); w.i32(audioState_.bgmPitch);
-    w.str(audioState_.bgsFile); w.i32(audioState_.bgsId); w.i32(audioState_.bgsVolume); w.i32(audioState_.bgsPitch);
-    w.f64(fx_.r); w.f64(fx_.g); w.f64(fx_.b);
-    w.u32(uint32_t(playFrames_ & 0xFFFFFFFF));
-    w.u32(uint32_t(playFrames_ >> 32));
-    // Pictures
-    w.u32(uint32_t(pictures_.size()));
-    for (const auto& [n, p] : pictures_) {
+    writeDb(w, s.cdb);
+    writeDb(w, s.udb);
+    w.str(s.audio.bgmFile); w.i32(s.audio.bgmId); w.i32(s.audio.bgmVolume); w.i32(s.audio.bgmPitch);
+    w.str(s.audio.bgsFile); w.i32(s.audio.bgsId); w.i32(s.audio.bgsVolume); w.i32(s.audio.bgsPitch);
+    w.f64(s.r); w.f64(s.g); w.f64(s.b);
+    w.u32(uint32_t(s.frames & 0xFFFFFFFF));
+    w.u32(uint32_t(s.frames >> 32));
+    w.u32(uint32_t(s.pictures.size()));
+    for (const auto& [n, p] : s.pictures) {
         w.i32(n); w.i32(p.type); w.str(p.file); w.str(p.text);
         w.i32(p.divW); w.i32(p.divH); w.i32(p.pattern); w.i32(p.anchor); w.i32(p.blend);
         w.u32((p.scroll ? 1 : 0) | (p.freePos ? 2 : 0));
         w.i32(p.windowW); w.i32(p.windowH);
-        const auto& s = p.moveFrames > 0 ? p.to : p.cur;
-        w.f64(s.x); w.f64(s.y); w.f64(s.zoomW); w.f64(s.zoomH); w.f64(s.angle); w.f64(s.opacity);
-        w.f64(s.r); w.f64(s.g); w.f64(s.b);
-        for (double c : s.corners) w.f64(c);
+        const auto& c = p.cur;
+        w.f64(c.x); w.f64(c.y); w.f64(c.zoomW); w.f64(c.zoomH); w.f64(c.angle); w.f64(c.opacity);
+        w.f64(c.r); w.f64(c.g); w.f64(c.b);
+        for (double v : c.corners) w.f64(v);
     }
     return w.out;
 }
 
-bool Game::deserialize(const std::vector<uint8_t>& data) {
-    ReaderB r(data);
+bool Game::decodeState(const std::vector<uint8_t>& data, SaveState& s) {
+    In r(data);
     if (r.u32() != kMagic || r.u32() != kVersion) return false;
     r.str();
-    int map = r.i32();
-    Character hero;
-    readChar(r, hero);
+    s.mapId = r.i32();
+    readChar(r, s.hero);
     uint32_t n = r.u32();
-    std::vector<Character> evs(r.ok ? std::min<uint32_t>(n, 100000) : 0);
-    for (auto& e : evs) readChar(r, e);
-    auto vars = r.ints();
-    std::array<std::vector<int32_t>, 10> spare;
-    for (int s = 1; s <= 9; s++) spare[size_t(s)] = r.ints();
-    auto strs = r.strs();
-    auto sys = r.ints();
-    auto sysStr = r.strs();
-    std::map<int, std::array<int32_t, 100>> cself;
+    if (!r.ok || n > 100000) return false;
+    s.events.assign(n, Character());
+    for (auto& e : s.events) readChar(r, e);
+    s.vars = r.ints();
+    for (int k = 1; k <= 9; k++) s.spare[size_t(k)] = r.ints();
+    s.strs = r.strs();
+    s.sys = r.ints();
+    s.sysStr = r.strs();
     uint32_t cn = r.u32();
     for (uint32_t i = 0; i < cn && r.ok; i++) {
         int id = r.i32();
-        auto& v = cself[id];
+        auto& v = s.cself[id];
         for (auto& x : v) x = r.i32();
     }
-    std::map<int, std::array<std::string, 5>> cselfStr;
     cn = r.u32();
     for (uint32_t i = 0; i < cn && r.ok; i++) {
         int id = r.i32();
-        auto& v = cselfStr[id];
+        auto& v = s.cselfStr[id];
         for (auto& x : v) x = r.str();
     }
-    std::map<int, std::map<int, std::array<int, 10>>> mapSelf;
     uint32_t mn = r.u32();
     for (uint32_t i = 0; i < mn && r.ok; i++) {
         int m = r.i32();
         uint32_t en = r.u32();
         for (uint32_t k = 0; k < en && r.ok; k++) {
             int ev = r.i32();
-            auto& v = mapSelf[m][ev];
+            auto& v = s.mapSelf[m][ev];
             for (auto& x : v) x = r.i32();
         }
     }
-    if (!r.ok) return false;
-    Database cdb = project_->cdb, udb = project_->udb;
-    readDb(r, cdb);
-    readDb(r, udb);
-    AudioState audio;
-    audio.bgmFile = r.str(); audio.bgmId = r.i32(); audio.bgmVolume = r.i32(); audio.bgmPitch = r.i32();
-    audio.bgsFile = r.str(); audio.bgsId = r.i32(); audio.bgsVolume = r.i32(); audio.bgsPitch = r.i32();
-    double cr = r.f64(), cg = r.f64(), cb = r.f64();
-    uint64_t frames = r.u32();
-    frames |= uint64_t(r.u32()) << 32;
-    std::map<int, Picture> pics;
+    s.cdb = readDb(r);
+    s.udb = readDb(r);
+    s.audio.bgmFile = r.str(); s.audio.bgmId = r.i32(); s.audio.bgmVolume = r.i32(); s.audio.bgmPitch = r.i32();
+    s.audio.bgsFile = r.str(); s.audio.bgsId = r.i32(); s.audio.bgsVolume = r.i32(); s.audio.bgsPitch = r.i32();
+    s.r = r.f64(); s.g = r.f64(); s.b = r.f64();
+    s.frames = r.u32();
+    s.frames |= uint64_t(r.u32()) << 32;
     uint32_t pn = r.u32();
     for (uint32_t i = 0; i < pn && r.ok; i++) {
         int num = r.i32();
@@ -232,48 +248,50 @@ bool Game::deserialize(const std::vector<uint8_t>& data) {
         uint32_t fl = r.u32();
         p.scroll = fl & 1; p.freePos = fl & 2;
         p.windowW = r.i32(); p.windowH = r.i32();
-        auto& s = p.cur;
-        s.x = r.f64(); s.y = r.f64(); s.zoomW = r.f64(); s.zoomH = r.f64(); s.angle = r.f64(); s.opacity = r.f64();
-        s.r = r.f64(); s.g = r.f64(); s.b = r.f64();
-        for (double& c : s.corners) c = r.f64();
+        auto& c = p.cur;
+        c.x = r.f64(); c.y = r.f64(); c.zoomW = r.f64(); c.zoomH = r.f64(); c.angle = r.f64(); c.opacity = r.f64();
+        c.r = r.f64(); c.g = r.f64(); c.b = r.f64();
+        for (double& v : c.corners) v = r.f64();
         p.from = p.to = p.cur;
-        pics[num] = std::move(p);
+        s.pictures[num] = std::move(p);
     }
-    if (!r.ok) return false;
+    return r.ok;
+}
 
-    // Everything read: apply.
+// Applies a saved state. Must not run inside an event (it replaces every running event).
+void Game::applyState(SaveState& s) {
     contexts_.clear();
     commonContexts_.clear();
     mapParallel_.clear();
     reservedCommons_.clear();
     msg_ = MessageWindow();
-    vars_ = std::move(vars);
+    vars_ = std::move(s.vars);
     if (vars_.size() < 10000) vars_.resize(10000, 0);
-    spare_ = std::move(spare);
-    strs_ = std::move(strs);
+    spare_ = std::move(s.spare);
+    strs_ = std::move(s.strs);
     if (strs_.size() < 1000) strs_.resize(1000);
-    sys_ = std::move(sys);
+    sys_ = std::move(s.sys);
     if (sys_.size() < 1000) sys_.resize(1000, 0);
-    sysStr_ = std::move(sysStr);
+    sysStr_ = std::move(s.sysStr);
     if (sysStr_.size() < 200) sysStr_.resize(200);
-    commonSelf_ = std::move(cself);
-    commonSelfStr_ = std::move(cselfStr);
-    mapSelf_ = std::move(mapSelf);
-    project_->cdb = std::move(cdb);
-    project_->udb = std::move(udb);
-    playFrames_ = frames;
+    commonSelf_ = std::move(s.cself);
+    commonSelfStr_ = std::move(s.cselfStr);
+    mapSelf_ = std::move(s.mapSelf);
+    for (size_t t = 0; t < s.cdb.size() && t < project_->cdb.types.size(); t++) project_->cdb.types[t].records = std::move(s.cdb[t]);
+    for (size_t t = 0; t < s.udb.size() && t < project_->udb.types.size(); t++) project_->udb.types[t].records = std::move(s.udb[t]);
+    playFrames_ = s.frames;
     fx_ = ScreenEffects();
-    fx_.r = cr; fx_.g = cg; fx_.b = cb;
+    fx_.r = s.r; fx_.g = s.g; fx_.b = s.b;
     mapId_ = -1;
-    hero_ = hero;
+    hero_ = s.hero;
     hero_.realX = hero_.px * tileSize_ / 2.0;
     hero_.realY = hero_.py * tileSize_ / 2.0;
     hero_.moving = false;
     hero_.routeDone = true;
     hero_.routeFromCommand = false;
-    loadMap(map);
-    // Event positions and states as saved.
-    for (const auto& e : evs) {
+    hero_.exists = true;
+    loadMap(s.mapId);
+    for (const auto& e : s.events) {
         Character* ch = eventChar(e.eventId);
         if (!ch) continue;
         ch->px = e.px; ch->py = e.py; ch->direction = e.direction; ch->erased = e.erased;
@@ -283,26 +301,75 @@ bool Game::deserialize(const std::vector<uint8_t>& data) {
     }
     party_.clear();
     refreshPages();
-    // Pictures: textures again.
-    pictures_ = std::move(pics);
+    pictures_ = std::move(s.pictures);
     for (auto& [num, p] : pictures_) {
-        if (p.type == 2) {
-            p.texture = renderRichText(p.text, -1, p.textW, p.textH, true, sysVar(8) > 0 ? sysVar(8) : 16, &p);
-        } else if (p.type == 3) {
-            p.texture = windowTexture(p.file, p.windowW, p.windowH);
-        } else {
-            p.texture = loadImage(p.file);
-        }
+        if (p.type == 2) p.texture = renderRichText(p.text, -1, p.textW, p.textH, true, sysVar(8) > 0 ? sysVar(8) : 16, &p);
+        else if (p.type == 3) p.texture = windowTexture(p.file, p.windowW, p.windowH);
+        else p.texture = loadImage(p.file);
     }
-    // Sound
     stopSound(Channel::BGM, 0);
     stopSound(Channel::BGS, 0);
-    if (!audio.bgmFile.empty()) playSound(Channel::BGM, -1, audio.bgmFile, audio.bgmVolume, audio.bgmPitch, 0, 0, 0);
-    if (!audio.bgsFile.empty()) playSound(Channel::BGS, -1, audio.bgsFile, audio.bgsVolume, audio.bgsPitch, 0, 0, 0);
-    audioState_.bgmId = audio.bgmId;
-    audioState_.bgsId = audio.bgsId;
+    if (!s.audio.bgmFile.empty()) playSound(Channel::BGM, -1, s.audio.bgmFile, s.audio.bgmVolume, s.audio.bgmPitch, 0, 0, 0);
+    if (!s.audio.bgsFile.empty()) playSound(Channel::BGS, -1, s.audio.bgsFile, s.audio.bgsVolume, s.audio.bgsPitch, 0, 0, 0);
+    audioState_.bgmId = s.audio.bgmId;
+    audioState_.bgsId = s.audio.bgsId;
     updateCamera();
-    return true;
+}
+
+// A variable inside a saved state, for "Load/Save variable" (221/222). Returns false for
+// addresses a save does not hold.
+bool Game::stateValue(SaveState& s, int32_t a, int32_t* number, std::string* text, bool write) {
+    auto intSlot = [&](std::vector<int32_t>& v, size_t idx) -> bool {
+        if (idx >= v.size()) {
+            if (!write || idx > 1000000) { if (number) *number = 0; return true; }
+            v.resize(idx + 1, 0);
+        }
+        if (write) v[idx] = *number;
+        else *number = v[idx];
+        return true;
+    };
+    auto strSlot = [&](std::vector<std::string>& v, size_t idx) -> bool {
+        if (idx >= v.size()) {
+            if (!write || idx > 1000000) { if (text) text->clear(); return true; }
+            v.resize(idx + 1);
+        }
+        if (write) v[idx] = *text;
+        else *text = v[idx];
+        return true;
+    };
+    if (a >= 2000000 && a < 2100000 && number) return intSlot(s.vars, size_t(a - 2000000));
+    if (a >= 2100000 && a < 3000000 && number) return intSlot(s.spare[size_t(std::clamp((a - 2000000) / 100000, 1, 9))], size_t(a % 100000));
+    if (a >= 3000000 && a < 4000000 && text) return strSlot(s.strs, size_t(a - 3000000));
+    if (a >= 9000000 && a < 9100000 && number) return intSlot(s.sys, size_t(a - 9000000));
+    if (a >= 9900000 && a < 10000000 && text) return strSlot(s.sysStr, size_t(a - 9900000));
+    if (a >= 15000000 && a < 16000000) {
+        int id = (a - 15000000) / 100, idx = a % 100;
+        if (idx >= 5 && idx <= 9 && text) {
+            if (write) s.cselfStr[id][size_t(idx - 5)] = *text; else *text = s.cselfStr[id][size_t(idx - 5)];
+            return true;
+        }
+        if (number) {
+            if (write) s.cself[id][size_t(idx)] = *number; else *number = s.cself[id][size_t(idx)];
+            return true;
+        }
+    }
+    if (a >= 1000000000 && a < 1200000000) {
+        int db = (a / 100000000) % 10;  // 0 user, 1 changeable
+        auto& records = db == 0 ? s.udb : s.cdb;
+        int type = (a / 1000000) % 100, rec = (a / 100) % 10000, field = a % 100;
+        const DBField* f = dbField(db, type, field);
+        if (!f || size_t(type) >= records.size() || size_t(rec) >= records[size_t(type)].size()) return false;
+        DBRecord& r = records[size_t(type)][size_t(rec)];
+        if (f->isString && text) return strSlot(r.strings, size_t(f->index));
+        if (!f->isString && number) return intSlot(r.ints, size_t(f->index));
+    }
+    return false;
+}
+
+std::vector<uint8_t> Game::serialize() {
+    SaveState s;
+    captureState(s);
+    return encodeState(s);
 }
 
 bool Game::save(int slot) {
@@ -322,22 +389,26 @@ bool Game::save(int slot) {
     return ok;
 }
 
-bool Game::load(int slot) {
+bool Game::readSave(int slot, std::vector<uint8_t>& data) const {
     FILE* f = std::fopen(savePath(slot).c_str(), "rb");
-    if (!f) {
-        sys_[24] = 0;
-        return false;
-    }
+    if (!f) return false;
     std::fseek(f, 0, SEEK_END);
     long n = std::ftell(f);
     std::fseek(f, 0, SEEK_SET);
-    std::vector<uint8_t> data(size_t(std::max(n, 0L)));
+    data.resize(size_t(std::max(n, 0L)));
     size_t got = std::fread(data.data(), 1, data.size(), f);
     std::fclose(f);
     data.resize(got);
-    bool ok = deserialize(data);
+    return !data.empty();
+}
+
+bool Game::load(int slot) {
+    std::vector<uint8_t> data;
+    SaveState s;
+    bool ok = readSave(slot, data) && decodeState(data, s);
+    if (ok) applyState(s);
     sys_[24] = ok ? 1 : 0;
-    sys_[25] = slot;
+    if (ok) sys_[25] = slot;
     log(ok ? "loaded slot " + std::to_string(slot) : "load failed for slot " + std::to_string(slot));
     return ok;
 }
