@@ -277,6 +277,10 @@ int runGame(const RunOptions& o) {
                     break;
                 }
                 case SDL_MOUSEWHEEL: input.wheel = e.wheel.y; break;
+                case SDL_FINGERDOWN:
+                    // A second finger on the screen: a right click (cancel in mouse-driven games).
+                    if (SDL_GetNumTouchFingers(e.tfinger.touchId) >= 2) latchedMouse[1] = true;
+                    break;
                 case SDL_RENDER_TARGETS_RESET:
                 case SDL_RENDER_DEVICE_RESET:
                     gfx.dropTextCache();
@@ -344,6 +348,7 @@ int runGame(const RunOptions& o) {
                 ls >> what >> arg;
                 if (what == "shot") shot(arg.empty() ? "frame" + std::to_string(frame) : arg);
                 if (what == "state" || what == "shot") logLine(game.debugState());
+                if (what == "var") logLine("WolfRPG: " + arg + " = " + std::to_string(game.getValue(std::atoi(arg.c_str()))));
             }
             if (frame >= o.frames) break;
             continue;

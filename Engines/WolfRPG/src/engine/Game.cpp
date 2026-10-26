@@ -88,9 +88,10 @@ std::string Game::debugState() {
     for (const auto& [id, c] : mapParallel_) describe("map-parallel", *c);
     s += "pictures " + std::to_string(pictures_.size()) + ":";
     for (const auto& [n, p] : pictures_)
-        s += " " + std::to_string(n) + "(" + (p.type == 2 ? "text:" + p.text.substr(0, 60) : p.file) + " " + std::to_string(int(p.cur.x)) + "," +
+        s += " " + std::to_string(n) + "(" + (p.type == 2 ? "text:" + p.text.substr(0, 200) : p.file) + " " + std::to_string(int(p.cur.x)) + "," +
              std::to_string(int(p.cur.y)) + " op" + std::to_string(int(p.cur.opacity)) + " z" +
-             std::to_string(int(p.cur.zoomW)) + "x" + std::to_string(int(p.corrW)) + (p.z ? " Z" + std::to_string(p.z) : "") + ")";
+             std::to_string(int(p.cur.zoomW)) + "x" + std::to_string(int(p.corrW)) + (p.z ? " Z" + std::to_string(p.z) : "") +
+             (p.type == 2 ? " " + std::to_string(p.textW) + "x" + std::to_string(p.textH) : "") + ")";
     s += "\nmessage " + std::to_string(msg_.open) + " choosing " + std::to_string(msg_.choosing) + " text '" +
          msg_.text.substr(0, 80) + "'\n";
     s += "screen color " + std::to_string(int(fx_.r)) + "," + std::to_string(int(fx_.g)) + "," + std::to_string(int(fx_.b)) +

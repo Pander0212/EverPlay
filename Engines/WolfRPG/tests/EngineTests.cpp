@@ -2,10 +2,12 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <string>
 #include <vector>
 
+#include "data/Archive.hpp"
 #include "data/Project.hpp"
 #include "data/WolfData.hpp"
 #include "engine/Game.hpp"
@@ -254,9 +256,68 @@ void testCheats() {
     check(t.game->getValue(2000007) == 99, "cheat sets a variable");
 }
 
+// A DxLib version 6 archive (WOLF RPG Editor 2.20) with one stored file, written here byte by byte.
+void testArchive() {
+    const std::string content = "hello";
+    auto u16 = [](Bytes& b, uint16_t v) { b.push_back(uint8_t(v)); b.push_back(uint8_t(v >> 8)); };
+    auto u64 = [](Bytes& b, uint64_t v) { for (int i = 0; i < 8; i++) b.push_back(uint8_t(v >> (8 * i))); };
+    Bytes names;  // the root's empty name, then "a.txt": pack count, parity, upper-case name, name
+    u16(names, 0); u16(names, 0);
+    u16(names, 2); u16(names, 0);
+    for (const char* part : {"A.TXT", "a.txt"}) {
+        size_t n = std::strlen(part);
+        names.insert(names.end(), part, part + n);
+        names.insert(names.end(), 8 - n, 0);
+    }
+    Bytes files;
+    auto head = [&](uint64_t name, uint64_t attributes, uint64_t address, uint64_t size) {
+        u64(files, name); u64(files, attributes);
+        for (int i = 0; i < 3; i++) u64(files, 0);
+        u64(files, address); u64(files, size); u64(files, ~uint64_t(0));
+    };
+    head(0, 0x10, 0, 0);                    // the root folder
+    head(4, 0x20, 0, content.size());       // a.txt
+    Bytes dirs;
+    u64(dirs, 0); u64(dirs, ~uint64_t(0)); u64(dirs, 1); u64(dirs, 64);
+    Bytes table = names;
+    table.insert(table.end(), files.begin(), files.end());
+    table.insert(table.end(), dirs.begin(), dirs.end());
+    uint64_t dataStart = 48, nameTable = dataStart + content.size();
+    Bytes h;
+    h.push_back('D'); h.push_back('X'); u16(h, 6);
+    for (int i = 0; i < 4; i++) h.push_back(uint8_t(table.size() >> (8 * i)));
+    u64(h, dataStart); u64(h, nameTable); u64(h, names.size()); u64(h, names.size() + files.size()); u64(h, 932);
+    // WOLF 2.20's key, scrambled as DxLib 6 does.
+    uint8_t k[12] = {0x38, 0x50, 0x40, 0x28, 0x72, 0x4f, 0x21, 0x70, 0x3b, 0x73, 0x35, 0x38};
+    auto rot = [](uint8_t v, int r) { return uint8_t((v >> r) | (v << (8 - r))); };
+    k[0] = uint8_t(~k[0]); k[1] = rot(k[1], 4); k[2] ^= 0x8A; k[3] = uint8_t(~rot(k[3], 4)); k[4] = uint8_t(~k[4]);
+    k[5] ^= 0xAC; k[6] = uint8_t(~k[6]); k[7] = uint8_t(~rot(k[7], 3)); k[8] = rot(k[8], 5); k[9] ^= 0x7F;
+    k[10] = uint8_t(rot(k[10], 4) ^ 0xD6); k[11] ^= 0xCC;
+    auto crypt = [&](Bytes& b, size_t position) { for (size_t i = 0; i < b.size(); i++) b[i] ^= k[(position + i) % 12]; };
+    Bytes data(content.begin(), content.end());
+    crypt(h, 0);
+    crypt(table, 0);
+    crypt(data, content.size());  // file data is keyed from its own size on
+    Bytes file = h;
+    file.insert(file.end(), data.begin(), data.end());
+    file.insert(file.end(), table.begin(), table.end());
+    auto path = std::filesystem::temp_directory_path() / ("wolf-test-" + std::to_string(::getpid()) + ".wolf");
+    std::ofstream(path, std::ios::binary).write(reinterpret_cast<const char*>(file.data()), std::streamsize(file.size()));
+    std::string error;
+    auto archive = Archive::open(path.string(), error);
+    check(archive != nullptr, "open a version 6 archive: " + error);
+    if (archive) {
+        check(archive->entries().size() == 1 && archive->entries()[0].path == "a.txt", "archive entry name");
+        Bytes read = archive->read(0);
+        check(std::string(read.begin(), read.end()) == content, "archive entry contents");
+    }
+    std::filesystem::remove(path);
+}
+
 }  // namespace
 
 int main() {
+    testArchive();
     testReader();
     testCommonEvents();
     testInterpreter();

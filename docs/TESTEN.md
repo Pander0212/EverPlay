@@ -156,6 +156,8 @@ EverPlay spielt WOLF-RPG-Editor-Spiele (Version 2 und 3) jetzt mit einer eigenen
    Es erscheint unter dem Filter **RPG Maker** mit „WOLF RPG Editor“.
 2. Starten: Das Spiel läuft im Querformat. Unten links das Steuerkreuz, rechts **OK**, **Back** (Abbrechen)
    und **Shift**. Oben links blendet der Controller-Knopf die Steuerung aus und ein, **☰** öffnet die Cheats.
+   Tippen ins Bild ist ein Mausklick: Spiele mit Maussteuerung (viele WOLF-3-Spiele) bedient man direkt
+   per Finger, dann am besten die Steuerung ausblenden. **Zwei Finger tippen** = Rechtsklick (oft „zurück“).
 3. Spielstände liegen in Dateien unter **EverPlay › Saves › (Spielname)** (`SaveNN.everplay.sav`, ein eigenes
    Format, nicht mit dem PC austauschbar).
 4. App-Wechsel: Home-Geste, kurz warten, zurück zu EverPlay. Das Spiel sollte pausiert sein und weiterlaufen.
@@ -168,7 +170,7 @@ Noch nicht möglich:
   beim Import und beim Start. Abhilfe: entpackte Spieldateien verwenden. Normale `.wolf`-Archive (WOLF 2.x
   und 3.x bis 3.5) gehen.
 - Spiele mit eigenem Nachrichtensystem zeigen manchmal keinen Text (bekannt bei „MY“).
-- Videos, Tastatur-Texteingabe und Maus/Touch direkt im Spiel sind noch unvollständig.
+- Videos und Tastatur-Texteingabe fehlen noch; das Mausrad gibt es per Touch nicht.
 
 Melden: Startet es? Bild, Ton, Musik (auch MIDI), Text, Steuerung, Speichern/Laden? Bei Problemen das
 Diagnose-Log schicken: Es enthält die Ausgabe der Wolf-Engine vom letzten Spiel.
