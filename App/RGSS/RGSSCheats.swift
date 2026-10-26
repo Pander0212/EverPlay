@@ -38,7 +38,7 @@ final class RGSSCheatBridge: CheatEngine {
         throw RGSSCheatError(message: "The game did not answer. Cheats need a game started by EverPlay.")
     }
 
-    /// Shows the cheat screen over the game when the ☰ button in the game (MKXP.framework) is tapped.
+    /// Shows the cheat screen over the game when the ☰ button of an older MKXP.framework is tapped.
     static func listen() {
         NotificationCenter.default.addObserver(forName: Notification.Name("EverPlayRGSSMenu"), object: nil, queue: nil) { _ in
             MainActor.assumeIsolated { present() }
@@ -49,6 +49,11 @@ final class RGSSCheatBridge: CheatEngine {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         guard var top = scenes.flatMap(\.windows).first(where: \.isKeyWindow)?.rootViewController else { return }
         while let presented = top.presentedViewController { top = presented }
+        top.present(screen(), animated: true)
+    }
+
+    /// The cheat screen MV/MZ games have, talking to the running game.
+    static func screen() -> UIViewController {
         let host = Host()
         let bridge = RGSSCheatBridge()
         let screen = NavigationStack {
@@ -59,7 +64,7 @@ final class RGSSCheatBridge: CheatEngine {
         }
         let controller = UIHostingController(rootView: screen)
         host.controller = controller
-        top.present(controller, animated: true)
+        return controller
     }
 
     private final class Host {

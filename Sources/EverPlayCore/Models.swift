@@ -8,6 +8,8 @@ public enum GameEngine: String, Codable, Sendable, CaseIterable {
     case onscripter
     /// RPG Maker XP, VX and VX Ace (RGSS 1-3), played natively by mkxp-z.
     case rgss
+    /// KiriKiri 2 / KiriKiri Z visual novels (data.xp3, startup.tjs), played natively by KiriKit's engine.
+    case kirikiri
 
     public var title: String {
         switch self {
@@ -17,6 +19,7 @@ public enum GameEngine: String, Codable, Sendable, CaseIterable {
         case .rpgMaker2000: return "RPG Maker 2000/2003"
         case .onscripter: return "ONScripter"
         case .rgss: return "RPG Maker XP/VX/VX Ace"
+        case .kirikiri: return "KiriKiri"
         }
     }
 
@@ -27,11 +30,12 @@ public enum GameEngine: String, Codable, Sendable, CaseIterable {
         case .rpgMaker2000: return "Native · EasyRPG Player"
         case .onscripter: return "Experimental · OnscripterYuri"
         case .rgss: return "Experimental · mkxp-z"
+        case .kirikiri: return "Experimental · KiriKit"
         }
     }
 
     /// Runs in EverPlay's web player (WKWebView and the loopback game server).
-    public var isWeb: Bool { self != .rpgMaker2000 && self != .rgss }
+    public var isWeb: Bool { self != .rpgMaker2000 && self != .rgss && self != .kirikiri }
 }
 
 public struct EngineCapabilities: OptionSet, Sendable {
@@ -116,6 +120,16 @@ public struct ControlButton: Codable, Equatable, Sendable, Identifiable {
                 ControlButton(id: id(4), key: "Enter", label: "↵", x: 0.88, y: 0.84),
                 ControlButton(id: id(5), key: "Escape", label: "Esc", x: 0.73, y: 0.90)]
     }
+
+    /// RPG Maker XP/VX/VX Ace (mkxp-z's default bindings): Enter confirms, Esc cancels and opens
+    /// the menu, Shift dashes.
+    public static let rgssLayout: [ControlButton] = {
+        func id(_ number: Int) -> UUID { UUID(uuidString: "E7E7E7E7-0000-4000-8000-00000000010\(number)")! }
+        return [ControlButton(id: id(1), kind: .dpad, key: "", label: "D-pad", x: 0.15, y: 0.70),
+                ControlButton(id: id(2), key: "Enter", label: "OK", x: 0.89, y: 0.66),
+                ControlButton(id: id(3), key: "Escape", label: "Back", x: 0.78, y: 0.84),
+                ControlButton(id: id(4), key: "Shift", label: "Dash", x: 0.78, y: 0.50)]
+    }()
 }
 
 /// Keys the virtual controls may send: KeyboardEvent key, code and the legacy keyCode RPG Maker reads.
@@ -162,6 +176,8 @@ public enum EverPlayError: Error, LocalizedError, Equatable {
     case missingEntryPoint, ambiguousEntryPoints, incompleteEngine(String), unsupportedGame
     case duplicateGame, invalidLibrary, unsupportedSchema(Int), noAvailablePort
     case resourceNotFound, invalidRequest, invalidRange, notRuntimePackage, unsupportedInstaller(String)
+    /// The engine was recognised but EverPlay cannot play it.
+    case recognizedEngine(EngineReport)
 
     public var errorDescription: String? {
         switch self {
@@ -181,6 +197,9 @@ public enum EverPlayError: Error, LocalizedError, Equatable {
         case .invalidRequest: return "Invalid resource request."
         case .invalidRange: return "Invalid resource byte range."
         case .unsupportedInstaller(let reason): return "This installer cannot be unpacked (\(reason))."
+        case .recognizedEngine(let report):
+            let found = report.evidence.isEmpty ? "" : " (found \(report.evidence.joined(separator: ", ")))"
+            return "This is a \(report.engine) game\(found). \(report.outlook)"
         case .notRuntimePackage: return "This ZIP has no Graphics or Audio folder, so it is not an RPG Maker RTP."
         }
     }

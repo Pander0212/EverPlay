@@ -23,6 +23,10 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 | 10. Übersetzung und Übersetzungs-Editor | offen |
 | 11. Bibliothek: Filter, Sortierung, Favoriten (langes Drücken auf ein Spiel) | offen |
 | 12. RPG Maker XP/VX/VX Ace (mit RTP-Import) | läuft (Spotlight), Cheats neu und offen |
+| 13. KiriKiri | offen (neu im Nightly, inkl. verschlüsselte Spiele) |
+| 14. Bibliothek | offen (neu) |
+| 15. Übersetzung: Apple + ganzes Spiel | offen (neu) |
+| 16. Engine-Erkennung | offen (neu) |
 
 ## 1. Ren'Py-Spiel: Tastatur (Namenseingabe)
 1. Ein Spiel starten, das nach einem Namen fragt.
@@ -101,7 +105,44 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
    Darin steht jetzt die Ausgabe von mkxp-z und, falls es abstürzt, die Absturzstelle.
 5. Spielstände: Im Spiel speichern, Spiel beenden, EverPlay neu öffnen. Erwartet: Der Spielstand liegt in
    Dateien unter **Auf meinem iPhone › EverPlay › Saves › (Spielname)** (`Save01.rvdata2` usw.).
-6. Cheats: Oben links neben dem Controller-Symbol ist **☰**. Es öffnet dieselbe Cheat-Seite wie bei MV/MZ
-   (Gold, Gruppe, Level, Tempo, Durch Wände, Zufallskämpfe, Gott-Modus, Items/Waffen/Rüstungen, Variablen, Schalter).
-7. Steuerung: Steuerkreuz unten links (auch schräg), rechts **OK** (Bestätigen), **Back** (Abbrechen/Menü)
-   und **Dash** (gedrückt halten = rennen). Das Controller-Symbol oben links blendet die Tasten aus und ein.
+6. **☰** oben links (neben dem Controller-Symbol) öffnet dasselbe **Game menu** wie bei MV/MZ: Tasten
+   ein/aus, Deckkraft, **Edit controls**, **Cheats** (Gold, Gruppe, Level, Tempo, Durch Wände, Zufallskämpfe,
+   Gott-Modus, Items, Variablen, Schalter) und **Quit game**.
+7. Steuerung: Steuerkreuz unten links (auch schräg), rechts **OK**, **Back** (Abbrechen/Menü) und **Dash**.
+   Das Controller-Symbol blendet die Tasten aus und ein.
+8. **Edit controls**: Tasten verschieben, antippen zum Vergrößern/Löschen/„Hold“ (gedrückt bleiben), über **Add**
+   neue Tasten hinzufügen (z. B. A/S/D/Q/W für Spiele, die die nutzen), **Done**. Das Layout bleibt pro Spiel
+   gespeichert; **Layout › Save as default** gilt für alle neuen XP/VX-Spiele.
+
+## 13. KiriKiri
+1. Ein KiriKiri-Spiel (Ordner mit `data.xp3` und meist einer `.exe`) als ZIP importieren. Es erscheint unter
+   dem Filter **Visual novels**.
+2. Starten: Das Spiel läuft im Querformat. Tippen = Klick, **zwei Finger tippen** = Rechtsklick (Menü/zurück).
+   Oben links **☰**: Menü, Backlog, Skip an/aus, Auto an/aus, Spiel beenden (EverPlay schließt sich dann).
+3. Spielstände liegen in Dateien unter **EverPlay › Saves › (Spielname)**.
+4. Verschlüsselte Spiele (viele kommerzielle, z. B. Steam-Versionen): Beim ersten Start erkennt EverPlay das
+   und zeigt **Encrypted game** mit einer Liste aus GARbro (braucht einmal Internet). Oben stehen Vorschläge
+   passend zum Spielnamen – das richtige Spiel antippen. Falsch gewählt? Beim Fehler **Choose another key**
+   tippen und neu starten. Steht das Spiel nicht in der Liste, geht es noch nicht.
+5. Melden: Startet es? Text, Bild, Ton, Videos? Bei Problemen das Diagnose-Log schicken (enthält das Engine-Log).
+
+## 14. Bibliothek
+1. Startseite: Oben das zuletzt gespielte Spiel groß mit **Play**, darunter **Recently played** (ab 4 Spielen),
+   dann alle Spiele als Cover-Raster. Das Symbol neben dem Sortieren-Knopf schaltet zwischen Cover und Liste um.
+2. Cover antippen = Spieleseite, runder ▶-Knopf auf dem Cover = sofort spielen, lange drücken = Menü
+   (Favorit, Ausblenden, Archivieren/Löschen).
+3. Eigenes Cover: Spieleseite › **Change cover** › aus Fotos oder Dateien wählen. **Use the game's picture**
+   setzt es zurück.
+
+## 15. Übersetzung: Apple und ganzes Spiel vorab
+1. Einstellungen › Translation › Service **Apple (on device)** (braucht iOS 26). **Games are in**: Sprache der
+   Spiele (oder automatisch), **Translate into**: deine Sprache. **Download languages** tippen: iOS lädt die
+   Sprachen (eigenes Fenster). Danach geht es offline und gratis.
+2. RPG Maker MV/MZ: Spieleseite › **Translate this game** an › **Translate the whole game now**. Fortschritt läuft,
+   die Seite darf zu, man darf schon spielen. Danach erscheinen die Texte sofort übersetzt.
+3. Ren'Py: Übersetzung auf der Spieleseite an, Spiel starten, ☰ › **Translate whole game**. Läuft im Hintergrund.
+
+## 16. Engine-Erkennung
+1. Ein Spiel importieren, das EverPlay nicht spielen kann (z. B. Unity, Unreal, Godot, GameMaker, Wolf RPG).
+   Erwartet statt „not supported“: „This is a Unity game (found UnityPlayer.dll, …)“ plus Einschätzung, ob es
+   aufs iPhone kommen kann. Bei ZIPs passiert das sofort, ohne erst alles zu entpacken.

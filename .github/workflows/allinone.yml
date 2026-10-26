@@ -207,8 +207,11 @@ jobs:
       ONSYURI_WEB: onsyuri_web-v0.7.7beta-2026-10-24.zip  # OnscripterYuri v0.7.7beta
       ONSYURI_WEB_SHA256: 652ee3df1644fac5b74ca46da42981f1604761182368fe8ab2b55de568b5a2a6
       # mkxp-z for RPG Maker XP/VX/VX Ace, published by mkxp-ios.yml (empty: build without it).
-      MKXP_FRAMEWORK: mkxp-z_ios-arm64-01b7241.framework.zip  # mkxp-z dev 37a04d1
-      MKXP_FRAMEWORK_SHA256: b40024c7c5f7ed6129c8b32a22b7651804e07862f8878ef1d7fa28392e02791a
+      MKXP_FRAMEWORK: mkxp-z_ios-arm64-0d05749.framework.zip  # mkxp-z dev 37a04d1
+      MKXP_FRAMEWORK_SHA256: 40d8c1afc7acd30d32a51eab9f93d1058691f728be23d100b59c432a413af68c
+      # KiriKiri: ShioriKrkr.framework from KiriKit, published by kirikiri-ios.yml (empty: build without it).
+      KIRIKIRI_FRAMEWORK: ShioriKrkr_ios-arm64-fe8a262.framework.zip
+      KIRIKIRI_FRAMEWORK_SHA256: 63e1e23bc92d7891d342d5ccd22a9cb7fb66405737720c896c2a09e6c2d13dbc
       # General MIDI sounds for XP/VX games' MIDI music: TimGM6mb (GPL-2) from Ubuntu's archive.
       MIDI_SOUNDFONT_DEB: http://archive.ubuntu.com/ubuntu/pool/universe/t/timgm6mb-soundfont/timgm6mb-soundfont_1.3-5_all.deb
       MIDI_SOUNDFONT_DEB_SHA256: b70bc29b8f27adef8f92a2d9c1e26cee977b84c68110f0dd4326d97730a7c3ed
@@ -309,6 +312,14 @@ jobs:
             echo "$MIDI_SOUNDFONT_DEB_SHA256  soundfont.deb" | shasum -a 256 -c -
             mkdir -p soundfont && (cd soundfont && ar -x ../soundfont.deb && tar -xf data.tar.xz)
             cp soundfont/usr/share/sounds/sf2/TimGM6mb.sf2 "$app/"
+          fi
+          # KiriKiri: ShioriKrkr (KiriKit, MPL-2.0), built by kirikiri-ios.yml.
+          if [[ -n "$KIRIKIRI_FRAMEWORK" ]]; then
+            curl --fail --location --show-error --retry 2 --max-time 300 \
+              "https://github.com/${GITHUB_REPOSITORY}/releases/download/libretro-cores/$KIRIKIRI_FRAMEWORK" --output kirikiri.zip
+            echo "$KIRIKIRI_FRAMEWORK_SHA256  kirikiri.zip" | shasum -a 256 -c -
+            unzip -o -q kirikiri.zip -d kirikiri-unpacked
+            cp -R kirikiri-unpacked/ShioriKrkr.framework "$app/Frameworks/"
           fi
           # Ad-hoc placeholder signatures; sideloading tools re-sign every framework and the app.
           for framework in "$app"/Frameworks/*.framework; do codesign --force --sign - --timestamp=none "$framework"; done

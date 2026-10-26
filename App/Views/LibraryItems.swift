@@ -29,7 +29,9 @@ enum LibraryItem: Identifiable {
         guard case .renpy(let game) = self else { return nil }
         return game.runtime.map { "runs on \($0.version)" } ?? "no matching runtime"
     }
+    /// The player's own picture if they chose one, else the one the game ships.
     var cover: URL? {
+        if let custom = CustomCovers.url(for: id) { return custom }
         switch self {
         case .web(_, let cover): return cover
         case .renpy(let game): return game.cover
@@ -53,6 +55,18 @@ enum LibraryItem: Identifiable {
         if seconds < 3600 { return "\(seconds / 60) min" }
         return "\(seconds / 3600) h \(seconds % 3600 / 60) min"
     }
+    /// The engine's symbol for generated covers.
+    var symbol: String {
+        switch self {
+        case .renpy: return "text.bubble.fill"
+        case .web(let game, _):
+            switch game.engine {
+            case .rpgMakerMV, .rpgMakerMZ, .rpgMaker2000, .rgss: return "map.fill"
+            case .kirikiri, .onscripter: return "book.closed.fill"
+            case .html5: return "globe"
+            }
+        }
+    }
     var tint: Color {
         switch self {
         case .web(let game, _): return Theme.engineColor(game.engine)
@@ -72,6 +86,16 @@ enum WebCover {
             return titles.filter { ["png", "bmp", "jpg"].contains($0.pathExtension.lowercased()) }
                 .sorted { $0.lastPathComponent < $1.lastPathComponent }.first
         }
+        if entryPoint.lowercased().hasSuffix("game.ini") {
+            // RPG Maker XP/VX/VX Ace: a title picture, when the game keeps its graphics as loose files.
+            for folder in ["Graphics/Titles1", "Graphics/Titles"] {
+                let pictures = (try? FileManager.default.contentsOfDirectory(at: base.appendingPathComponent(folder),
+                                                                             includingPropertiesForKeys: nil)) ?? []
+                if let picture = pictures.filter({ ["png", "jpg"].contains($0.pathExtension.lowercased()) })
+                    .sorted(by: { $0.lastPathComponent < $1.lastPathComponent }).first { return picture }
+            }
+            return nil
+        }
         var candidates = ["icon/icon.png", "www/icon/icon.png", "favicon.png", "img/icon.png"]
         // RPG Maker MV/MZ: the title screen picture named in data/System.json.
         for data in ["data/System.json", "www/data/System.json"] {
@@ -83,6 +107,44 @@ enum WebCover {
             }
         }
         return candidates.map { base.appendingPathComponent($0) }.first { FileManager.default.fileExists(atPath: $0.path) }
+    }
+}
+
+/// Pictures the player chose for games (Photos or Files), kept in Application Support. Each change
+/// gets a new file name, so cached thumbnails of the old picture are not shown again.
+enum CustomCovers {
+    private static let key = "library.customCovers"
+    private static var folder: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("EverPlay/Covers", isDirectory: true)
+    }
+    private static var names: [String: String] { UserDefaults.standard.dictionary(forKey: key) as? [String: String] ?? [:] }
+
+    static func url(for id: String) -> URL? {
+        guard let name = names[id] else { return nil }
+        let url = folder.appendingPathComponent(name)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// Stores the picture as a JPEG of at most 1200 pixels on its long side.
+    static func set(_ image: UIImage, for id: String) throws {
+        let scale = min(1, 1200 / max(image.size.width, image.size.height, 1))
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let resized = UIGraphicsImageRenderer(size: size).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+        guard let data = resized.jpegData(compressionQuality: 0.85) else { throw CocoaError(.fileWriteUnknown) }
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let name = UUID().uuidString + ".jpg"
+        try data.write(to: folder.appendingPathComponent(name), options: .atomic)
+        remove(id)
+        var all = names
+        all[id] = name
+        UserDefaults.standard.set(all, forKey: key)
+    }
+
+    static func remove(_ id: String) {
+        var all = names
+        if let old = all.removeValue(forKey: id) { try? FileManager.default.removeItem(at: folder.appendingPathComponent(old)) }
+        UserDefaults.standard.set(all, forKey: key)
     }
 }
 
@@ -107,24 +169,65 @@ struct CoverView: View {
     @State private var image: UIImage?
 
     var body: some View {
-        ZStack {
-            if let image {
-                Image(uiImage: image).resizable().scaledToFill()
-            } else {
-                Theme.cover(for: item.title)
-                LinearGradient(colors: [.white.opacity(0.10), .clear], startPoint: .top, endPoint: .center)
-                Text(Theme.initials(item.title))
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.88))
+        // The picture fills the space it is given; it never decides the size (wide pictures overflowed).
+        Rectangle().fill(.clear)
+            .overlay {
+                if let image {
+                    Image(uiImage: image).resizable().scaledToFill()
+                } else {
+                    GeneratedCover(title: item.title, symbol: item.symbol)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).stroke(.white.opacity(0.08), lineWidth: 1))
+            .task(id: item.cover) {
+                image = nil
+                if let cover = item.cover { image = await CoverCache.image(for: cover) }
+            }
+            .accessibilityHidden(true)
+    }
+}
+
+/// A cover for games without a picture: colours from the title, the engine's symbol large and
+/// faint, and the title set like a box cover.
+struct GeneratedCover: View {
+    let title: String
+    let symbol: String
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width, height = proxy.size.height
+            let hues = Self.hues(title)
+            ZStack(alignment: .bottomLeading) {
+                LinearGradient(colors: [Color(hue: hues.0, saturation: 0.55, brightness: 0.55),
+                                        Color(hue: hues.1, saturation: 0.60, brightness: 0.22)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                RadialGradient(colors: [Color(hue: hues.1, saturation: 0.35, brightness: 0.95).opacity(0.45), .clear],
+                               center: UnitPoint(x: 0.85, y: 0.12), startRadius: 0, endRadius: max(width, height) * 0.75)
+                Image(systemName: symbol)
+                    .font(.system(size: width * 0.62, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.13))
+                    .rotationEffect(.degrees(-14))
+                    .position(x: width * 0.72, y: height * 0.36)
+                LinearGradient(colors: [.clear, .black.opacity(0.55)], startPoint: .center, endPoint: .bottom)
+                Text(title)
+                    .font(.system(size: max(11, width * 0.13), weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.5)
+                    .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
+                    .padding(width * 0.09)
+                    .frame(width: width, alignment: .leading)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).stroke(.white.opacity(0.08), lineWidth: 1))
-        .task(id: item.cover) {
-            image = nil
-            if let cover = item.cover { image = await CoverCache.image(for: cover) }
-        }
-        .accessibilityHidden(true)
+    }
+
+    private static func hues(_ title: String) -> (Double, Double) {
+        var hash: UInt64 = 1469598103934665603
+        for byte in title.utf8 { hash = (hash ^ UInt64(byte)) &* 1099511628211 }
+        let first = Double(hash % 360) / 360
+        let second = (first + 0.08 + Double((hash >> 16) % 10) / 100).truncatingRemainder(dividingBy: 1)
+        return (first, second)
     }
 }
 
@@ -209,7 +312,7 @@ struct GameRow: View {
 
 /// Library filter chips.
 enum LibraryFilter: String, CaseIterable, Identifiable {
-    case all, favorites, renpy, rpgMaker, web
+    case all, favorites, renpy, rpgMaker, novels, web
 
     var id: String { rawValue }
     var title: String {
@@ -218,6 +321,7 @@ enum LibraryFilter: String, CaseIterable, Identifiable {
         case .favorites: return "Favorites"
         case .renpy: return "Ren'Py"
         case .rpgMaker: return "RPG Maker"
+        case .novels: return "Visual novels"
         case .web: return "Web"
         }
     }
@@ -228,7 +332,8 @@ enum LibraryFilter: String, CaseIterable, Identifiable {
         case (.favorites, _): return FavoriteGames.contains(item.id)
         case (.renpy, .renpy): return true
         case (.rpgMaker, .web(let game, _)): return [.rpgMakerMV, .rpgMakerMZ, .rpgMaker2000, .rgss].contains(game.engine)
-        case (.web, .web(let game, _)): return [.html5, .onscripter].contains(game.engine)
+        case (.novels, .web(let game, _)): return [.kirikiri, .onscripter].contains(game.engine)
+        case (.web, .web(let game, _)): return game.engine == .html5
         default: return false
         }
     }

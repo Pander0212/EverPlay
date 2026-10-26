@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
 import EverPlayCore
 
 /// A game's page: big cover, facts, per-game options and the actions that do not belong on the
@@ -13,6 +15,12 @@ struct GameDetailView: View {
     @State private var size: Int64?
     @State private var translate = false
     @State private var reportText: String?
+    @State private var pickingPhoto = false
+    @State private var photo: PhotosPickerItem?
+    @State private var coverError: String?
+    @State private var pretranslating: PretranslateJob?
+    /// Bumped when the cover changes, so the library and this page show the new one.
+    @AppStorage("library.coverVersion") private var coverVersion = 0
 
     /// The current version from the library, so a changed runtime shows right away.
     private var current: LibraryItem {
@@ -36,11 +44,12 @@ struct GameDetailView: View {
                 facts
                 switch current {
                 case .renpy(let game):
-                    translationOptions(key: game.folder)
+                    translationOptions(key: game.folder, gameRoot: nil)
                     runtimeOptions(game)
                 case .web(let game, _):
                     if game.engine == .rpgMakerMV || game.engine == .rpgMakerMZ {
-                        translationOptions(key: GameSession.translationKey(game))
+                        translationOptions(key: GameSession.translationKey(game),
+                                           gameRoot: library.store.map { $0.directory(for: game).appendingPathComponent(game.entryPoint).deletingLastPathComponent() })
                     }
                     if game.engine == .rgss, let directory = library.store?.directory(for: game) {
                         RTPSection(gameFolder: MKXPLauncher.gameFolder(game, directory: directory))
@@ -65,6 +74,7 @@ struct GameDetailView: View {
             ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
         }
         .task { size = await Self.measure(folder) }
+        .sheet(item: $pretranslating) { job in PretranslateView(job: job) }
         .sheet(isPresented: Binding(get: { reportText != nil }, set: { if !$0 { reportText = nil } })) {
             NavigationStack {
                 ScrollView {
@@ -78,26 +88,77 @@ struct GameDetailView: View {
     }
 
     private var header: some View {
-        ZStack(alignment: .bottomLeading) {
-            CoverView(item: current, cornerRadius: 28)
-                .frame(height: 210)
-                .frame(maxWidth: .infinity)
-            LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
-                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-            VStack(alignment: .leading, spacing: 8) {
-                Text(current.title)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-                Text(current.engineLabel)
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .foregroundStyle(.white)
-                    .background(current.tint.opacity(0.55), in: Capsule())
+        let _ = coverVersion
+        return ZStack(alignment: .bottomLeading) {
+            CoverView(item: current, cornerRadius: 0)
+                .scaleEffect(1.4)
+                .blur(radius: 30)
+                .overlay(LinearGradient(colors: [.black.opacity(0.1), .black.opacity(0.7)], startPoint: .top, endPoint: .bottom))
+            HStack(alignment: .bottom, spacing: 16) {
+                CoverView(item: current, cornerRadius: 18)
+                    .frame(width: 120, height: 160)
+                    .shadow(color: .black.opacity(0.5), radius: 14, y: 8)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(current.title)
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(3)
+                    Text(current.engineLabel)
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .foregroundStyle(.white)
+                        .background(current.tint.opacity(0.55), in: Capsule())
+                    Menu {
+                        Button("Choose from Photos", systemImage: "photo") { pickingPhoto = true }
+                        Button("Choose from Files", systemImage: "folder") {
+                            FilePicker.present(types: [.image], asCopy: true) { url in
+                                setCover(UIImage(contentsOfFile: url.path))
+                            }
+                        }
+                        if CustomCovers.url(for: current.id) != nil {
+                            Button("Use the game's picture", systemImage: "arrow.uturn.backward") {
+                                CustomCovers.remove(current.id)
+                                coverVersion += 1
+                            }
+                        }
+                    } label: {
+                        Label("Change cover", systemImage: "photo.badge.plus")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .background(.white.opacity(0.15), in: Capsule())
+                    }
+                    .accessibilityIdentifier("changeCover")
+                }
+                Spacer(minLength: 0)
             }
             .padding(18)
         }
+        .frame(height: 240)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: .black.opacity(0.35), radius: 16, y: 8)
+        .photosPicker(isPresented: $pickingPhoto, selection: $photo, matching: .images)
+        .onChange(of: photo) { _, item in
+            guard let item else { return }
+            Task {
+                let data = try? await item.loadTransferable(type: Data.self)
+                setCover(data.flatMap(UIImage.init(data:)))
+                photo = nil
+            }
+        }
+        .alert("Cover not changed", isPresented: Binding(get: { coverError != nil }, set: { if !$0 { coverError = nil } })) {
+            Button("OK") { coverError = nil }
+        } message: { Text(coverError ?? "") }
+    }
+
+    private func setCover(_ image: UIImage?) {
+        guard let image else { coverError = "The picture could not be read."; return }
+        do {
+            try CustomCovers.set(image, for: current.id)
+            coverVersion += 1
+        } catch {
+            coverError = error.localizedDescription
+        }
     }
 
     private var facts: some View {
@@ -126,7 +187,7 @@ struct GameDetailView: View {
         .surface(cornerRadius: 22)
     }
 
-    private func translationOptions(key: String) -> some View {
+    private func translationOptions(key: String, gameRoot: URL?) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Toggle(isOn: Binding(get: { translate }, set: { translate = $0; TranslationPreferences.setEnabled($0, for: key) })) {
                 Label("Translate this game", systemImage: "character.bubble").font(.headline)
@@ -145,6 +206,19 @@ struct GameDetailView: View {
                     Label("Edit translations", systemImage: "text.badge.checkmark").font(.subheadline.weight(.semibold))
                 }
                 .accessibilityIdentifier("editTranslations")
+                if translate {
+                    if let gameRoot {
+                        Button { pretranslating = PretranslateJob(key: key, gameRoot: gameRoot) } label: {
+                            Label("Translate the whole game now", systemImage: "text.badge.star").font(.subheadline.weight(.semibold))
+                        }
+                        .accessibilityIdentifier("translateWholeGame")
+                        Text("Translates every message and choice before you play, like MTool, so lines appear without waiting.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    } else {
+                        Text("To translate the whole game up front: start it, then ☰ › Translate whole game. It continues in the background while you play.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
             }
         }
         .padding(16)

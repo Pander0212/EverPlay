@@ -1,10 +1,15 @@
 import SwiftUI
+import NaturalLanguage
+#if canImport(Translation)
+import Translation
+#endif
 import EverPlayCore
 
 /// Settings › Translation: service, target language, model and API key.
 struct TranslationSettingsSection: View {
     @State private var settings = TranslationPreferences.settings
     @State private var key = ""
+    @State private var preparing = false
 
     private static let languages: [(String, String)] = [
         ("de", "German"), ("en", "English"), ("es", "Spanish"), ("fr", "French"), ("it", "Italian"),
@@ -22,6 +27,19 @@ struct TranslationSettingsSection: View {
             if settings.provider != .off {
                 Picker("Translate into", selection: $settings.targetLanguage) {
                     ForEach(Self.languages, id: \.0) { language in Text(language.1).tag(language.0) }
+                }
+            }
+            if settings.provider == .apple {
+                Picker("Games are in", selection: Binding(get: { settings.sourceLanguage ?? "" },
+                                                          set: { settings.sourceLanguage = $0.isEmpty ? nil : $0 })) {
+                    Text("Detect automatically").tag("")
+                    ForEach(Self.languages, id: \.0) { language in Text(language.1).tag(language.0) }
+                }
+                if AppleTranslation.available {
+                    Button(preparing ? "Downloading…" : "Download languages", systemImage: "arrow.down.circle") { preparing = true }
+                        .disabled(preparing)
+                        .modifier(PrepareAppleTranslation(active: $preparing, source: AppleTranslation.downloadSource(settings),
+                                                          target: settings.targetLanguage))
                 }
             }
             if settings.provider.needsKey {
@@ -62,8 +80,76 @@ struct TranslationSettingsSection: View {
             return "Uses your DeepL API key (the free plan works). Game text is sent to DeepL. Keys stay in this device's Keychain."
         case .openAI:
             return "Any OpenAI-compatible service with your key: OpenAI, OpenRouter, a local LM Studio or Ollama server. Game text is sent to it. Keys stay in this device's Keychain."
+        case .apple:
+            return AppleTranslation.available
+                ? "Free, offline and private: Apple's translation on this iPhone. Download the game's language and yours once: Download languages here (with “Detect automatically” it downloads English, or Japanese when you translate into English), or iOS Settings › Apps › Translate › Downloaded Languages. Translations are a little plainer than DeepL or Claude."
+                : "Apple's translation needs iOS 26 here. Choose another service."
         case .anthropic:
             return "Claude with your Anthropic API key; you can enter a cheaper model such as claude-haiku-5-5. Game text is sent to Anthropic. Keys stay in this device's Keychain."
         }
+    }
+}
+
+enum AppleTranslation {
+    /// Why Apple cannot translate these lines yet (a language pair not downloaded), or nil.
+    static func missingLanguages(_ settings: TranslationSettings, sample lines: [String]) async -> String? {
+        #if canImport(Translation) && compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            var code = settings.sourceLanguage ?? ""
+            if code.isEmpty {
+                let recognizer = NLLanguageRecognizer()
+                recognizer.processString(lines.prefix(200).joined(separator: "\n"))
+                code = recognizer.dominantLanguage?.rawValue ?? ""
+            }
+            guard !code.isEmpty, code != settings.targetLanguage else { return nil }
+            let status = await LanguageAvailability().status(from: Locale.Language(identifier: code),
+                                                              to: Locale.Language(identifier: settings.targetLanguage))
+            if status == .installed { return nil }
+            return AppleTranslationError(source: code, target: settings.targetLanguage, unsupported: status == .unsupported)
+                .errorDescription
+        }
+        #endif
+        return nil
+    }
+
+    /// The games' language to download: the chosen one, else English (Japanese when translating into English).
+    static func downloadSource(_ settings: TranslationSettings) -> String {
+        if let chosen = settings.sourceLanguage, !chosen.isEmpty { return chosen }
+        return settings.targetLanguage.lowercased() == "en" ? "ja" : "en"
+    }
+
+    /// Translating outside SwiftUI (TranslationSession for installed languages) needs iOS 26.
+    static var available: Bool {
+        #if canImport(Translation) && compiler(>=6.2)
+        if #available(iOS 26.0, *) { return true }
+        #endif
+        return false
+    }
+}
+
+/// Asks iOS to download the languages for Apple's translation (its own download sheet).
+struct PrepareAppleTranslation: ViewModifier {
+    @Binding var active: Bool
+    let source: String
+    let target: String
+
+    func body(content: Content) -> some View {
+        #if canImport(Translation) && compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            content.translationTask(active ? TranslationSession.Configuration(source: Locale.Language(identifier: source),
+                                                                               target: Locale.Language(identifier: target)) : nil) { session in
+                do {
+                    try await session.prepareTranslation()
+                } catch {
+                    EverPlayLog.write("Apple translation: languages not downloaded: \(error.localizedDescription)")
+                }
+                await MainActor.run { active = false }
+            }
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
     }
 }

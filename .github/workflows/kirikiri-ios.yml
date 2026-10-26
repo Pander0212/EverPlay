@@ -33,7 +33,9 @@ jobs:
           restore-keys: kirikiri-vcpkg-v1-
       - name: Build tools
         run: |
-          brew install -q cmake ninja autoconf automake libtool pkg-config nasm
+          brew install -q cmake ninja autoconf automake libtool pkg-config nasm bison
+          # krkr2's TJS grammar needs bison 3.8; macOS has 2.3.
+          echo "$(brew --prefix bison)/bin" >> "$GITHUB_PATH"
           mkdir -p .vcpkg-cache
           # KiriKit's scripts use /Applications/Xcode.app.
           ls -ld /Applications/Xcode.app || sudo ln -s "$(xcode-select -p | sed 's|/Contents/Developer||')" /Applications/Xcode.app
@@ -45,6 +47,8 @@ jobs:
             git -C "build/$1" fetch -q --depth 1 "https://github.com/OWCramer/$1" "$2"
             git -C "build/$1" checkout -q FETCH_HEAD
           done
+          # Engine/CMakeLists.txt still includes Sources/CShioriKrkr, renamed CKiriKit upstream.
+          [ -e build/KiriKit/Sources/CShioriKrkr ] || ln -s CKiriKit build/KiriKit/Sources/CShioriKrkr
       - name: Build FFmpeg (LGPL, Shiori's configuration)
         run: |
           set -o pipefail

@@ -118,6 +118,8 @@ struct ControlEditorPanel: View {
     let engine: GameEngine
     let done: () -> Void
     @State private var savedNotice = false
+    @State private var addingKey = false
+    @State private var choosingLayout = false
 
     private var selected: ControlButton? { settings.layout.first { $0.id == selection } }
 
@@ -139,22 +141,20 @@ struct ControlEditorPanel: View {
                 Text("Drag controls to move them. Tap one to resize it or remove it.").font(.caption)
             }
             HStack(spacing: 10) {
-                Menu {
-                    if !settings.layout.contains(where: { $0.kind == .dpad }) {
-                        Button("D-pad") { add(ControlButton(kind: .dpad, key: "", label: "D-pad", x: 0.2, y: 0.7)) }
-                    }
-                    ForEach(ControlKey.catalog, id: \.key) { key in
-                        Button("\(key.label)  (\(key.code))") { add(ControlButton(key: key.key, label: key.label, x: 0.5, y: 0.5)) }
-                    }
-                } label: { Label("Add", systemImage: "plus.circle") }
-                    .accessibilityIdentifier("addControl")
-                Menu {
-                    Button("Save as default for \(engine.title)") { ControlProfiles.save(settings.layout, for: engine); savedNotice = true }
-                    if let profile = ControlProfiles.load(for: engine) {
-                        Button("Use the \(engine.title) default") { settings.buttons = profile; selection = nil }
-                    }
-                    Button("Reset to EverPlay's layout", role: .destructive) { settings.buttons = ControlButton.defaultLayout(); selection = nil }
-                } label: { Label("Layout", systemImage: "square.grid.3x3") }
+                if engine == .rgss {
+                    // mkxp-z's game loop does not run the run loop mode menus need: a list and a dialog instead.
+                    Button { addingKey = true } label: { Label("Add", systemImage: "plus.circle") }
+                        .accessibilityIdentifier("addControl")
+                    Button { choosingLayout = true } label: { Label("Layout", systemImage: "square.grid.3x3") }
+                } else {
+                    Menu {
+                        addChoices
+                    } label: { Label("Add", systemImage: "plus.circle") }
+                        .accessibilityIdentifier("addControl")
+                    Menu {
+                        layoutChoices
+                    } label: { Label("Layout", systemImage: "square.grid.3x3") }
+                }
                 Spacer()
                 Button("Done", action: done)
                     .buttonStyle(.borderedProminent)
@@ -166,6 +166,37 @@ struct ControlEditorPanel: View {
         .padding(.horizontal, 12)
         .alert("Saved", isPresented: $savedNotice) { Button("OK") {} } message: {
             Text("New \(engine.title) games start with this layout.")
+        }
+        .confirmationDialog("Layout", isPresented: $choosingLayout) { layoutChoices }
+        .sheet(isPresented: $addingKey) {
+            NavigationStack {
+                List { addChoices.buttonStyle(.plain) }
+                    .navigationTitle("Add a control").navigationBarTitleDisplayMode(.inline)
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { addingKey = false } } }
+            }
+            .preferredColorScheme(.dark)
+        }
+    }
+
+    @ViewBuilder
+    private var addChoices: some View {
+        if !settings.layout.contains(where: { $0.kind == .dpad }) {
+            Button("D-pad") { add(ControlButton(kind: .dpad, key: "", label: "D-pad", x: 0.2, y: 0.7)) }
+        }
+        ForEach(ControlKey.catalog, id: \.key) { key in
+            Button("\(key.label)  (\(key.code))") { add(ControlButton(key: key.key, label: key.label, x: 0.5, y: 0.5)) }
+        }
+    }
+
+    @ViewBuilder
+    private var layoutChoices: some View {
+        Button("Save as default for \(engine.title)") { ControlProfiles.save(settings.layout, for: engine); savedNotice = true }
+        if let profile = ControlProfiles.load(for: engine) {
+            Button("Use the \(engine.title) default") { settings.buttons = profile; selection = nil }
+        }
+        Button("Reset to EverPlay's layout", role: .destructive) {
+            settings.buttons = engine == .rgss ? ControlButton.rgssLayout : ControlButton.defaultLayout()
+            selection = nil
         }
     }
 
@@ -179,6 +210,7 @@ struct ControlEditorPanel: View {
     private func add(_ button: ControlButton) {
         settings.buttons = settings.layout + [button]
         selection = button.id
+        addingKey = false
     }
 
     private func remove() {

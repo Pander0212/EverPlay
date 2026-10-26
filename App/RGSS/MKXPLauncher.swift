@@ -90,6 +90,7 @@ enum MKXPLauncher {
             let entry = unsafeBitCast(symbol, to: Entry.self)
             EverPlayLog.write("mkxp-z loaded; running \(game.title)")
             RGSSCheatBridge.listen()
+            RGSSControls.install(game: game, framework: handle)
             UIApplication.shared.isIdleTimerDisabled = true
             // mkxp-z sends stdout to its log; EverPlay's buffered output would land there too.
             fflush(stdout)

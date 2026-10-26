@@ -4,13 +4,15 @@ import PackageDescription
 let package = Package(
     name: "EverPlay",
     platforms: [.iOS(.v17), .macOS(.v13)],
-    products: [.library(name: "EverPlayCore", targets: ["EverPlayCore"])],
+    products: [.library(name: "EverPlayCore", targets: ["EverPlayCore"]),
+               .library(name: "CShioriKrkr", targets: ["CShioriKrkr"])],
     dependencies: [
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", exact: "0.9.20"),
         .package(url: "https://github.com/apple/swift-crypto.git", exact: "3.12.3")
     ],
     targets: [
         .target(name: "CLzma", exclude: ["README.md"]),
+        .target(name: "CShioriKrkr"),
         .target(name: "EverPlayCore", dependencies: [
             "CLzma", "ZIPFoundation", .product(name: "Crypto", package: "swift-crypto")
         ]),

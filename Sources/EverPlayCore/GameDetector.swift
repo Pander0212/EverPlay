@@ -34,6 +34,10 @@ public enum GameDetector {
         // RPG Maker XP/VX/VX Ace: Game.ini next to an encrypted archive or Data/Scripts.*.
         var gameInis: [String] = []
         var rgssFolders: Set<String> = []
+        // KiriKiri: data.xp3 (or other .xp3 archives) or startup.tjs, usually beside the game's .exe.
+        var kirikiriEntries: [String] = []
+        // Every file, to name the engine of a game EverPlay cannot play (EngineFingerprint).
+        var allPaths: [String] = []
         let rootComponents = root.pathComponents
         for case let enumeratedURL as URL in enumerator {
             let url = enumeratedURL.standardizedFileURL.resolvingSymlinksInPath()
@@ -44,12 +48,14 @@ public enum GameDetector {
             }
             let relative = components.dropFirst(rootComponents.count).joined(separator: "/")
             if relative.split(separator: "/").contains(where: { $0.hasPrefix(".") || $0 == "__MACOSX" }) { continue }
+            if allPaths.count < 50_000 { allPaths.append(relative) }
             if ["rxdata", "rvdata", "rvdata2", "rpa", "pck", "ldb"].contains(url.pathExtension.lowercased()) { legacy = true }
             switch url.lastPathComponent.lowercased() {
             case "rpg_rt.ldb": databases.append(relative)
             case "rpg_rt.lmt": mapTrees.insert((relative as NSString).deletingLastPathComponent.lowercased())
             case let name where ONScripterShell.scriptNames.contains(name): onsScripts.append(relative)
             case "game.ini": gameInis.append(relative)
+            case "data.xp3", "startup.tjs": kirikiriEntries.append(relative)
             case "game.rgssad", "game.rgss2a", "game.rgss3a":
                 rgssFolders.insert((relative as NSString).deletingLastPathComponent.lowercased())
             case "scripts.rxdata", "scripts.rvdata", "scripts.rvdata2":
@@ -82,6 +88,12 @@ public enum GameDetector {
                 "Games that need the RPG Maker RTP show missing graphics or sounds until an RTP is added."
             ])
         }
+        if let entry = kirikiriEntries.min(by: { ($0.split(separator: "/").count, $0.hasSuffix(".tjs") ? 1 : 0)
+                                                  < ($1.split(separator: "/").count, $1.hasSuffix(".tjs") ? 1 : 0) }) {
+            return GameValidationResult(engine: .kirikiri, entryPoint: entry, warnings: [
+                "Games with encrypted archives need their scheme from GARbro's database."
+            ])
+        }
         if entries.isEmpty, let script = onsScripts.min(by: { $0.split(separator: "/").count < $1.split(separator: "/").count }) {
             let folder = (script as NSString).deletingLastPathComponent
             let hasFont = manager.fileExists(atPath: root.appendingPathComponent(folder).appendingPathComponent("default.ttf").path)
@@ -94,7 +106,12 @@ public enum GameDetector {
             let depth = pages.map { $0.path.split(separator: "/").count }.min()!
             entries = [pages.filter { $0.path.split(separator: "/").count == depth }.max { $0.size < $1.size }!.path]
         }
-        guard !entries.isEmpty else { throw legacy ? EverPlayError.unsupportedGame : .missingEntryPoint }
+        guard !entries.isEmpty else {
+            if let report = EngineFingerprint.identify(paths: allPaths), !report.playable {
+                throw EverPlayError.recognizedEngine(report)
+            }
+            throw legacy ? EverPlayError.unsupportedGame : .missingEntryPoint
+        }
         // Prefer a package root, or the conventional NW.js www root. Otherwise require a single shallowest root.
         let entry: String
         if entries.contains("index.html") { entry = "index.html" }

@@ -44,6 +44,7 @@ public struct GameImporter: Sendable {
     /// Caller owns a private staging parent. No application state is changed until validation succeeds.
     public func prepare(zip: URL, stagingParent: URL) throws -> PreparedGame {
         let staging = stagingParent.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try Self.rejectUnplayableEngine(zip)
         do {
             var entries = try extractArchive(zip: zip, into: staging)
             // NW.js desktop builds (TyranoBuilder, many DLsite HTML games) keep the game in a
@@ -183,6 +184,21 @@ public struct GameImporter: Sendable {
 
     /// Reads only the archive's file list: a desktop Ren'Py game has game/ with scripts or
     /// archives, or ships the engine (renpy/__init__.py).
+    /// Names the engine of a ZIP EverPlay cannot play from its table of contents, before gigabytes of
+    /// Unity or Unreal files are extracted. Archives with a web page are left to the detector: Godot
+    /// and Flash games also come as browser exports.
+    static func rejectUnplayableEngine(_ zip: URL) throws {
+        guard let archive = try? Archive(url: zip, accessMode: .read) else { return }
+        let paths = archive.prefix(50_000).map(\.path)
+        let web = paths.contains { path in
+            let name = (path as NSString).lastPathComponent.lowercased()
+            return name.hasSuffix(".html") || name.hasSuffix(".htm") || name == "package.nw" || name == "app.asar"
+        }
+        if !web, let report = EngineFingerprint.identify(paths: paths), !report.playable {
+            throw EverPlayError.recognizedEngine(report)
+        }
+    }
+
     public static func archiveContainsRenPyGame(_ zip: URL) -> Bool {
         guard let archive = try? Archive(url: zip, accessMode: .read) else { return false }
         for entry in archive {

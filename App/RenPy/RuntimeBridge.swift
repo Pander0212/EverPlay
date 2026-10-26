@@ -7,7 +7,7 @@ import UIKit
 /// Python 2 and 3, so translation and link opening do not depend on pyobjus, which fails to load
 /// under Ren'Py 7's Python 2.
 ///
-/// POST /<token>/translate | cached | prefetch  (body: UTF-8 text; reply: translation or "")
+/// POST /<token>/translate | cached | prefetch | bulk  (body: UTF-8 text; reply: translation or "")
 /// POST /<token>/open                            (body: an http(s) URL, opened in Safari)
 final class RuntimeBridge: @unchecked Sendable {
     static let shared = RuntimeBridge()
@@ -94,7 +94,7 @@ final class RuntimeBridge: @unchecked Sendable {
             respond("", status: "403 Forbidden", on: connection); return
         }
         switch segments[1] {
-        case "translate", "cached", "prefetch":
+        case "translate", "cached", "prefetch", "bulk":
             // Translating may wait for the service; keep the listener free meanwhile.
             DispatchQueue.global(qos: .userInitiated).async {
                 let engine = TranslationEngine.shared
@@ -102,6 +102,8 @@ final class RuntimeBridge: @unchecked Sendable {
                 switch segments[1] {
                 case "translate": reply = engine.translate(text, timeout: 2.5) ?? ""
                 case "cached": reply = engine.cached(text) ?? ""
+                case "bulk":
+                    reply = String(engine.translateAll(text.components(separatedBy: "\u{1E}").filter { !$0.isEmpty }))
                 default:
                     engine.prefetch(text.components(separatedBy: "\u{1E}").filter { !$0.isEmpty })
                     reply = ""

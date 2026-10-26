@@ -84,3 +84,25 @@ final class RGSSSavesTests: FixtureTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: saves.appendingPathComponent("Game.ini").path))
     }
 }
+
+final class KiriKiriGameTests: FixtureTestCase {
+    func testSavesMoveToTheVisibleFolderBehindALink() throws {
+        let game = temporary.appendingPathComponent("Game"), saves = temporary.appendingPathComponent("Saves")
+        try FileManager.default.createDirectory(at: game.appendingPathComponent("savedata"), withIntermediateDirectories: true)
+        try Data([1]).write(to: game.appendingPathComponent("savedata/data0.bmp"))
+        try KiriKiriGame.linkSaves(gameRoot: game, saveFolder: saves)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: saves.path), ["data0.bmp"])
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: game.appendingPathComponent("savedata").path), saves.path)
+        try KiriKiriGame.linkSaves(gameRoot: game, saveFolder: saves)  // again: kept
+        try Data([2]).write(to: game.appendingPathComponent("savedata/data1.bmp"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: saves.appendingPathComponent("data1.bmp").path))
+    }
+
+    func testFindsTheGamesExecutable() throws {
+        for name in ["unins000.exe", "Sakura.exe", "config.exe"] {
+            try Data().write(to: temporary.appendingPathComponent(name))
+        }
+        XCTAssertEqual(KiriKiriGame.executableName(in: temporary), "Sakura.exe")
+        XCTAssertEqual(KiriKiriGame.executableName(in: temporary.appendingPathComponent("none")), "game.exe")
+    }
+}

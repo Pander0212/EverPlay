@@ -72,6 +72,8 @@ targets:
     dependencies:
       - package: EverPlay
         product: EverPlayCore
+      - package: EverPlay
+        product: CShioriKrkr
   EverPlayAppTests:
     type: bundle.unit-test
     platform: iOS
