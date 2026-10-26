@@ -331,7 +331,9 @@ jobs:
           ls -la artifacts/*.ipa
       - name: Publish the nightly build and the Feather/AltStore source
         # Contains only EverPlay, the Ren'Py runtimes and our MIT demo; never third-party games.
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        # Only the main development branch publishes: builds of feature branches (claude/wolf-rpg …)
+        # replaced the nightly the player installs with their own state.
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/claude/beautiful-wozniak-ryh9su'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: 0.2.${{ github.run_number }}
