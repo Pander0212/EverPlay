@@ -18,7 +18,8 @@ ios_cmake() {
   cmake -G Ninja -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphoneos -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=$MIN_IOS -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PREFIX" \
     -DCMAKE_PREFIX_PATH="$PREFIX" -DCMAKE_FIND_ROOT_PATH="$PREFIX" \
-    -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache "$@"
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 "$@"  # CMake 4 refuses SDL_ttf's FreeType (cmake_minimum_required 2.8)
 }
 
 if [ ! -f "$PREFIX/lib/cmake/SDL2/SDL2Config.cmake" ]; then
@@ -38,6 +39,6 @@ if [ ! -f "$PREFIX/lib/cmake/SDL2_ttf/SDL2_ttfConfig.cmake" ]; then
   cmake --install "$WORK/ttf-build"
 fi
 
-ios_cmake -S "$ROOT/Engines/WolfRPG" -B "$WORK/engine" -DWOLF_TOOLS=OFF -DWOLF_SDL=ON
+ios_cmake -S "$ROOT/Engines/WolfRPG" -B "$WORK/engine" -DWOLF_TOOLS=OFF -DWOLF_TESTS=OFF -DWOLF_SDL=ON
 cmake --build "$WORK/engine"
 ls -la "$WORK/engine"/*.a "$PREFIX/lib"/*.a

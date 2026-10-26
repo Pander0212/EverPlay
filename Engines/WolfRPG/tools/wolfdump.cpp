@@ -1,10 +1,15 @@
 // Prints a summary of a WOLF RPG game's data (for development; never ships).
 //   wolfdump <game folder> [summary|commands|map <id>|common <id>|db <u|c|s> <type>]
+//   wolfdump --archive <file.wolf> [output folder]   lists (and extracts) a .wolf archive
 #include <cstdio>
 #include <cstring>
 #include <map>
 #include <string>
 
+#include <filesystem>
+#include <fstream>
+
+#include "../src/data/Archive.hpp"
 #include "../src/data/Project.hpp"
 
 using namespace wolf;
@@ -21,6 +26,27 @@ static void printCommands(const CommandList& list) {
 
 int main(int argc, char** argv) {
     if (argc < 2) { std::fprintf(stderr, "usage: wolfdump <game> [mode]\n"); return 2; }
+    if (std::strcmp(argv[1], "--archive") == 0 && argc > 2) {
+        std::string error;
+        auto archive = Archive::open(argv[2], error);
+        if (!archive) { std::fprintf(stderr, "%s: %s\n", argv[2], error.c_str()); return 1; }
+        int failed = 0;
+        for (size_t i = 0; i < archive->entries().size(); i++) {
+            const auto& e = archive->entries()[i];
+            Bytes data = archive->read(i);
+            bool ok = data.size() == e.size || (e.size >= 62 && data.size() == e.size - 62);
+            if (!ok) failed++;
+            std::printf("%s %10llu %s%s%s\n", ok ? "ok  " : "FAIL", (unsigned long long)e.size, e.path.c_str(),
+                        e.compressed ? " [lz]" : "", e.huffman ? " [huffman]" : "");
+            if (argc > 3 && ok) {
+                std::filesystem::path out = std::filesystem::path(argv[3]) / e.path;
+                std::filesystem::create_directories(out.parent_path());
+                std::ofstream(out, std::ios::binary).write(reinterpret_cast<const char*>(data.data()), std::streamsize(data.size()));
+            }
+        }
+        std::printf("%zu entries, %d failed\n", archive->entries().size(), failed);
+        return failed ? 1 : 0;
+    }
     try {
         Project p(argv[1]);
         std::string mode = argc > 2 ? argv[2] : "summary";
