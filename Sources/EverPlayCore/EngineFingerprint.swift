@@ -56,8 +56,12 @@ public enum EngineFingerprint {
              outlook: "Unreal games are compiled for Windows; they cannot run on iPhone without the developer's iOS build.") {
             ($0.contains("/content/paks/") && ext($0) == "pak") || $0.hasPrefix("engine/binaries/") || $0.contains("/engine/binaries/")
         },
-        Rule(engine: "Godot", playable: false,
-             outlook: "Godot keeps the game in a .pck file; a Godot player of the same version could run it on iPhone (not in EverPlay yet).") {
+        Rule(engine: "SiglusEngine", playable: false,
+             outlook: "A SiglusEngine player for iPhone exists (siglus_rs); EverPlay does not include it yet.") {
+            name($0) == "scene.pck" || name($0) == "gameexe.dat"
+        },
+        Rule(engine: "Godot", playable: true,
+             outlook: "EverPlay plays Godot 4 games (GDScript); games with C# or native plug-ins do not run.") {
             ext($0) == "pck" || name($0) == "project.godot"
         },
         Rule(engine: "GameMaker", playable: false,
@@ -65,10 +69,6 @@ public enum EngineFingerprint {
             name($0) == "data.win" || (name($0).hasPrefix("audiogroup") && ext($0) == "dat")
         },
         Rule(engine: "SRPG Studio", playable: false, outlook: "SRPG Studio games run only on Windows.") { name($0) == "data.dts" },
-        Rule(engine: "SiglusEngine", playable: false,
-             outlook: "A SiglusEngine player for iPhone exists (siglus_rs); EverPlay does not include it yet.") {
-            name($0) == "scene.pck" || name($0) == "gameexe.dat"
-        },
         Rule(engine: "RealLive", playable: false, outlook: "RealLive visual novels are not supported yet.") {
             name($0) == "seen.txt" || name($0) == "gameexe.ini"
         },
@@ -110,6 +110,9 @@ public enum EngineFingerprint {
         },
     ]
 
+    /// The report's name for an .exe without a known engine beside it.
+    public static let windowsProgram = "Windows program"
+
     /// The engine the files point to, or nil when nothing is recognised.
     public static func identify(paths: [String]) -> EngineReport? {
         let lowered = paths.map { $0.lowercased() }
@@ -122,7 +125,7 @@ public enum EngineFingerprint {
             }
         }
         if lowered.contains(where: { ext($0) == "exe" }) {
-            return EngineReport(engine: "Windows program", playable: false,
+            return EngineReport(engine: windowsProgram, playable: false,
                                 outlook: "No known game engine was found next to the .exe; Windows programs cannot run on iPhone.",
                                 evidence: Array(lowered.filter { ext($0) == "exe" }.prefix(3)).map(name))
         }

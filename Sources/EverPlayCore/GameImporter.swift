@@ -194,7 +194,8 @@ public struct GameImporter: Sendable {
             let name = (path as NSString).lastPathComponent.lowercased()
             return name.hasSuffix(".html") || name.hasSuffix(".htm") || name == "package.nw" || name == "app.asar"
         }
-        if !web, let report = EngineFingerprint.identify(paths: paths), !report.playable {
+        // A lone .exe may be a Godot game with its pack embedded; the detector reads it after extraction.
+        if !web, let report = EngineFingerprint.identify(paths: paths), !report.playable, report.engine != EngineFingerprint.windowsProgram {
             throw EverPlayError.recognizedEngine(report)
         }
     }

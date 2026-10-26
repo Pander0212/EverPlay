@@ -6,7 +6,7 @@ final class EngineFingerprintTests: FixtureTestCase {
         let cases: [([String], String, Bool)] = [
             (["Game/Game.exe", "Game/UnityPlayer.dll", "Game/Game_Data/globalgamemanagers"], "Unity", false),
             (["Game/Game.exe", "Game/Game/Content/Paks/Game-WindowsNoEditor.pak"], "Unreal Engine", false),
-            (["Game.exe", "Game.pck"], "Godot", false),
+            (["Game.exe", "Game.pck"], "Godot", true),
             (["Game.exe", "data.win", "options.ini"], "GameMaker", false),
             (["Game.exe", "Data.wolf", "Config.exe"], "Wolf RPG Editor", false),
             (["Game.exe", "Data/BasicData/Game.dat"], "Wolf RPG Editor", false),

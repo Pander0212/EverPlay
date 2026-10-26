@@ -36,6 +36,9 @@ public enum GameDetector {
         var rgssFolders: Set<String> = []
         // KiriKiri: data.xp3 (or other .xp3 archives) or startup.tjs, usually beside the game's .exe.
         var kirikiriEntries: [String] = []
+        // Godot: a .pck, or a pack appended to the .exe (read from their headers below).
+        var godotFiles: [String] = []
+        var webAssembly = false
         // Every file, to name the engine of a game EverPlay cannot play (EngineFingerprint).
         var allPaths: [String] = []
         let rootComponents = root.pathComponents
@@ -50,6 +53,11 @@ public enum GameDetector {
             if relative.split(separator: "/").contains(where: { $0.hasPrefix(".") || $0 == "__MACOSX" }) { continue }
             if allPaths.count < 50_000 { allPaths.append(relative) }
             if ["rxdata", "rvdata", "rvdata2", "rpa", "pck", "ldb"].contains(url.pathExtension.lowercased()) { legacy = true }
+            switch url.pathExtension.lowercased() {
+            case "pck", "exe": if godotFiles.count < 64 { godotFiles.append(relative) }
+            case "wasm": webAssembly = true
+            default: break
+            }
             switch url.lastPathComponent.lowercased() {
             case "rpg_rt.ldb": databases.append(relative)
             case "rpg_rt.lmt": mapTrees.insert((relative as NSString).deletingLastPathComponent.lowercased())
@@ -94,6 +102,8 @@ public enum GameDetector {
                 "Games with encrypted archives need their scheme from GARbro's database."
             ])
         }
+        // Godot's web exports (.wasm next to the page) play in the web player.
+        if !webAssembly, let godot = try godotGame(root: root, candidates: godotFiles) { return godot }
         if entries.isEmpty, let script = onsScripts.min(by: { $0.split(separator: "/").count < $1.split(separator: "/").count }) {
             let folder = (script as NSString).deletingLastPathComponent
             let hasFont = manager.fileExists(atPath: root.appendingPathComponent(folder).appendingPathComponent("default.ttf").path)
@@ -129,5 +139,22 @@ public enum GameDetector {
         return GameValidationResult(engine: engine, entryPoint: entry, warnings: engine == .html5 ? [] : [
             "Desktop Node.js plugins and proprietary media codecs may not work in WebKit."
         ])
+    }
+
+    /// The Godot pack closest to the top (a .pck before an .exe with an embedded one), or nil. A
+    /// pack EverPlay cannot play (Godot 3, encrypted, newer than its runtimes) stops the import with the reason.
+    static func godotGame(root: URL, candidates: [String]) throws -> GameValidationResult? {
+        let ordered = candidates.sorted {
+            ($0.split(separator: "/").count, $0.lowercased().hasSuffix(".pck") ? 0 : 1, $0)
+                < ($1.split(separator: "/").count, $1.lowercased().hasSuffix(".pck") ? 0 : 1, $1)
+        }
+        for path in ordered {
+            guard let pack = GodotPack.read(root.appendingPathComponent(path)) else { continue }
+            let runtime = try GodotRuntime.framework(for: pack)
+            return GameValidationResult(engine: .godot, entryPoint: path, warnings: [
+                "Made with Godot \(pack.version); plays on EverPlay's \(runtime.dropFirst(5).map(String.init).joined(separator: ".")) runtime. Games with C# or native plug-ins do not run."
+            ])
+        }
+        return nil
     }
 }
