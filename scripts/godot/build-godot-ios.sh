@@ -33,7 +33,7 @@ fi
 (cd "$work" && scons -j"$(sysctl -n hw.ncpu)" platform=ios target=template_release "${flags[@]}" \
   vulkan=no generate_bundle=no debug_symbols=no ${GODOT_SCONS_EXTRA:-})
 
-library="$work/bin/libgodot.ios.template_release$suffix.$arch.a"
+library="$work/bin/libgodot.ios.template_release.$arch$suffix.a"
 ls -la "$library"
 
 framework="$output/$name.framework"

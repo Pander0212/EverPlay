@@ -8,14 +8,14 @@ Branch: `claude/godot` (nie in `claude/beautiful-wozniak-ryh9su` mergen oder pus
 
 | Was | Im Simulator/CI gesehen | Vom Nutzer auf dem iPhone bestätigt |
 |---|---|---|
-| Godot-Engine 4.7.2 als iOS-Framework (`Godot47.framework`) | Workflow geschrieben, erster Lauf offen | nein |
+| Godot-Engine 4.7.2 als iOS-Framework (`Godot47.framework`) | iPhone-Build grün (Lauf 40375456849), Simulator-Build offen | nein |
 | Erkennung (`.pck`, eingebettetes pck, Engine-Version) | Swift-Tests grün (Linux, `GodotPackTests`) | nein |
 | Bild | nein | nein |
 | Ton | nein | nein |
 | Touch als Maus, Tasten | nein | nein |
 | Spielstände unter Dateien › EverPlay › Saves › Spielname | nein (Patch geschrieben) | nein |
 
-Code für die App-Seite steht (`App/Godot/`), aber noch kein Framework im IPA (Pin in `allinone.yml` leer).
+App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `allinone.yml` gepinnt; der erste Testbuild `nightly-godot` mit Godot kommt aus dem nächsten allinone-Lauf.
 
 ## Aufbau
 
@@ -45,10 +45,13 @@ Code für die App-Seite steht (`App/Godot/`), aber noch kein Framework im IPA (P
 
 ## Nächste Schritte
 
-- [ ] `godot-ios.yml` grün bekommen (Link-Fehler: fehlende Frameworks/Symbole nachtragen)
-- [ ] Eigenes MIT-Testspiel (kleines Godot-4-Projekt im Repo, z. B. `Tests/Fixtures/GodotProbe/`), per
-      Godot-Editor headless (`--export-pack`) in CI zu `.pck` exportiert; schreibt nach `user://` und
-      zeigt „Gold: 37“, beendet sich nach ein paar Sekunden mit `get_tree().quit()`
+- [x] `godot-ios.yml` iPhone grün (fehlten nur `godot_apple_embedded_plugins_(de)initialize`, die sonst Godots
+      Xcode-Export erzeugt; jetzt leer in `everplay_godot.mm`)
+- [ ] Simulator-Build + `simulator-test` (GodotProbe) grün bekommen
+- [x] Eigenes MIT-Testspiel `Tests/Fixtures/GodotProbe/` (Text-Szene + GDScript), gepackt von
+      `scripts/godot/make-pck.py` (kein Godot-Editor nötig; `--embed` hängt es an eine Platzhalter-.exe).
+      Zeigt „Gold: 37“, schreibt `user://probe.txt`, zählt Klicks, beendet sich nach 30 s.
+      App-Haken für CI: Startargument `-EverPlayAutoplayZip <ZIP in Documents>`
 - [x] App: `GameEngine.godot`, `App/Godot/GodotEngine.swift` (dlopen, Symbole), `GodotPlayerView.swift`
       (Godots View-Controller als Kind, Querformat, ☰-Menü: Escape, Rechtsklick, Tasten, Beenden;
       Zwei-Finger-Tipp = Rechtsklick), Start aus `RootView` (`fullScreenCover`) wie KiriKiri.
@@ -60,8 +63,7 @@ Code für die App-Seite steht (`App/Godot/`), aber noch kein Framework im IPA (P
       Entpacken ab („Windows program“ könnte ein eingebettetes pck haben)
 - [x] Laufzeit wählen (`GodotRuntime.framework`): Major 4 und Minor ≤ 7 → `Godot47`; Godot 3, neuere 4.x,
       verschlüsselt → Import bricht mit Grund ab
-- [ ] `allinone.yml`: `GODOT_FRAMEWORK`/`GODOT_FRAMEWORK_SHA256` eintragen, sobald godot-ios.yml grün
-      ist (Kopierschritt ist schon da); Simulator-Job mit Fixture
+- [x] `allinone.yml`: `GODOT_FRAMEWORK`/`GODOT_FRAMEWORK_SHA256` gepinnt
 - [x] Test-IPA vom Branch: `allinone.yml` veröffentlicht von `claude/godot` das Pre-Release
       `nightly-godot` mit eigener Quelle
       `https://github.com/Pander0212/EverPlay/releases/download/nightly-godot/release-source.json`
@@ -90,7 +92,9 @@ Code für die App-Seite steht (`App/Godot/`), aber noch kein Framework im IPA (P
 
 | Workflow-Lauf | Ergebnis | Gepinnte Datei |
 |---|---|---|
-| godot-ios.yml, erster Lauf | offen | – |
+| godot-ios.yml 40369824834 | Kompilierfehler (MainLoop-Include) | – |
+| godot-ios.yml 40371282247 | iPhone: Link-Fehler Plugin-Hooks (Kompilieren 14 min) | – |
+| godot-ios.yml 40375456849 | iPhone grün, Simulator: falscher Bibliotheksname | `Godot47_ios-arm64-4.7.2-a417992.framework.zip` `11b9c9760f9da80d948f6e858225d7a39b8b5ad32d33619115c95cc3bdacdd95` |
 
 ## Testspiele
 
