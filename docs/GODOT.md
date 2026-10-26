@@ -102,6 +102,7 @@ App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `
 | godot-ios.yml 40375456849 | iPhone grün, Simulator: falscher Bibliotheksname | `Godot47_ios-arm64-4.7.2-a417992.framework.zip` (ohne Path-Overrides, startet keine Spiele) |
 | godot-ios.yml 40376413760 | beide Builds grün; Simulatortest: `--main-pack` abgelehnt | – |
 | allinone.yml 40376413743 | IPA → `nightly-godot` (noch mit a417992, startet keine Spiele) | – |
+| godot-ios.yml 40382732038 | beide Builds grün (mit Path-Overrides); Simulatortest: `simctl launch` hing, App nie gestartet (kein Log) → Wartezeit + 3 Versuche | `Godot47_ios-arm64-4.7.2-d97d3e5.framework.zip` `3d52f6ee3eb2e6a78ab62a1fe1dff81b5a1316ed59ebdd62ded6378a11ac0631` (gepinnt); Simulator: `Godot47_ios-arm64-simulator-4.7.2-d97d3e5.framework.zip` `0016875d0599e2e87194f0fc3d7c6d38af9bcf7a0ee518d9071b6aa7628a28cd` |
 
 ## Testspiele
 

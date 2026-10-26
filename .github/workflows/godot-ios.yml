@@ -152,7 +152,14 @@ jobs:
             sleep 15
           done
           # No --stdout: simctl would stay attached (and the app end with it); Godot logs to godot.log anyway.
-          limited 60 xcrun simctl launch "$udid" "$bundle" -EverPlayAutoplayZip GodotProbe.zip || echo "launch failed or timed out"
+          # A fresh simulator keeps migrating data and can ignore the first launches.
+          sleep 45
+          for attempt in 1 2 3; do
+            if limited 90 xcrun simctl launch "$udid" "$bundle" -EverPlayAutoplayZip GodotProbe.zip; then break; fi
+            echo "launch $attempt failed or timed out"
+            limited 30 xcrun simctl terminate "$udid" "$bundle" || true
+            sleep 20
+          done
           sleep 20
           limited 60 xcrun simctl io "$udid" screenshot artifacts/godot-probe.png || true
           sleep 30
