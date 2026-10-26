@@ -218,6 +218,10 @@ void testInterpreter() {
         cmd(0, {}, 1),
         cmd(498, {}),
         cmd(122, {3000000, 0, 0}, 0, {"V2=\\v[2]"}), // S0 = "V2=\v[2]"
+        cmd(122, {3000001, 0, 0}, 0, {"a\\mx[20][S/b] c"}),
+        cmd(122, {3000001, 0x0B00, 0}, 0, {"]"}),    // S1: what follows "]", not the one of \mx[20]
+        cmd(122, {3000002, 0, 0}, 0, {"\\mx[-21]x"}),
+        cmd(122, {3000003, 0x0401, 3000002}),         // S3 = first character of S2, cut from it
         cmd(121, {2000000, 1, 0, 0}),                // V0 = 1: the common stops
     });
     t.frames(3);
@@ -228,6 +232,9 @@ void testInterpreter() {
     check(g.getValue(2000004) == 1, "conditional branch");
     check(g.getValue(2000005) == 3, "loop with break");
     check(g.getString(3000000) == "V2=8", "string with variable code, got '" + g.getString(3000000) + "'");
+    check(g.getString(3000003) == "\\mx[-21]" && g.getString(3000002) == "x", "cut a text code as one character, got '" +
+          g.getString(3000003) + "'");
+    check(g.getString(3000001) == " c", "cut after a text code, got '" + g.getString(3000001) + "'");
     check(g.getValue(2000000) == 1, "common ran to the end");
     check(g.getValue(9000000 + 0) == g.getValue(9000000), "system variables readable");
 }

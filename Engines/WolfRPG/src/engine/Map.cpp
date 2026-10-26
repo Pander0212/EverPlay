@@ -15,6 +15,12 @@ const int kMoveWait[] = {0, 8, 16, 32, 64, 128, 256};
 // Frames per animation pattern per animation speed.
 const int kAnimWait[] = {2, 4, 8, 12, 18, 24, 36};
 
+// Chips of 100000 and up are autotiles: 1xxxxx is the empty one, 2xxxxx to 16xxxxx the tileset's 15
+// autotile files; the last digits say how each quarter joins its neighbours. Tag and passage lists
+// start with these 16 slots, then the base chips.
+bool blankChip(int chip) { return chip == 0 || chip / 100000 == 1; }
+int chipIndex(int chip, int offset) { return chip >= 100000 ? chip / 100000 - 1 : chip + offset; }
+
 int dirIndex(int dir, int rows) {
     switch (dir) {
         case 2: return 0;
@@ -248,13 +254,13 @@ int Game::tileTag(int x, int y, int layer) {
     if (!tileset_) return 0;
     int offset = int(tileset_->autotileFiles.size()) + 1;
     auto tagOf = [&](int chip) -> int {
-        int idx = chip >= 100000 ? chip / 100000 : chip + offset;
+        int idx = chipIndex(chip, offset);
         return idx >= 0 && size_t(idx) < tileset_->tags.size() ? tileset_->tags[size_t(idx)] : 0;
     };
     if (layer >= 0) return tagOf(map_.tile(layer, x, y));
     for (int l = map_.layers - 1; l >= 0; l--) {
         int chip = map_.tile(l, x, y);
-        if (chip != 0) return tagOf(chip);
+        if (!blankChip(chip)) return tagOf(chip);
     }
     return tagOf(0);
 }
@@ -269,8 +275,8 @@ bool Game::tilePassable(int qx, int qy, int dir, bool entering) {
     int quarter = ((qy & 1) ? 0 : 2) + ((qx & 1) ? 0 : 1);  // bit index: RD=0, LD=1, RU=2, LU=3
     for (int l = map_.layers - 1; l >= 0; l--) {
         int chip = map_.tile(l, x, y);
-        if (chip == 0 && l > 0) continue;
-        int idx = chip >= 100000 ? chip / 100000 : chip + offset;
+        if (blankChip(chip) && l > 0) continue;
+        int idx = chipIndex(chip, offset);
         int code = idx >= 0 && size_t(idx) < passage.size() ? passage[size_t(idx)] : 0;
         if (code & 0x200) continue;  // depends on the layer below
         if (code & 0x20) return ((code >> quarter) & 1) == 0;
@@ -766,14 +772,14 @@ void Game::drawTiles(int layerMask, double camX, double camY, bool upper) {
         for (int ty = y0; ty < y0 + rows; ty++) {
             for (int tx = x0; tx < x0 + cols; tx++) {
                 int chip = map_.tile(l, tx, ty);
-                if (chip == 0) continue;
-                int idx = chip >= 100000 ? chip / 100000 : chip + offset;
+                if (blankChip(chip)) continue;
+                int idx = chipIndex(chip, offset);
                 int code = idx >= 0 && size_t(idx) < passage.size() ? passage[size_t(idx)] : 0;
                 bool isUpper = (code & 0x10) != 0;
                 if (isUpper != upper) continue;
                 float sx = float(tx * ts - camX), sy = float(ty * ts - camY);
                 if (chip >= 100000) {
-                    int a = chip / 100000 - 1;
+                    int a = chip / 100000 - 2;
                     if (a < 0 || size_t(a) >= autoTiles_.size() || !autoTiles_[size_t(a)]) continue;
                     const TexturePtr& t = autoTiles_[size_t(a)];
                     int frames = std::max(t->width() / ts, 1);

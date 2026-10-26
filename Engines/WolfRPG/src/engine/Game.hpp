@@ -264,6 +264,8 @@ public:
     void log(const std::string& message);
     // A summary of what is running, for diagnostics.
     std::string debugState();
+    // Test runs: show another map (its events still run).
+    void debugShowMap(int mapId) { loadMap(mapId); }
     bool trace = false;          // log every command executed
     int traceFrom = 0;           // … from this frame on
 

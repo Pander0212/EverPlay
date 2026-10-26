@@ -105,6 +105,31 @@ int main(int argc, char** argv) {
                             c.strArgs, c.returnVar);
                 printCommands(c.commands);
             }
+        } else if (mode == "tiles" && argc > 3) {  // every tile of a map: layer x y chip
+            auto m = p.map(std::atoi(argv[3]));
+            if (!m) return 1;
+            std::printf("size %d %d tileset %d\n", m->width, m->height, m->tileset);
+            for (int l = 0; l < m->layers; l++)
+                for (int y = 0; y < m->height; y++)
+                    for (int x = 0; x < m->width; x++) std::printf("%d %d %d %d\n", l, x, y, m->tile(l, x, y));
+        } else if (mode == "tilestats") {
+            for (int i = 0; i < p.mapCount(); i++) {
+                auto m = p.map(i);
+                if (!m) continue;
+                std::printf("map %d ts %d:", i, m->tileset);
+                for (int l = 0; l < m->layers; l++) {
+                    int zero = 0, raw = 0, conn = 0, n = m->width * m->height;
+                    for (int x = 0; x < m->width; x++)
+                        for (int y = 0; y < m->height; y++) {
+                            int v = m->tile(l, x, y);
+                            if (v == 0) zero++;
+                            else if (v >= 100000 && v % 100000 == 0) raw++;
+                            else if (v >= 100000) conn++;
+                        }
+                    std::printf(" L%d n%d zero%d raw%d conn%d", l, n, zero, raw, conn);
+                }
+                std::printf("\n");
+            }
         } else if (mode == "allmaps") {
             for (int i = 0; i < p.mapCount(); i++) {
                 auto m = p.map(i);

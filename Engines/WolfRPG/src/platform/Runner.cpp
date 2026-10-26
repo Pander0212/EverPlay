@@ -348,6 +348,7 @@ int runGame(const RunOptions& o) {
                 ls >> what >> arg;
                 if (what == "shot") shot(arg.empty() ? "frame" + std::to_string(frame) : arg);
                 if (what == "state" || what == "shot") logLine(game.debugState());
+                if (what == "map") game.debugShowMap(std::atoi(arg.c_str()));
                 if (what == "var") logLine("WolfRPG: " + arg + " = " + std::to_string(game.getValue(std::atoi(arg.c_str()))));
             }
             if (frame >= o.frames) break;

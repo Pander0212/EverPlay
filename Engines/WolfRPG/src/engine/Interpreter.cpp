@@ -11,6 +11,27 @@ namespace wolf {
 
 namespace {
 
+// The first occurrence of `what` in `s` that does not start inside a text code such as \mx[20]: WOLF
+// treats a code as one unit, so Bodywork Clinic's "[S/name]" tags after \mx[20] end at their own "]".
+size_t findOutsideCodes(const std::string& s, const std::string& what) {
+    size_t p = s.find(what);
+    while (p != std::string::npos) {
+        size_t code = s.rfind('\\', p);
+        bool inside = false;
+        if (code != std::string::npos && code < p) {
+            size_t open = code + 1;
+            while (open < s.size() && std::isalpha(static_cast<unsigned char>(s[open]))) open++;
+            if (open > code + 1 && open < s.size() && s[open] == '[' && open <= p) {
+                size_t close = s.find(']', open);
+                inside = close != std::string::npos && p <= close;
+            }
+        }
+        if (!inside) return p;
+        p = s.find(what, p + 1);
+    }
+    return p;
+}
+
 constexpr int32_t kMax = 999999999;
 
 int32_t clamp32(double v) {
@@ -145,6 +166,17 @@ std::string Game::expandText(const std::string& text, const Frame* frame, int de
             out += "\\\\";
             i += 2;
             continue;
+        }
+        // \v1[x] … \v9[x]: spare variable sets 1 to 9.
+        if ((text[i + 1] == 'v' || text[i + 1] == 'V') && i + 3 < text.size() && text[i + 2] >= '1' && text[i + 2] <= '9' &&
+            text[i + 3] == '[') {
+            size_t close;
+            std::string arg = readArg(i + 3, close);
+            if (close != std::string::npos) {
+                out += std::to_string(getValue(2000000 + (text[i + 2] - '0') * 100000 + num(arg), frame));
+                i = close + 1;
+                continue;
+            }
         }
         size_t j = i + 1;
         while (j < text.size() && (std::isalpha(static_cast<unsigned char>(text[j])) || text[j] == '?')) j++;
@@ -939,6 +971,20 @@ void Game::execSetString(Context& ctx, const Command& c, Frame& f) {
         }
     }
     std::string cur = getString(left, &f);
+    int b2 = (flags >> 16) & 0xFF;
+    if ((b2 & 0x04) && (op == 0x02 || op == 0x03) && !c.string(1).empty()) {
+        // WOLF 3: copy (0x02) or cut (0x03) up to a delimiter: the left side gets what precedes it, a
+        // cut leaves what follows it in the source; "<<NotFound>>" if the delimiter is not there.
+        std::string delimiter = expandText(c.string(1), &f);
+        size_t at = right.find(delimiter);
+        if (at == std::string::npos) {
+            setString(left, "<<NotFound>>", &f);
+        } else {
+            setString(left, right.substr(0, at), &f);
+            if (op == 0x03 && source == 1) setString(c.arg(2), right.substr(at + delimiter.size()), &f);
+        }
+        return;
+    }
     switch (op) {
         case 0x00: setString(left, right, &f); break;
         case 0x01: setString(left, cur + right, &f); break;
@@ -955,11 +1001,19 @@ void Game::execSetString(Context& ctx, const Command& c, Frame& f) {
             if (source == 1) setString(c.arg(2), rest, &f);
             break;
         }
-        case 0x04: {  // cut the first character
+        case 0x04: {  // cut the first character; a text code such as \mx[-21] counts as one
             size_t n = 1;
             if (!right.empty()) {
                 unsigned char ch = static_cast<unsigned char>(right[0]);
                 n = ch < 0x80 ? 1 : ch < 0xE0 ? 2 : ch < 0xF0 ? 3 : 4;
+            }
+            if (right.size() > 1 && right[0] == '\\') {
+                size_t j = 1;
+                while (j < right.size() && std::isalpha(static_cast<unsigned char>(right[j]))) j++;
+                size_t close = j < right.size() && right[j] == '[' && j > 1 ? right.find(']', j) : std::string::npos;
+                if (close != std::string::npos) n = close + 1;
+                else if (j > 1) n = j;
+                else n = 2;
             }
             setString(left, right.substr(0, std::min(n, right.size())), &f);
             if (source == 1) setString(c.arg(2), right.size() > n ? right.substr(n) : std::string(), &f);
@@ -1012,12 +1066,12 @@ void Game::execSetString(Context& ctx, const Command& c, Frame& f) {
             break;
         }
         case 0x0A: {  // keep what precedes the first occurrence (everything if there is none)
-            size_t p = cur.find(right);
+            size_t p = findOutsideCodes(cur, right);
             if (p != std::string::npos) setString(left, cur.substr(0, p), &f);
             break;
         }
         case 0x0B: {  // keep what follows the first occurrence (nothing if there is none)
-            size_t p = cur.find(right);
+            size_t p = findOutsideCodes(cur, right);
             setString(left, p == std::string::npos ? std::string() : cur.substr(p + right.size()), &f);
             break;
         }
