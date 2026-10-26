@@ -23,6 +23,10 @@
 
 extern int apple_embedded_main(int, char **);
 
+/* Godot's iOS export generates these for a project's iOS plugins; EverPlay runs games without any. */
+void godot_apple_embedded_plugins_initialize() {}
+void godot_apple_embedded_plugins_deinitialize() {}
+
 typedef void (*everplay_godot_quit_fn)(int code);
 static everplay_godot_quit_fn quit_callback = nullptr;
 static bool quitting = false;
