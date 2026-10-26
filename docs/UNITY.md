@@ -329,6 +329,11 @@ Offene Risiken, die sich erst ab M3 auf dem Gerät klären:
   InternalCalls. Signaturen aus den Metadaten lesen und Übergänge daraus erzeugen.
 - Plattformkennung in den Daten (`StandaloneWindows64`) gegenüber dem Android-Player und die D3D11-Shader (M4).
 
+**Ab M2 entsteht der Hybrid in einem eigenen Repo `UnityBridge` (GPL-3.0-or-later)**, Entscheidung des Auftraggebers
+2026-10-26. Das Repo muss der Auftraggeber anlegen (die GitHub-Anbindung der Sitzung darf keine Repos erstellen).
+Ein erster Commit (README, `docs/STATUS.md` mit M0/M1, GPL-3.0-Text) lag lokal bereit und wird nach dem Anlegen
+gepusht. EverPlay bindet später nur die fertige Bibliothek ein, wie bei `WolfRPG.framework`.
+
 ### M2: x64-Seite auf dem iPhone — nächster Schritt
 
 Ziel: In einer Test-App (oder einem versteckten EverPlay-Modus) mit JIT `GameAssembly.dll` laden und `il2cpp_init`
