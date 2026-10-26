@@ -225,6 +225,23 @@ Aufwand: Größenordnung eines eigenen Emulatorprojekts (viele Monate, Experten)
   rekonstruieren aus `GameAssembly.dll` + `global-metadata.dat` Typen und Methoden-Adressen (Dummy-DLLs). Nützlich zum
   Erzeugen der Thunk-Tabellen und für Diagnose; ausführbaren IL-Code liefern sie nicht verlässlich.
   Ein Weg „IL2CPP → IL zurück → unter Mono laufen lassen“ ist damit nicht realistisch.
+- [r2unity](https://github.com/radareorg/r2unity) (MIT): radare2-Plugin und CLI, liest `global-metadata.dat`
+  (Metadaten v24.1–v35, v38/v39; Windows-, Android-, iOS-Layouts), löst Methodenadressen auf, listet **P/Invoke** und
+  **Reverse-P/Invoke**. Führt nichts aus und übersetzt nichts. Nützlich für den Hybrid: Reverse-P/Invoke = Einsprünge,
+  die Thunks brauchen; P/Invoke = Windows-DLLs, die der Win32-Nachbau abdecken muss. Skriptbar, daher für automatische
+  Thunk-Tabellen besser geeignet als Il2CppDumper.
+
+**Vergleich der zwei Übersetzer-Bauarten:**
+
+| | Ganzes Windows (Box64 + Wine + DXVK, wie MinHub) | Hybrid (nur `GameAssembly.dll` übersetzt) |
+|---|---|---|
+| Engine | Windows-`UnityPlayer.dll`, übersetzt | ARM64-Android-`libunity.so`, nativ (Husk-Schicht) |
+| Tempo | langsamer | deutlich schneller (Rendering, Physik nativ) |
+| Shader | D3D11 über DXVK, kein Umbau | **Shader-Umwandlung DXBC → GLES nötig** |
+| Unity-Player | bringt das Spiel mit | pro Version vom Nutzer zu beschaffen |
+| Win32-Nachbau | komplett (Wine) | klein (Speicher, Threads, Dateien, Zeit) |
+| Fehlt auf iOS | Wine ohne Prozesse, Box64 für Darwin | x86-64-JIT im Prozess (Box64/FEXCore), il2cpp-Shim, Shader-Konverter |
+| Aufwand | Jahre, nützt allen Windows-Spielen | viele Monate, nur Unity-IL2CPP |
 
 ## Probiertes und Sackgassen
 
