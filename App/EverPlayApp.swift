@@ -11,6 +11,7 @@ struct EverPlayApp: App {
         MKXPLauncher.collectPreviousLog()
         MKXPLauncher.collectSaves()
         KiriKiriEngine.collectPreviousLog()
+        GodotEngine.collectPreviousLog()
     }
 
     var body: some Scene {

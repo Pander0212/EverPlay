@@ -75,6 +75,7 @@ struct RootView: View {
             if let store = library.store {
                 if game.engine.isWeb { GamePlayerView(game: game, store: store) }
                 else if game.engine == .kirikiri { KiriKiriLaunchView(game: game, store: store).ignoresSafeArea() }
+                else if game.engine == .godot { GodotPlayerView(game: game, store: store).ignoresSafeArea() }
                 else { LibretroPlayerView(game: game, store: store) }
             }
         }
@@ -409,7 +410,7 @@ private struct EmptyLibrary: View {
             .frame(height: 210)
             VStack(spacing: 8) {
                 Text("Make room for play").font(.title2.weight(.bold))
-                Text("Add Ren'Py, RPG Maker (2000/2003, XP, VX, VX Ace, MV, MZ), KiriKiri, TyranoBuilder or HTML games with the + button: a ZIP, a game folder or a direct link. You can also copy games into On My iPhone › EverPlay.")
+                Text("Add Ren'Py, RPG Maker (2000/2003, XP, VX, VX Ace, MV, MZ), KiriKiri, Godot 4, TyranoBuilder or HTML games with the + button: a ZIP, a game folder or a direct link. You can also copy games into On My iPhone › EverPlay.")
                     .multilineTextAlignment(.center).foregroundStyle(.secondary)
             }
             VStack(spacing: 12) {
@@ -471,9 +472,10 @@ private struct ImportHelpView: View {
                 Text("RPG Maker 2000/2003 games with EasyRPG Player (on iPhone and iPad).")
                 Text("RPG Maker XP, VX and VX Ace games with mkxp-z; the free RTP is downloaded on the game's page.")
                 Text("KiriKiri visual novels; encrypted ones with a key from GARbro's list.")
+                Text("Godot 4 desktop games (a .pck, or the pack inside the .exe); not C# or encrypted ones.")
             }
             Section("Saves") {
-                Text("Ren'Py, RPG Maker 2000/2003, XP/VX/VX Ace and KiriKiri saves: On My iPhone › EverPlay › Saves › game. Web games keep their saves in EverPlay's private storage.")
+                Text("Ren'Py, RPG Maker 2000/2003, XP/VX/VX Ace, KiriKiri and Godot saves: On My iPhone › EverPlay › Saves › game. Web games keep their saves in EverPlay's private storage.")
             }
         }
         .navigationTitle("Import help")

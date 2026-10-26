@@ -64,6 +64,7 @@ enum LibraryItem: Identifiable {
             case .rpgMakerMV, .rpgMakerMZ, .rpgMaker2000, .rgss: return "map.fill"
             case .kirikiri, .onscripter: return "book.closed.fill"
             case .html5: return "globe"
+            case .godot: return "gamecontroller.fill"
             }
         }
     }

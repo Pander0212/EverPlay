@@ -212,6 +212,9 @@ jobs:
       # KiriKiri: ShioriKrkr.framework from KiriKit, published by kirikiri-ios.yml (empty: build without it).
       KIRIKIRI_FRAMEWORK: ShioriKrkr_ios-arm64-fe8a262.framework.zip
       KIRIKIRI_FRAMEWORK_SHA256: ad26e389acebe9a9d378c4044d50af533afd247cfcf54a59d747021b8125b702
+      # Godot 4: Godot47.framework, published by godot-ios.yml (empty: build without it).
+      GODOT_FRAMEWORK: ''
+      GODOT_FRAMEWORK_SHA256: ''
       # General MIDI sounds for XP/VX games' MIDI music: TimGM6mb (GPL-2) from Ubuntu's archive.
       MIDI_SOUNDFONT_DEB: http://archive.ubuntu.com/ubuntu/pool/universe/t/timgm6mb-soundfont/timgm6mb-soundfont_1.3-5_all.deb
       MIDI_SOUNDFONT_DEB_SHA256: b70bc29b8f27adef8f92a2d9c1e26cee977b84c68110f0dd4326d97730a7c3ed
@@ -321,6 +324,14 @@ jobs:
             unzip -o -q kirikiri.zip -d kirikiri-unpacked
             cp -R kirikiri-unpacked/ShioriKrkr.framework "$app/Frameworks/"
           fi
+          # Godot 4 (MIT), built by godot-ios.yml.
+          if [[ -n "$GODOT_FRAMEWORK" ]]; then
+            curl --fail --location --show-error --retry 2 --max-time 300 \
+              "https://github.com/${GITHUB_REPOSITORY}/releases/download/libretro-cores/$GODOT_FRAMEWORK" --output godot.zip
+            echo "$GODOT_FRAMEWORK_SHA256  godot.zip" | shasum -a 256 -c -
+            unzip -o -q godot.zip -d godot-unpacked
+            cp -R godot-unpacked/Godot*.framework "$app/Frameworks/"
+          fi
           # Ad-hoc placeholder signatures; sideloading tools re-sign every framework and the app.
           for framework in "$app"/Frameworks/*.framework; do codesign --force --sign - --timestamp=none "$framework"; done
           codesign --force --sign - --timestamp=none "$app"
@@ -331,20 +342,22 @@ jobs:
           ls -la artifacts/*.ipa
       - name: Publish the nightly build and the Feather/AltStore source
         # Contains only EverPlay, the Ren'Py runtimes and our MIT demo; never third-party games.
-        # Only the main development branch publishes: builds of feature branches (claude/wolf-rpg …)
-        # replaced the nightly the player installs with their own state.
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/claude/beautiful-wozniak-ryh9su'
+        # Only the main development branch publishes the nightly: builds of feature branches
+        # (claude/wolf-rpg …) replaced the nightly the player installs with their own state. The Godot
+        # branch publishes its own test release (tag nightly-godot) with its own Feather source.
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/claude/beautiful-wozniak-ryh9su' || github.ref == 'refs/heads/claude/godot')
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: 0.2.${{ github.run_number }}
+          TAG: ${{ github.ref == 'refs/heads/claude/godot' && 'nightly-godot' || 'nightly' }}
         run: |
           set -euo pipefail
-          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/nightly"
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/$TAG"
           cp artifacts/EverPlay-AllInOne-unsigned.ipa release-EverPlay.ipa
           cp App/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png release-icon.png
-          python3 - "$base" "$VERSION" <<'PYTHON'
+          python3 - "$base" "$VERSION" "$TAG" <<'PYTHON'
           import json, os, sys, datetime
-          base, version = sys.argv[1], sys.argv[2]
+          base, version, tag = sys.argv[1], sys.argv[2], sys.argv[3]
           size = os.path.getsize('release-EverPlay.ipa')
           date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
           app = {
@@ -356,17 +369,20 @@ jobs:
               'versions': [{'version': version, 'date': date, 'downloadURL': f'{base}/release-EverPlay.ipa', 'size': size}],
           }
           source = {'name': 'EverPlay Nightly', 'identifier': 'app.everplay.nightly', 'apps': [app], 'news': []}
+          if tag == 'nightly-godot':
+              app['localizedDescription'] = 'Godot test build of EverPlay (branch claude/godot).'
+              source.update(name='EverPlay Godot test', identifier='app.everplay.nightly-godot')
           json.dump(source, open('release-source.json', 'w'), indent=2)
           PYTHON
-          gh release delete nightly --yes --cleanup-tag || true
+          gh release delete "$TAG" --yes --cleanup-tag || true
           # The releases API sometimes answers 403/5xx for a moment; the source must not stay empty.
           for attempt in 1 2 3 4; do
-            if gh release create nightly --prerelease --target "$GITHUB_SHA" --title "EverPlay nightly $VERSION" \
+            if gh release create "$TAG" --prerelease --target "$GITHUB_SHA" --title "EverPlay $TAG $VERSION" \
                  --notes "Unsigned test build from $GITHUB_SHA. Feather/AltStore source: $base/release-source.json" \
                  release-EverPlay.ipa release-icon.png release-source.json; then
               exit 0
             fi
-            gh release delete nightly --yes --cleanup-tag || true
+            gh release delete "$TAG" --yes --cleanup-tag || true
             sleep $((attempt * 15))
           done
           exit 1

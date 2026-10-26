@@ -9,13 +9,13 @@ Branch: `claude/godot` (nie in `claude/beautiful-wozniak-ryh9su` mergen oder pus
 | Was | Im Simulator/CI gesehen | Vom Nutzer auf dem iPhone bestätigt |
 |---|---|---|
 | Godot-Engine 4.7.2 als iOS-Framework (`Godot47.framework`) | Workflow geschrieben, erster Lauf offen | nein |
-| Erkennung (`.pck`, eingebettetes pck, Engine-Version) | nein (in Python für die Testspiele geprüft, Swift fehlt) | nein |
+| Erkennung (`.pck`, eingebettetes pck, Engine-Version) | Swift-Tests grün (Linux, `GodotPackTests`) | nein |
 | Bild | nein | nein |
 | Ton | nein | nein |
 | Touch als Maus, Tasten | nein | nein |
 | Spielstände unter Dateien › EverPlay › Saves › Spielname | nein (Patch geschrieben) | nein |
 
-Heute: `EngineFingerprint` erkennt Godot nur am Dateinamen (`.pck`, `project.godot`) und meldet „nicht spielbar“.
+Code für die App-Seite steht (`App/Godot/`), aber noch kein Framework im IPA (Pin in `allinone.yml` leer).
 
 ## Aufbau
 
@@ -49,23 +49,29 @@ Heute: `EngineFingerprint` erkennt Godot nur am Dateinamen (`.pck`, `project.god
 - [ ] Eigenes MIT-Testspiel (kleines Godot-4-Projekt im Repo, z. B. `Tests/Fixtures/GodotProbe/`), per
       Godot-Editor headless (`--export-pack`) in CI zu `.pck` exportiert; schreibt nach `user://` und
       zeigt „Gold: 37“, beendet sich nach ein paar Sekunden mit `get_tree().quit()`
-- [ ] App: `GameEngine.godot`, `App/Godot/GodotEngine.swift` (dlopen, Symbole), `GodotPlayerView.swift`
-      (View-Controller einbetten, Querformat je nach `display/window/handheld/orientation`, ☰-Menü:
-      Rechtsklick, Esc, Tastatur, Beenden), Start aus `RootView` wie KiriKiri
-- [ ] Erkennung in `Sources/EverPlayCore`: `GodotPack.swift` (Header lesen: Magic `GDPC` am Anfang oder
-      am Dateiende, Format, Version, Verschlüsselt-Flag), `GameDetector` → `.godot` mit Einstiegsdatei
-      (`.pck` neben der `.exe`, sonst die `.exe` mit eingebettetem pck), `EngineFingerprint` auf spielbar;
-      Tests in `Tests/EverPlayCoreTests` mit synthetischen Headern
-- [ ] Laufzeit wählen: Major 4 und Minor ≤ 7 → `Godot47`; Godot 3 / neuere 4.x / verschlüsselt → klare Meldung
-- [ ] `allinone.yml`: Framework pinnen (Name + SHA-256), nach `Frameworks/` kopieren; Simulator-Job mit Fixture
-- [ ] Test-IPA vom Branch für Feather (eigenes Pre-Release, nicht `nightly`)
+- [x] App: `GameEngine.godot`, `App/Godot/GodotEngine.swift` (dlopen, Symbole), `GodotPlayerView.swift`
+      (Godots View-Controller als Kind, Querformat, ☰-Menü: Escape, Rechtsklick, Tasten, Beenden;
+      Zwei-Finger-Tipp = Rechtsklick), Start aus `RootView` (`fullScreenCover`) wie KiriKiri.
+      Kompiliert noch nicht gesehen (CI-Lauf allinone.yml abwarten)
+- [ ] Hochformat-Spiele: `display/window/handheld/orientation` lesen statt immer Querformat
+- [x] Erkennung: `Sources/EverPlayCore/GodotPack.swift` (Header am Anfang oder am Dateiende),
+      `GameDetector.godotGame` (flachste Datei, `.pck` vor `.exe`; `.wasm` daneben = Web-Export),
+      `EngineFingerprint` Godot spielbar, `GameImporter` lehnt eine einzelne `.exe` nicht mehr vor dem
+      Entpacken ab („Windows program“ könnte ein eingebettetes pck haben)
+- [x] Laufzeit wählen (`GodotRuntime.framework`): Major 4 und Minor ≤ 7 → `Godot47`; Godot 3, neuere 4.x,
+      verschlüsselt → Import bricht mit Grund ab
+- [ ] `allinone.yml`: `GODOT_FRAMEWORK`/`GODOT_FRAMEWORK_SHA256` eintragen, sobald godot-ios.yml grün
+      ist (Kopierschritt ist schon da); Simulator-Job mit Fixture
+- [x] Test-IPA vom Branch: `allinone.yml` veröffentlicht von `claude/godot` das Pre-Release
+      `nightly-godot` mit eigener Quelle
+      `https://github.com/Pander0212/EverPlay/releases/download/nightly-godot/release-source.json`
+      (gleiche Bundle-ID wie der Nightly, ersetzt ihn also auf dem iPhone)
 - [ ] `docs/TESTEN.md`: Abschnitt Godot
 
 ## Entscheidungen und Sackgassen
 
 - Branch: `claude/godot` laut Auftrag. `allinone.yml` veröffentlicht den Nightly nur von
-  `claude/beautiful-wozniak-ryh9su`; für Tests von diesem Branch braucht es einen eigenen Weg
-  (IPA als Actions-Artefakt oder eigenes Pre-Release, offen).
+  `claude/beautiful-wozniak-ryh9su`; dieser Branch bekommt das eigene Pre-Release `nightly-godot`.
 - Eine Laufzeit 4.7.2 für alle 4.x-Spiele zuerst: 4.5.1 und 4.7.2 haben dasselbe GDScript-Token-Format
   (`TOKENIZER_VERSION 101`) und Binär-Ressourcenformat (6); 4.7 liest pck-Format 2, 3 und 4. Passt ein
   Spiel nicht, kommt die exakte Version als weiteres Framework dazu (Skript ist versionsparametrisiert,
