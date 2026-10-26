@@ -78,6 +78,11 @@ App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `
   (`TOKENIZER_VERSION 101`) und Binär-Ressourcenformat (6); 4.7 liest pck-Format 2, 3 und 4. Passt ein
   Spiel nicht, kommt die exakte Version als weiteres Framework dazu (Skript ist versionsparametrisiert,
   der Patch ist aber auf 4.7 geschrieben; 4.4 hat noch `platform/ios` ohne `drivers/apple_embedded`).
+- `disable_path_overrides=no` ist Pflicht: Release-Vorlagen lehnen `--main-pack` sonst ab („compiled without
+  support for path overrides“), `Main::setup` endet dann mit 1 (Simulatortest Lauf 40376413760: Import,
+  Erkennung und Laden des Frameworks liefen, Start scheiterte genau hier). Das pck aus `make-pck.py` läuft im
+  offiziellen Godot 4.7.2 Linux headless (`start gold 37`), ist also in Ordnung.
+- Godot schreibt auf iOS nicht nach stdout (os_log); Fehler vor `--log-file` sind in CI unsichtbar.
 - Keine Vulkan/MoltenVK: beide spielbaren Testspiele nutzen `gl_compatibility`.
 - Eingebettetes pck: Godot sucht selbst am Dateiende der `.exe` (`PackedSourcePCK::try_open_pack`),
   `--main-pack Spiel.exe` reicht; nichts muss ausgeschnitten werden.
@@ -94,7 +99,9 @@ App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `
 |---|---|---|
 | godot-ios.yml 40369824834 | Kompilierfehler (MainLoop-Include) | – |
 | godot-ios.yml 40371282247 | iPhone: Link-Fehler Plugin-Hooks (Kompilieren 14 min) | – |
-| godot-ios.yml 40375456849 | iPhone grün, Simulator: falscher Bibliotheksname | `Godot47_ios-arm64-4.7.2-a417992.framework.zip` `11b9c9760f9da80d948f6e858225d7a39b8b5ad32d33619115c95cc3bdacdd95` |
+| godot-ios.yml 40375456849 | iPhone grün, Simulator: falscher Bibliotheksname | `Godot47_ios-arm64-4.7.2-a417992.framework.zip` (ohne Path-Overrides, startet keine Spiele) |
+| godot-ios.yml 40376413760 | beide Builds grün; Simulatortest: `--main-pack` abgelehnt | – |
+| allinone.yml 40376413743 | IPA → `nightly-godot` (noch mit a417992, startet keine Spiele) | – |
 
 ## Testspiele
 

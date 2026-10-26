@@ -29,9 +29,10 @@ else
 fi
 
 # The compatibility renderer (OpenGL ES 3) for gl_compatibility games and Metal for the others; no
-# Vulkan (MoltenVK). Release template: no editor, no debugger.
+# Vulkan (MoltenVK). Release template: no editor, no debugger. Path overrides on: EverPlay names the
+# game's pack with --main-pack (release templates refuse it otherwise).
 (cd "$work" && scons -j"$(sysctl -n hw.ncpu)" platform=ios target=template_release "${flags[@]}" \
-  vulkan=no generate_bundle=no debug_symbols=no ${GODOT_SCONS_EXTRA:-})
+  vulkan=no generate_bundle=no debug_symbols=no disable_path_overrides=no ${GODOT_SCONS_EXTRA:-})
 
 library="$work/bin/libgodot.ios.template_release.$arch$suffix.a"
 ls -la "$library"
