@@ -74,12 +74,29 @@ Erkennung (nur Dateinamen und Header lesen, nichts ausführen):
 - **JoiPlay** [R]: unterstützt laut eigener Seite RPG Maker, Ren'Py, TyranoBuilder, Construct 2/3, Godot (GDScript),
   Flash und HTML5. **Kein Unity** ([joiplay.net](https://joiplay.net/)). Nutzerberichte auf itch.io bestätigen, dass
   Unity-Spiele dort nicht laufen.
-- **MinHub** [R]: Android-App von „h-game18“ (Patreon `hgame18`), Changelog unter `h-game18.xyz/minhub-changelog/`.
-  Die Seite und Patreon liefern hinter Cloudflare nur 403; eine Umgehung der Bot-Sperre wurde bewusst nicht versucht.
-  Aus Suchergebnissen: MinHub 0.5.2 (11. Juni 2026) lagert RPG VX Ace, KiriKiri und Godot in ladbare Plugins aus;
-  es gibt 0.7.5 (27. Aug.) und eine Vorschau auf 0.8.0. **Wie MinHub Unity startet, ist damit offen**, siehe Checkliste.
-  Die Seite heißt bei Patreon „Android Port“; möglich ist, dass Unity-Spiele dort als einzelne Android-Ports
-  (neu gebaute APKs) angeboten werden, nicht über einen allgemeinen Player. Unbestätigt.
+- **MinHub** [R]: Android-App von „h-game18“ (Patreon `hgame18`), Changelog unter `h-game18.xyz/minhub-changelog/`
+  (Cloudflare-geschützt; gelesen aus einer PDF-Abschrift, die der Auftraggeber geschickt hat). Was dort zu Unity steht:
+  - **0.9.1 (2026-10-10)**: „Play Unity games (Beta). MinHub can now run Windows games made with Unity.“ Einmal eine
+    „free Unity runtime“ laden (**ca. 150 MB, ARM64, Android 8+**), dann den Spielordner mit `.exe`, `UnityPlayer.dll`
+    und `_Data` importieren. „The first launch of a game takes longer while it is prepared.“ „Unity saves are stored
+    inside the Unity runtime. Uninstalling the runtime deletes them.“ (→ die Runtime ist eine eigene App/APK.)
+  - **0.9.2**: Runtime 1.0.0-beta2, Speicherstand-Cheat (Zahl suchen und ändern), 60-FPS-Grenze.
+  - **0.9.3**: Runtime 1.0.0-beta3, „textures use much less memory“ auf Mali-GPUs, „every Unity game opens in
+    **borderless fullscreen**“, Texturspeicher-Sparmodus, 30/60 FPS.
+  - **0.9.6 (2026-10-26)**: getrennt davon eine „MinHub EXE Runtime“ für beliebige Windows-EXE-Spiele mit Wahl
+    **WineD3D/DXVK**. „Unity games keep their existing runtime.“
+  - **0.9.7**: Runtime 1.0.0-beta4, läuft auf Android 15/16, Sprachwahl.
+
+  **Schluss daraus (Vermutung, nicht belegt):** Eine einzige 150-MB-Runtime für alle Unity-Versionen, die
+  `UnityPlayer.dll` verlangt, Spiele beim ersten Start „vorbereitet“ und „borderless fullscreen“ (ein Windows-
+  Fenstermodus) anbietet, führt sehr wahrscheinlich den **Windows-Player des Spiels selbst** aus, also
+  x86-64-Emulation (Box64 oder FEX) + Wine + D3D11-Übersetzung (DXVK/WineD3D), auf Unity zugeschnitten. Ein
+  Android-Unity-Player passender Version kann es nicht sein: das wären Dutzende Versionen à mehrere 10 MB, und IL2CPP-
+  Spiele (die Mehrheit) liefen damit gar nicht. Das passt zum Befund dieser Studie, dass es keinen anderen Weg gibt.
+  Belegen ließe es sich, indem man die Dateiliste der Runtime-APK ansieht (`libbox64`, `wine`, `dxvk` o. ä.).
+
+- Laut Auftraggeber gibt es unter den gewünschten Spielen **fast keine Mono-Spiele**; die Mehrheit ist IL2CPP.
+  Damit ist Weg A (Mono) auch praktisch bedeutungslos.
 - Was es auf Android sonst gibt [R, Allgemeinwissen, ohne Quelle im Detail geprüft]: **Winlator** und Ähnliche starten das
   Windows-Spiel unverändert unter Wine + Box64 (x86-64→ARM64) + DXVK. Das ist Windows-Emulation, keine Unity-Lösung.
 - Händische „Ports“ von PC-Unity-Spielen nach Android in Communitys entstehen über einen Neuaufbau des Projekts
@@ -143,8 +160,20 @@ Technisch der „echte“ Mono-Android-Player, aber iPhones haben kein AArch32. 
 
 ### Weg D: Windows-Spiel unverändert (Wine + Box64-artig + DXVK/MoltenVK)
 
-Das, was Winlator auf Android macht. Auf iOS gibt es dafür nichts Fertiges (Box64 ist Linux-only, Wine auf iOS
-existiert nicht in brauchbarer Form). Verworfen für diese Studie.
+Das, was Winlator auf Android macht, und sehr wahrscheinlich auch MinHubs Unity-Runtime (siehe oben). Es ist der
+einzige Weg, der IL2CPP-Spiele und D3D11-Shader ohne Umbau abdeckt, weil Unitys eigener Windows-Player läuft.
+Auf iOS fehlt dafür fast alles [R]:
+- Box64 setzt Linux voraus (Syscalls, ELF-Loader, eingepackte Linux-Bibliotheken). Für iOS müsste der Dynarec in
+  den JIT-Bereich (RX/RW-Paar wie Husk) und die Linux-Schicht durch Darwin ersetzt werden; FEXCore (ohne Frontend,
+  wie in AetherPS4) wäre die Alternative.
+- Wine braucht einen eigenen `wineserver`-Prozess; iOS-Apps dürfen keine Prozesse starten. Er müsste als Thread im
+  selben Prozess laufen. Wine für iOS gibt es nicht.
+- D3D11 → Vulkan (DXVK) → Metal (MoltenVK) bzw. WineD3D → OpenGL → ANGLE/Metal: beides auf iOS ungetestet, DXVK
+  braucht Vulkan-Funktionen, die MoltenVK nur teilweise hat.
+- Lizenzen: Box64 MIT, FEX MIT, Wine LGPL-2.1, DXVK zlib, MoltenVK Apache-2.0. Wäre verteilbar; die Unity-Dateien
+  bringt das Spiel selbst mit (kein Lizenzproblem wie bei einem separaten Player).
+Aufwand: ein eigenes „Winlator für iOS“, Größenordnung Jahre. Davon würden alle Windows-Spiele profitieren, nicht
+nur Unity. Für diese Studie nicht weiterverfolgt.
 
 ### Gemeinsamer Baustein für A und B: Shader-Umwandlung
 
@@ -178,7 +207,8 @@ Aufwand: Größenordnung eines eigenen Emulatorprojekts (viele Monate, Experten)
 
 ## Probiertes und Sackgassen
 
-- Websuche nach MinHub: nur Patreon-Titel. Changelog-Seite und Patreon: 403 (Cloudflare), nicht umgangen.
+- Websuche nach MinHub: nur Patreon-Titel. Changelog-Seite und Patreon: 403 (Cloudflare), nicht umgangen; Inhalt
+  später aus der PDF-Abschrift des Auftraggebers (siehe oben).
 - JoiPlay: kein Unity.
 - Vermutung „ARM64-Android-Unity-Player mit Mono“: Sackgasse, gibt es nicht (Unity-Doku).
 - Testspiele: beide IL2CPP, beide nur D3D11-Shader (siehe Tabelle). Der Mono-Weg trifft auf keines zu.
@@ -192,7 +222,9 @@ Nur sinnvoll, wenn Unity trotz des Ergebnisses weiterverfolgt werden soll:
 - [ ] Die zwei Gofile-Testspiele prüfen (`python3 -I scripts/unity_probe.py <Spielordner>`); als Mega-Link schicken lassen,
       falls Gofile weiter nicht geht. Ein **Mono**-Spiel mit **OpenGLCore- oder Vulkan-Shadern** wäre der einzig
       realistische Kandidat für Weg A.
-- [ ] MinHub: Changelog-Text vom Auftraggeber als Text/Screenshot-Abschrift geben lassen und eintragen, wie dort Unity läuft.
+- [x] MinHub-Changelog gelesen (PDF vom Auftraggeber).
+- [ ] MinHubs Unity-Runtime-APK (ca. 150 MB) nur auflisten (`unzip -l`, Namen der `.so`-Dateien in `lib/arm64-v8a/`),
+      um die Vermutung Box64/FEX + Wine + DXVK zu bestätigen oder zu widerlegen. Nichts davon ausführen, nichts ins Repo.
 - [ ] Unity-Lizenzbedingungen zur Weitergabe der Runtime im Wortlaut zitieren.
 - [ ] Für Weg A: von einer frei verfügbaren Android-APK mit Unity (IL2CPP, ARM64) gleicher Version die `il2cpp_*`-Importe
       von `libunity.so` auflisten (nur `readelf`, nichts ausführen). Ergibt die API-Fläche des Shims.
