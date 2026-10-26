@@ -9,6 +9,8 @@
 #include "core/config/project_settings.h"
 #include "core/input/input.h"
 #include "core/input/input_event.h"
+#include "core/os/main_loop.h"
+#include "core/os/os.h"
 #import "drivers/apple_embedded/app_delegate_service.h"
 #import "drivers/apple_embedded/display_server_apple_embedded.h"
 #import "drivers/apple_embedded/godot_view_apple_embedded.h"
