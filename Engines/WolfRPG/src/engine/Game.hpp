@@ -372,6 +372,9 @@ private:
     void updateEvents();
     void updateCommonTriggers();
     bool commonCondition(const CommonEvent& c);
+    bool unreferencedVariable(int32_t address);
+    std::map<int32_t, bool> referenced_;
+    int whereCommon_ = -1, whereEvent_ = -1, wherePc_ = -1;  // the command running now (for the log)  // variable address → named by some command
     bool mainEventRunning() const;
     void initSystemValues();
     void returnToTitle();

@@ -35,7 +35,9 @@ TexturePtr Game::loadImage(const std::string& path) {
     }
     TexturePtr t;
     if (data) t = gfx_.loadTexture(*data);
-    if (!t) log("missing image " + path);
+    if (!t)
+        log("missing image " + path + " (common " + std::to_string(whereCommon_) + " event " + std::to_string(whereEvent_) +
+            " command " + std::to_string(wherePc_) + ")");
     imageCache_[key] = t;
     if (imageCache_.size() > 600) {
         // Keep memory bounded: drop images nothing else holds.
@@ -395,24 +397,45 @@ void Game::execPicture(const Command& c, Frame& f) {
             else if (type == 2) fresh.text = expandText(str, &f);
             else if (type == 3) fresh.file = expandText(str, &f);
             else if (type == 4) fresh.file = getString(fileVar, &f);
-            fresh.divW = std::max(divW == kSame ? 1 : divW, 1);
-            fresh.divH = std::max(divH == kSame ? 1 : divH, 1);
-            fresh.pattern = pattern == kSame ? 1 : pattern;
+            // Showing over a picture that exists keeps whatever the command leaves "unchanged"
+            // (-1000000, opacity 256, blend 0xF, zoom type 0x40) and can be relative to it.
+            Picture::State base;
+            if (existed) base = p.moveFrames > 0 ? p.to : p.cur;
+            fresh.divW = std::max(divW == kSame ? (existed ? p.divW : 1) : divW, 1);
+            fresh.divH = std::max(divH == kSame ? (existed ? p.divH : 1) : divH, 1);
+            fresh.pattern = pattern == kSame ? (existed ? p.pattern : 1) : pattern;
             fresh.anchor = anchor;
-            fresh.blend = blend;
+            fresh.blend = existed && blend >= 4 ? p.blend : blend;
             fresh.scroll = scroll;
             fresh.freePos = freePos;
-            Picture::State s;
-            s.x = x == kSame ? 0 : x;
-            s.y = y == kSame ? 0 : y;
-            s.opacity = opacity == kSame ? 255 : opacity;
-            s.zoomW = zoom == kSame ? 100 : zoom;
-            s.zoomH = s.zoomW;
-            if (zoomType == 0x30) s.zoomH = zoomH;
-            else if (zoomType == 0x10) { s.zoomH = zoom; s.zoomW = 100; }
-            else if (zoomType == 0x20) { s.zoomW = zoom; s.zoomH = 100; }
-            s.angle = angle == kSame ? 0 : angle;
-            s.r = cr; s.g = cg; s.b = cb;
+            if (existed) {
+                fresh.corrW = fresh.corrToW = p.corrW;
+                fresh.corrH = fresh.corrToH = p.corrH;
+                fresh.z = p.z;
+                fresh.flipX = p.flipX;
+                fresh.flipY = p.flipY;
+            }
+            Picture::State s = base;
+            auto place = [&](double& field, int32_t v, double fallback) {
+                if (v == kSame) field = existed ? field : fallback;
+                else field = existed && relative ? field + v : v;
+            };
+            place(s.x, x, 0);
+            place(s.y, y, 0);
+            s.opacity = opacity == kSame || opacity > 255 ? (existed ? base.opacity : 255) : opacity;
+            if (zoomType != 0x40 && zoom != kSame) {
+                s.zoomW = zoom;
+                s.zoomH = zoom;
+                if (zoomType == 0x30) s.zoomH = zoomH == kSame ? zoom : zoomH;
+                else if (zoomType == 0x10) { s.zoomH = zoom; s.zoomW = 100; }
+                else if (zoomType == 0x20) { s.zoomW = zoom; s.zoomH = 100; }
+            } else if (!existed) {
+                s.zoomW = s.zoomH = 100;
+            }
+            s.angle = angle == kSame ? (existed ? base.angle : 0) : angle;
+            if (cr != kSame) s.r = cr;
+            if (cg != kSame) s.g = cg;
+            if (cb != kSame) s.b = cb;
             if (freePos)
                 for (int k = 0; k < 8; k++) s.corners[k] = k < 2 ? (k == 0 ? s.x : s.y) : val(size_t(19 + k - 2), 0);
             if (fresh.file.rfind("<SQUARE>", 0) == 0) {
@@ -987,6 +1010,9 @@ void Game::drawMessage() {
         int w = maxW + pad * 4, h = int(rows.size()) * lineH + pad * 2;
         int tx = sysVar(3) >= 0 ? sysVar(3) : screenW_ - w - pad;
         int ty = sysVar(4) >= 0 ? sysVar(4) : std::max(defaultY - h - pad, 0);
+        // Keep the window on screen (translated choices are often wider than the game expects).
+        tx = std::max(pad * 2, std::min(tx, screenW_ - w + pad * 2));
+        ty = std::max(pad, std::min(ty, screenH_ - h + pad));
         int x = tx - pad * 2, y = ty - pad;
         if (sysVar(14) != 0) {
             std::string windowFile = sdbFile(10, 1);

@@ -1,5 +1,6 @@
 // The event interpreter: runs event command lists (map event pages and common events).
 #include <algorithm>
+#include <set>
 #include <cmath>
 #include <cstring>
 #include <unordered_map>
@@ -256,7 +257,8 @@ int Game::resolveCommonId(int32_t id, const std::string& name, const Frame& fram
         std::string n = expandText(name, &frame);
         auto it = byName.find(n);
         if (it != byName.end()) return it->second;
-        log("no common event named " + n);
+        static std::set<std::string> reported;  // say it once per name: some games call missing ones every frame
+        if (reported.insert(n).second) log("no common event named " + n);
         return -1;
     }
     if (id >= 1000000) id = getValue(id, &frame);
@@ -373,6 +375,9 @@ bool Game::step(Context& ctx) {
     }
     const CommandList& list = *f.commands;
     size_t index = f.pc;
+    whereCommon_ = f.commonId;
+    whereEvent_ = f.eventId;
+    wherePc_ = int(index);
     const Command& c = list[index];
     f.pc++;
     if (trace && frameCount_ >= traceFrom) {
@@ -1181,20 +1186,23 @@ void Game::execDatabase(const Command& c, Frame& f) {
         if (b0 & 0x0F) target = getValue(target, &f);
         DBType* t = dbType(db, type);
         // Special requests: names, IDs and counts.
+        bool typeByName = (b2 & 0x01) || isStringAddress(rawType);
+        bool dataByName = (b2 & 0x02) || isStringAddress(rawData);
+        bool itemByName = (b2 & 0x04) || isStringAddress(rawItem);
         if (rawData == -3 && rawItem == -3) {
-            if (b2 & 0x01) setValue(target, type, &f);
+            if (typeByName) setValue(target, type, &f);
             else setString(target, t ? t->name : std::string(), &f);
             return;
         }
         if (rawItem == -3) {
             DBRecord* r = dbRecord(db, type, data, false);
-            if (b2 & 0x02) setValue(target, data, &f);
+            if (dataByName) setValue(target, data, &f);
             else setString(target, r ? r->name : std::string(), &f);
             return;
         }
         if (rawData == -3) {
             const DBField* fl = dbField(db, type, item);
-            if (b2 & 0x04) setValue(target, item, &f);
+            if (itemByName) setValue(target, item, &f);
             else setString(target, fl ? fl->name : std::string(), &f);
             return;
         }

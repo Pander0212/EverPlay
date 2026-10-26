@@ -79,6 +79,12 @@ int main(int argc, char** argv) {
             if (!m) { std::printf("no map\n"); return 1; }
             std::printf("map %s %dx%d tileset %d layers %d events %zu version %x\n", p.mapFile(std::atoi(argv[3])).c_str(),
                         m->width, m->height, m->tileset, m->layers, m->events.size(), m->version);
+            for (int l = 0; l < m->layers; l++) {
+                std::printf("layer %d row 0-1:", l);
+                for (int y = 0; y < 2 && y < m->height; y++)
+                    for (int x = 0; x < 8 && x < m->width; x++) std::printf(" %d", m->tile(l, x, y));
+                std::printf("\n");
+            }
             for (auto& e : m->events) {
                 std::printf("event %d '%s' at %d,%d pages %zu\n", e.id, e.name.c_str(), e.x, e.y, e.pages.size());
                 for (auto& pg : e.pages) {
@@ -112,7 +118,8 @@ int main(int argc, char** argv) {
         } else if (mode == "commons") {
             for (auto& c : p.commons)
                 if (!c.name.empty() || !c.commands.empty())
-                    std::printf("%4d trig %d %-40s %zu cmds\n", c.id, c.trigger, c.name.c_str(), c.commands.size());
+                    std::printf("%4d trig %d op %02x %d %d %-40s %zu cmds\n", c.id, c.trigger, c.op, c.left, c.right,
+                                c.name.c_str(), c.commands.size());
         } else if (mode == "db" && argc > 3) {
             const Database& db = argv[3][0] == 'u' ? p.udb : argv[3][0] == 'c' ? p.cdb : p.sdb;
             if (argc == 4) {
@@ -134,7 +141,7 @@ int main(int argc, char** argv) {
         } else if (mode == "tilesets") {
             for (auto& t : p.tilesets) {
                 std::printf("'%s' base '%s' tags %zu passage %zu\n", t.name.c_str(), t.baseFile.c_str(), t.tags.size(), t.passage.size());
-                for (auto& a : t.autotileFiles) if (!a.empty()) std::printf("   auto %s\n", a.c_str());
+                for (size_t i = 0; i < t.autotileFiles.size(); i++) std::printf("   auto %zu %s\n", i, t.autotileFiles[i].c_str());
             }
         }
     } catch (const std::exception& e) {

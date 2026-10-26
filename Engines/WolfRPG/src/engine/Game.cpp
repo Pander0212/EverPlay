@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 
 namespace wolf {
@@ -308,6 +309,17 @@ int32_t Game::getValue(int32_t a, const Frame* f) {
 }
 
 void Game::setValue(int32_t a, int32_t v, const Frame* f) {
+    // WOLF_WATCH=<address>[-<last>]: log writes to these variables (diagnostics).
+    static const std::pair<int32_t, int32_t> watch = [] {
+        const char* w = std::getenv("WOLF_WATCH");
+        if (!w) return std::pair<int32_t, int32_t>(-1, -2);
+        const char* dash = std::strchr(w, '-');
+        int32_t first = std::atoi(w);
+        return std::pair<int32_t, int32_t>(first, dash ? std::atoi(dash + 1) : first);
+    }();
+    if (a >= watch.first && a <= watch.second)
+        log("watch " + std::to_string(a) + " = " + std::to_string(v) + " (common " + std::to_string(f ? f->commonId : -2) +
+            " event " + std::to_string(f ? f->eventId : -2) + " pc " + std::to_string(f ? int(f->pc) : -1) + ")");
     if (a >= 1000000000 && a < 1400000000) {
         int db = (a / 100000000) % 10;
         if (db == 2) return;
@@ -406,6 +418,13 @@ std::string Game::getString(int32_t a, const Frame* f) {
         int db = (a / 100000000) % 10;
         int idb = db == 0 ? 0 : db == 1 ? 1 : 2;
         return dbString(idb, (a / 1000000) % 100, (a / 100) % 10000, a % 100);
+    }
+    // Character info 9 read as a string: the character's graphic file.
+    if (a >= 9100000 && a < 9190010 && a % 10 == 9) {
+        int target = a >= 9190000 ? (f ? f->eventId : -1) : a >= 9180010 ? -2 - (a - 9180010) / 10
+                                                         : a >= 9180000 ? -1 : (a - 9100000) / 10;
+        Character* ch = character(target, f);
+        return ch ? ch->graphic : std::string();
     }
     return std::to_string(getValue(a, f));
 }
@@ -635,9 +654,28 @@ bool Game::commonCondition(const CommonEvent& c) {
         case 0x30: return left <= right;
         case 0x40: return left < right;
         case 0x50: return left != right;
-        case 0x60: return (left & right) != 0;
+        case 0x60:
+            if ((left & right) != 0) return true;
+            // A bit test on a variable that no command of the game ever names (MY's message common 519
+            // tests "spare 7[20] & 3"): WOLF still runs these commons, so the condition counts as met.
+            return unreferencedVariable(c.left);
     }
     return false;
+}
+
+bool Game::unreferencedVariable(int32_t address) {
+    auto it = referenced_.find(address);
+    if (it != referenced_.end()) return !it->second;
+    bool found = false;
+    for (const auto& common : project_->commons) {
+        for (const auto& cmd : common.commands) {
+            if (std::find(cmd.args.begin(), cmd.args.end(), address) != cmd.args.end()) { found = true; break; }
+        }
+        if (found) break;
+    }
+    if (!found) log("variable " + std::to_string(address) + " is never used: its bit condition counts as met");
+    referenced_[address] = found;
+    return !found;
 }
 
 void Game::startCommonContext(int commonId, Context::Kind kind) {
