@@ -8,12 +8,12 @@ Branch: `claude/godot` (nie in `claude/beautiful-wozniak-ryh9su` mergen oder pus
 
 | Was | Im Simulator/CI gesehen | Vom Nutzer auf dem iPhone bestätigt |
 |---|---|---|
-| Godot-Engine 4.7.2 als iOS-Framework (`Godot47.framework`) | iPhone-Build grün (Lauf 40375456849), Simulator-Build offen | nein |
+| Godot-Engine 4.7.2 als iOS-Framework (`Godot47.framework`) | ja: iPhone + Simulator grün; im Simulator startet GodotProbe aus der Bibliothek, OpenGL ES 3 (Compatibility) (Lauf 40389255051) | nein |
 | Erkennung (`.pck`, eingebettetes pck, Engine-Version) | Swift-Tests grün (Linux, `GodotPackTests`) | nein |
-| Bild | nein | nein |
-| Ton | nein | nein |
+| Bild | Renderer läuft (godot.log: „OpenGL ES 3.0 … Compatibility“); Screenshot im Spiel noch nicht eingefangen | nein |
+| Ton | Audiotreiber läuft (mix_rate 48000 im Probe-Spielstand) | nein |
 | Touch als Maus, Tasten | nein | nein |
-| Spielstände unter Dateien › EverPlay › Saves › Spielname | nein (Patch geschrieben) | nein |
+| Spielstände unter Dateien › EverPlay › Saves › Spielname | ja: `Saves/GodotProbe/probe.txt` geschrieben, `get_tree().quit()` beendet EverPlay sauber | nein |
 
 App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `allinone.yml` gepinnt; der erste Testbuild `nightly-godot` mit Godot kommt aus dem nächsten allinone-Lauf.
 
@@ -47,7 +47,9 @@ App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `
 
 - [x] `godot-ios.yml` iPhone grün (fehlten nur `godot_apple_embedded_plugins_(de)initialize`, die sonst Godots
       Xcode-Export erzeugt; jetzt leer in `everplay_godot.mm`)
-- [ ] Simulator-Build + `simulator-test` (GodotProbe) grün bekommen
+- [x] Simulator-Build + `simulator-test` (GodotProbe) grün (Lauf 40389255051)
+- [ ] Screenshot während des Spiels (Start jetzt im Hintergrund, Screenshot nach 12 s)
+- [ ] Vom Nutzer: Elden Rod und Slut Maker auf dem iPhone (Testbuild `nightly-godot` aus allinone 40387051117)
 - [x] Eigenes MIT-Testspiel `Tests/Fixtures/GodotProbe/` (Text-Szene + GDScript), gepackt von
       `scripts/godot/make-pck.py` (kein Godot-Editor nötig; `--embed` hängt es an eine Platzhalter-.exe).
       Zeigt „Gold: 37“, schreibt `user://probe.txt`, zählt Klicks, beendet sich nach 30 s.
@@ -83,6 +85,12 @@ App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `
   Erkennung und Laden des Frameworks liefen, Start scheiterte genau hier). Das pck aus `make-pck.py` läuft im
   offiziellen Godot 4.7.2 Linux headless (`start gold 37`), ist also in Ordnung.
 - Godot schreibt auf iOS nicht nach stdout (os_log); Fehler vor `--log-file` sind in CI unsichtbar.
+- `godot.log` zeigt beim Beenden viele „BUG: Unreferenced static string“: harmlos, EverPlay beendet den
+  Prozess mit `exit(0)` ohne Godots Aufräumen. „Mouse is not supported by this display server“
+  (`mouse_get_position`) kommt von iOS-Godot; Mausposition in Events kommt trotzdem an (Touch-Emulation).
+  Falls ein Spiel `get_global_mouse_position()` außerhalb von Events braucht und es hakt: hier ansetzen.
+- `simctl launch` blockiert im frischen Simulator teils minutenlang, auch wenn die App läuft: im Hintergrund
+  starten und am EverPlay-Log erkennen, ob das Spiel startet.
 - Keine Vulkan/MoltenVK: beide spielbaren Testspiele nutzen `gl_compatibility`.
 - Eingebettetes pck: Godot sucht selbst am Dateiende der `.exe` (`PackedSourcePCK::try_open_pack`),
   `--main-pack Spiel.exe` reicht; nichts muss ausgeschnitten werden.
@@ -102,6 +110,8 @@ App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `
 | godot-ios.yml 40375456849 | iPhone grün, Simulator: falscher Bibliotheksname | `Godot47_ios-arm64-4.7.2-a417992.framework.zip` (ohne Path-Overrides, startet keine Spiele) |
 | godot-ios.yml 40376413760 | beide Builds grün; Simulatortest: `--main-pack` abgelehnt | – |
 | allinone.yml 40376413743 | IPA → `nightly-godot` (noch mit a417992, startet keine Spiele) | – |
+| godot-ios.yml 40389255051 | alles grün, GodotProbe läuft im Simulator | – |
+| allinone.yml 40387051117 | IPA → `nightly-godot` mit d97d3e5 (erster Testbuild, der Spiele starten sollte) | – |
 | godot-ios.yml 40382732038 | beide Builds grün (mit Path-Overrides); Simulatortest: `simctl launch` hing, App nie gestartet (kein Log) → Wartezeit + 3 Versuche | `Godot47_ios-arm64-4.7.2-d97d3e5.framework.zip` `3d52f6ee3eb2e6a78ab62a1fe1dff81b5a1316ed59ebdd62ded6378a11ac0631` (gepinnt); Simulator: `Godot47_ios-arm64-simulator-4.7.2-d97d3e5.framework.zip` `0016875d0599e2e87194f0fc3d7c6d38af9bcf7a0ee518d9071b6aa7628a28cd` |
 
 ## Testspiele
