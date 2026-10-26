@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Reuse compiled objects
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: .scons-cache
           key: godot-ios-${{ matrix.version }}-${{ matrix.kind }}-v1-${{ github.run_id }}
@@ -42,10 +42,18 @@ jobs:
         env:
           GODOT_SCONS_EXTRA: cache_path=${{ github.workspace }}/.scons-cache cache_limit=4
         run: |
-          set -o pipefail
           mkdir -p build/godot-output
-          bash scripts/godot/build-godot-ios.sh "${{ matrix.version }}" "${{ matrix.kind }}" build/godot-output 2>&1 \
-            | tee build-godot.log | grep -E 'error|Error|warning: unused|^Godot|\.framework|everplay_godot_|^scons: ' | head -n 300
+          status=0
+          bash scripts/godot/build-godot-ios.sh "${{ matrix.version }}" "${{ matrix.kind }}" build/godot-output \
+            > build-godot.log 2>&1 || status=$?
+          grep -E 'error:|Error |Undefined symbols|ld: |^Godot|\.framework|everplay_godot_|^scons: ' build-godot.log | head -n 300 || true
+          [ "$status" = 0 ] || { tail -n 60 build-godot.log; exit "$status"; }
+      - name: Keep compiled objects
+        if: always()
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: .scons-cache
+          key: godot-ios-${{ matrix.version }}-${{ matrix.kind }}-v1-${{ github.run_id }}
       - name: Package
         run: |
           set -euo pipefail
