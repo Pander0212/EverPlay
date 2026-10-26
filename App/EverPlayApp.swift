@@ -10,6 +10,7 @@ struct EverPlayApp: App {
         PrivacyShield.shared.install()
         MKXPLauncher.collectPreviousLog()
         MKXPLauncher.collectSaves()
+        WolfLauncher.collectPreviousLog()
         KiriKiriEngine.collectPreviousLog()
     }
 

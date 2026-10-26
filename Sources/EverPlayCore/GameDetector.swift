@@ -36,6 +36,9 @@ public enum GameDetector {
         var rgssFolders: Set<String> = []
         // KiriKiri: data.xp3 (or other .xp3 archives) or startup.tjs, usually beside the game's .exe.
         var kirikiriEntries: [String] = []
+        // WOLF RPG Editor: Data/BasicData/Game.dat, or Data.wolf / Data/BasicData.wolf beside Game.exe.
+        var wolfMarkers: [String] = []
+        var executableFolders: Set<String> = []
         // Every file, to name the engine of a game EverPlay cannot play (EngineFingerprint).
         var allPaths: [String] = []
         let rootComponents = root.pathComponents
@@ -50,6 +53,10 @@ public enum GameDetector {
             if relative.split(separator: "/").contains(where: { $0.hasPrefix(".") || $0 == "__MACOSX" }) { continue }
             if allPaths.count < 50_000 { allPaths.append(relative) }
             if ["rxdata", "rvdata", "rvdata2", "rpa", "pck", "ldb"].contains(url.pathExtension.lowercased()) { legacy = true }
+            if WolfGame.marker(relative) { wolfMarkers.append(relative) }
+            if WolfGame.executables.contains(url.lastPathComponent.lowercased()) {
+                executableFolders.insert((relative as NSString).deletingLastPathComponent.lowercased())
+            }
             switch url.lastPathComponent.lowercased() {
             case "rpg_rt.ldb": databases.append(relative)
             case "rpg_rt.lmt": mapTrees.insert((relative as NSString).deletingLastPathComponent.lowercased())
@@ -87,6 +94,19 @@ public enum GameDetector {
             return GameValidationResult(engine: .rgss, entryPoint: ini, warnings: [
                 "Games that need the RPG Maker RTP show missing graphics or sounds until an RTP is added."
             ])
+        }
+        let wolfGames = wolfMarkers.filter {
+            !WolfGame.isArchiveMarker($0) || executableFolders.contains(WolfGame.folder(ofEntryPoint: $0).lowercased())
+        }
+        // The shallowest game; for one game, its loose Game.dat before its archives.
+        func wolfRank(_ entry: String) -> (Int, Int) {
+            (WolfGame.folder(ofEntryPoint: entry).split(separator: "/").count, WolfGame.isArchiveMarker(entry) ? 1 : 0)
+        }
+        if let entry = wolfGames.min(by: { wolfRank($0) < wolfRank($1) }) {
+            let packed = WolfGame.isArchiveMarker(entry)
+            return GameValidationResult(engine: .wolfRPG, entryPoint: entry, warnings: packed ? [
+                "This game keeps its data in .wolf archives, which EverPlay cannot open yet."
+            ] : [])
         }
         if let entry = kirikiriEntries.min(by: { ($0.split(separator: "/").count, $0.hasSuffix(".tjs") ? 1 : 0)
                                                   < ($1.split(separator: "/").count, $1.hasSuffix(".tjs") ? 1 : 0) }) {

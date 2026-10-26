@@ -43,8 +43,8 @@ public enum EngineFingerprint {
         Rule(engine: "ONScripter / NScripter", playable: true, outlook: "EverPlay plays ONScripter games.") {
             ["0.txt", "00.txt", "nscript.dat", "nscr_sec.dat", "onscript.nt2", "onscript.nt3"].contains(name($0))
         },
-        Rule(engine: "Wolf RPG Editor", playable: false,
-             outlook: "Wolf RPG support is being built; until then these games cannot run on iPhone.") {
+        Rule(engine: "Wolf RPG Editor", playable: true,
+             outlook: "EverPlay plays WOLF RPG Editor games with its own engine (experimental).") {
             ext($0) == "wolf" || $0.hasSuffix("basicdata/game.dat") || name($0) == "game.wolf"
         },
         Rule(engine: "Unity", playable: false,

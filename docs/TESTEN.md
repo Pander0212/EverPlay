@@ -27,6 +27,7 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 | 14. Bibliothek | offen (neu) |
 | 15. Übersetzung: Apple + ganzes Spiel | offen (neu) |
 | 16. Engine-Erkennung | offen (neu) |
+| 17. Wolf RPG | offen (neu, experimentell) |
 
 ## 1. Ren'Py-Spiel: Tastatur (Namenseingabe)
 1. Ein Spiel starten, das nach einem Namen fragt.
@@ -143,6 +144,29 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 3. Ren'Py: Übersetzung auf der Spieleseite an, Spiel starten, ☰ › **Translate whole game**. Läuft im Hintergrund.
 
 ## 16. Engine-Erkennung
-1. Ein Spiel importieren, das EverPlay nicht spielen kann (z. B. Unity, Unreal, Godot, GameMaker, Wolf RPG).
+1. Ein Spiel importieren, das EverPlay nicht spielen kann (z. B. Unity, Unreal, Godot, GameMaker).
    Erwartet statt „not supported“: „This is a Unity game (found UnityPlayer.dll, …)“ plus Einschätzung, ob es
    aufs iPhone kommen kann. Bei ZIPs passiert das sofort, ohne erst alles zu entpacken.
+
+## 17. Wolf RPG
+EverPlay spielt WOLF-RPG-Editor-Spiele (Version 2 und 3) jetzt mit einer eigenen, nativen Engine
+(kein Web, kein WASM). Sie ist neu und experimentell: Rechne mit Fehlern in einzelnen Spielen.
+1. Ein Wolf-Spiel als ZIP importieren: den Spielordner mit `Game.exe` und dem Ordner `Data`
+   (darin `BasicData/Game.dat`). Es erscheint unter dem Filter **RPG Maker** mit „WOLF RPG Editor“.
+2. Starten: Das Spiel läuft im Querformat. Unten links das Steuerkreuz, rechts **OK**, **Back** (Abbrechen)
+   und **Shift**. Oben links blendet der Controller-Knopf die Steuerung aus und ein, **☰** öffnet die Cheats.
+3. Spielstände liegen in Dateien unter **EverPlay › Saves › (Spielname)** (`SaveNN.everplay.sav`, ein eigenes
+   Format, nicht mit dem PC austauschbar).
+4. App-Wechsel: Home-Geste, kurz warten, zurück zu EverPlay. Das Spiel sollte pausiert sein und weiterlaufen.
+5. Cheats (☰): Spielgeschwindigkeit, durch Wände gehen, Variablen ansehen und ändern, Geld (wenn das Spiel eine
+   Variable „所持金“/„Money“ hat). Gegenstände und Schalter gibt es bei Wolf nicht.
+6. Spiel beenden: über das Spielmenü (EverPlay schließt sich dann, wie bei RPG Maker XP/VX).
+
+Noch nicht möglich:
+- Spiele, die alles in `.wolf`-Archiven haben (`Data.wolf` oder `Data/BasicData.wolf`, oft bei WOLF Pro und
+  kommerziellen Spielen). EverPlay sagt das beim Start. Abhilfe: entpackte Spieldateien verwenden.
+- Spiele mit eigenem Nachrichtensystem zeigen manchmal keinen Text (bekannt bei „MY“).
+- Videos, Tastatur-Texteingabe und Maus/Touch direkt im Spiel sind noch unvollständig.
+
+Melden: Startet es? Bild, Ton, Musik (auch MIDI), Text, Steuerung, Speichern/Laden? Bei Problemen das
+Diagnose-Log schicken: Es enthält die Ausgabe der Wolf-Engine vom letzten Spiel.

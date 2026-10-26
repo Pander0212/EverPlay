@@ -38,9 +38,6 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
       CCACHE_DIR: ${{ github.workspace }}/.ccache
-      # BIZ UDGothic (SIL OFL 1.1): metrics of MS Gothic, the font most WOLF games ask for.
-      FONT_URL: https://raw.githubusercontent.com/googlefonts/morisawa-biz-ud-gothic/18934af56b9c003ca58c54bffbf226848cb11032/fonts/ttf/BIZUDGothic-Regular.ttf
-      FONT_SHA256: 7d2b48d84ef4e65c9f85bcf65fb1fb41c92b134be641fab6a7141d597c9a92b0
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Reuse compiled objects
@@ -59,9 +56,7 @@ jobs:
       - name: Link WolfRPG.framework
         run: |
           set -o pipefail
-          curl --fail --location --show-error --retry 2 "$FONT_URL" --output BIZUDGothic-Regular.ttf
-          echo "$FONT_SHA256  BIZUDGothic-Regular.ttf" | shasum -a 256 -c -
-          python3 scripts/package-wolfrpg-framework.py build/wolfrpg-output BIZUDGothic-Regular.ttf 2>&1 | tee package-wolfrpg.log
+          python3 scripts/package-wolfrpg-framework.py build/wolfrpg-output 2>&1 | tee package-wolfrpg.log
           ls -la build/wolfrpg-output/Frameworks/WolfRPG.framework
           (cd build/wolfrpg-output && zip -qry ../../WolfRPG.framework.zip Frameworks)
       - name: Publish the framework for the all-in-one build

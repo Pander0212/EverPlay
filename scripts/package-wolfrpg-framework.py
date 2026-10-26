@@ -3,10 +3,10 @@
 
 The framework exports only everplay_wolf_main(game, saves, font, soundfont, cheats, log). SDL's
 window is attached to EverPlay's window scene as for Ren'Py and mkxp-z (SCENE_BRIDGE from
-package-renpy-runtime.py); Engines/WolfRPG/ios/WolfGamepad.m adds the touch controls. The
-framework carries a Japanese fallback font (BIZ UDGothic, OFL) for games whose fonts are missing.
+package-renpy-runtime.py); Engines/WolfRPG/ios/WolfGamepad.m adds the touch controls. The fallback
+font for games whose fonts are missing is EverPlay's own App/Resources/Fonts/BIZUDGothic-Regular.ttf.
 
-Usage (macOS with Xcode): package-wolfrpg-framework.py OUTPUT_DIR FONT.ttf
+Usage (macOS with Xcode): package-wolfrpg-framework.py OUTPUT_DIR
 """
 import importlib.util
 import plistlib
@@ -31,7 +31,6 @@ def scene_bridge():
 
 def main():
     output = Path(sys.argv[1]).resolve()
-    font = Path(sys.argv[2]).resolve()
     framework = output / 'Frameworks' / f'{NAME}.framework'
     if framework.exists():
         shutil.rmtree(framework)
@@ -66,7 +65,6 @@ def main():
                    '-o', str(framework / NAME)]
         print('+', ' '.join(command), flush=True)
         subprocess.run(command, check=True)
-    shutil.copy(font, framework / 'WolfFont.ttf')
     plistlib.dump({'CFBundleExecutable': NAME, 'CFBundleIdentifier': 'app.everplay.runtime.wolfrpg',
                    'CFBundleName': NAME, 'CFBundlePackageType': 'FMWK', 'CFBundleShortVersionString': '1.0',
                    'CFBundleVersion': '1', 'MinimumOSVersion': MINIMUM_IOS,

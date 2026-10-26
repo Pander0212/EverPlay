@@ -19,6 +19,7 @@ enum Theme {
         case .onscripter: return Color(red: 0.78, green: 0.60, blue: 0.88)
         case .rgss: return Color(red: 0.60, green: 0.80, blue: 0.62)
         case .kirikiri: return Color(red: 0.93, green: 0.62, blue: 0.70)
+        case .wolfRPG: return Color(red: 0.72, green: 0.66, blue: 0.52)
         }
     }
 

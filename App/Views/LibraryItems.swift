@@ -61,7 +61,7 @@ enum LibraryItem: Identifiable {
         case .renpy: return "text.bubble.fill"
         case .web(let game, _):
             switch game.engine {
-            case .rpgMakerMV, .rpgMakerMZ, .rpgMaker2000, .rgss: return "map.fill"
+            case .rpgMakerMV, .rpgMakerMZ, .rpgMaker2000, .rgss, .wolfRPG: return "map.fill"
             case .kirikiri, .onscripter: return "book.closed.fill"
             case .html5: return "globe"
             }
@@ -331,7 +331,7 @@ enum LibraryFilter: String, CaseIterable, Identifiable {
         case (.all, _): return true
         case (.favorites, _): return FavoriteGames.contains(item.id)
         case (.renpy, .renpy): return true
-        case (.rpgMaker, .web(let game, _)): return [.rpgMakerMV, .rpgMakerMZ, .rpgMaker2000, .rgss].contains(game.engine)
+        case (.rpgMaker, .web(let game, _)): return [.rpgMakerMV, .rpgMakerMZ, .rpgMaker2000, .rgss, .wolfRPG].contains(game.engine)
         case (.novels, .web(let game, _)): return [.kirikiri, .onscripter].contains(game.engine)
         case (.web, .web(let game, _)): return game.engine == .html5
         default: return false

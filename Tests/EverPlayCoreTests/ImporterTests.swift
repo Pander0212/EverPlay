@@ -237,6 +237,27 @@ final class ImporterTests: FixtureTestCase {
         let loose = try prepare([("data/startup.tjs", Data("Scripts.execStorage(\"system/Initialize.tjs\");".utf8))])
         XCTAssertEqual(loose.validation.entryPoint, "data/startup.tjs")
     }
+    func testWolfRPGGamesAreDetectedByGameDatOrDataWolf() throws {
+        let loose = try prepare([("Ekidake/Game.exe", Data("MZ".utf8)), ("Ekidake/Data/BasicData/Game.dat", Data([0])),
+                                 ("Ekidake/Data/BasicData/CommonEvent.dat", Data([0])), ("Ekidake/Data/MapData/Map001.mps", Data([0])),
+                                 ("Ekidake/Data/Picture/manual.html", html)])
+        XCTAssertEqual(loose.validation.engine, .wolfRPG)
+        XCTAssertEqual(loose.validation.entryPoint, "Ekidake/Data/BasicData/Game.dat")
+        XCTAssertEqual(loose.validation.warnings, [])
+        XCTAssertEqual(WolfGame.folder(ofEntryPoint: loose.validation.entryPoint), "Ekidake")
+        XCTAssertFalse(GameEngine.wolfRPG.isWeb)
+        let packed = try prepare([("GamePro.exe", Data("MZ".utf8)), ("Data/BasicData.wolf", Data([1])), ("Data/MapData.wolf", Data([1]))])
+        XCTAssertEqual(packed.validation.engine, .wolfRPG)
+        XCTAssertEqual(packed.validation.entryPoint, "Data/BasicData.wolf")
+        XCTAssertEqual(WolfGame.folder(ofEntryPoint: packed.validation.entryPoint), "")
+        XCTAssertFalse(packed.validation.warnings.isEmpty, "archives cannot be opened yet")
+        let single = try prepare([("Game/Game.exe", Data("MZ".utf8)), ("Game/Data.wolf", Data([1]))])
+        XCTAssertEqual(WolfGame.folder(ofEntryPoint: single.validation.entryPoint), "Game")
+        // A game with both: the loose data wins over its archives.
+        let both = try prepare([("Game.exe", Data("MZ".utf8)), ("Data.wolf", Data([1])), ("Data/BasicData/Game.dat", Data([0]))])
+        XCTAssertEqual(both.validation.entryPoint, "Data/BasicData/Game.dat")
+        XCTAssertThrowsError(try prepare([("Stray/Data.wolf", Data([1]))]), "an archive without Game.exe is not a game")
+    }
     func testONScripterGameIsDetectedByItsScript() throws {
         let game = try prepare([("Tsukihime/Game.exe", Data("MZ".utf8)), ("Tsukihime/nscript.dat", Data([1, 2])),
                                 ("Tsukihime/default.ttf", Data()), ("Tsukihime/readme.html", html)])

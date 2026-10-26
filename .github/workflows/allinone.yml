@@ -212,6 +212,9 @@ jobs:
       # KiriKiri: ShioriKrkr.framework from KiriKit, published by kirikiri-ios.yml (empty: build without it).
       KIRIKIRI_FRAMEWORK: ShioriKrkr_ios-arm64-fe8a262.framework.zip
       KIRIKIRI_FRAMEWORK_SHA256: 63e1e23bc92d7891d342d5ccd22a9cb7fb66405737720c896c2a09e6c2d13dbc
+      # WOLF RPG Editor: WolfRPG.framework (Engines/WolfRPG), published by wolfrpg-ios.yml (empty: build without it).
+      WOLFRPG_FRAMEWORK: ""
+      WOLFRPG_FRAMEWORK_SHA256: ""
       # General MIDI sounds for XP/VX games' MIDI music: TimGM6mb (GPL-2) from Ubuntu's archive.
       MIDI_SOUNDFONT_DEB: http://archive.ubuntu.com/ubuntu/pool/universe/t/timgm6mb-soundfont/timgm6mb-soundfont_1.3-5_all.deb
       MIDI_SOUNDFONT_DEB_SHA256: b70bc29b8f27adef8f92a2d9c1e26cee977b84c68110f0dd4326d97730a7c3ed
@@ -312,6 +315,20 @@ jobs:
             echo "$MIDI_SOUNDFONT_DEB_SHA256  soundfont.deb" | shasum -a 256 -c -
             mkdir -p soundfont && (cd soundfont && ar -x ../soundfont.deb && tar -xf data.tar.xz)
             cp soundfont/usr/share/sounds/sf2/TimGM6mb.sf2 "$app/"
+          fi
+          # WOLF RPG Editor: EverPlay's own engine, built by wolfrpg-ios.yml; MIDI music needs TimGM6mb too.
+          if [[ -n "$WOLFRPG_FRAMEWORK" ]]; then
+            curl --fail --location --show-error --retry 2 --max-time 300 \
+              "https://github.com/${GITHUB_REPOSITORY}/releases/download/libretro-cores/$WOLFRPG_FRAMEWORK" --output wolfrpg.zip
+            echo "$WOLFRPG_FRAMEWORK_SHA256  wolfrpg.zip" | shasum -a 256 -c -
+            unzip -o -q wolfrpg.zip -d wolfrpg-unpacked
+            cp -R wolfrpg-unpacked/Frameworks/WolfRPG.framework "$app/Frameworks/"
+            if [[ ! -f "$app/TimGM6mb.sf2" ]]; then
+              curl --fail --location --show-error --retry 2 --max-time 300 "$MIDI_SOUNDFONT_DEB" --output soundfont.deb
+              echo "$MIDI_SOUNDFONT_DEB_SHA256  soundfont.deb" | shasum -a 256 -c -
+              mkdir -p soundfont && (cd soundfont && ar -x ../soundfont.deb && tar -xf data.tar.xz)
+              cp soundfont/usr/share/sounds/sf2/TimGM6mb.sf2 "$app/"
+            fi
           fi
           # KiriKiri: ShioriKrkr (KiriKit, MPL-2.0), built by kirikiri-ios.yml.
           if [[ -n "$KIRIKIRI_FRAMEWORK" ]]; then
