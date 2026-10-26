@@ -22,7 +22,13 @@ public:
     };
 
     // Opens an archive file; nullptr and `error` set if it cannot be read with any known key.
-    static std::unique_ptr<Archive> open(const std::string& path, std::string& error);
+    // `proKeyFile`: the contents of a WOLF RPG Editor Pro game's key file (Data/Game.wolf, List.wolf, …),
+    // from which the key of its archives is derived.
+    static std::unique_ptr<Archive> open(const std::string& path, std::string& error, const Bytes* proKeyFile = nullptr);
+    // The names a Pro game gives its key file, below Data (lowercase).
+    static const std::vector<std::string>& proKeyFileNames();
+    // The extensions WOLF games use for archives (lowercase, with the dot).
+    static const std::vector<std::string>& extensions();
     virtual ~Archive() = default;
     const std::vector<Entry>& entries() const { return entries_; }
     virtual Bytes read(size_t entry) const = 0;

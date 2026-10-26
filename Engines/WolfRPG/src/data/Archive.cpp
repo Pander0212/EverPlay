@@ -11,6 +11,7 @@
 #include <functional>
 
 #include "../../third_party/wolfcrypt/WolfCrypt/WolfCrypt.hpp"
+#include "../../third_party/wolfcrypt/WolfCrypt/WolfDxArcKey.hpp"
 
 namespace wolf {
 
@@ -255,7 +256,8 @@ public:
         if (file_) std::fclose(file_);
     }
 
-    bool load(const std::string& path, std::string& error) {
+    bool load(const std::string& path, std::string& error, const Bytes* proKeyFile) {
+        proKeyFile_ = proKeyFile;
         file_ = std::fopen(path.c_str(), "rb");
         if (!file_) { error = "cannot open"; return false; }
         std::fseek(file_, 0, SEEK_END);
@@ -406,7 +408,26 @@ private:
         uint32_t flags = le32(plainHead + 44);
         cryptVersion_ = uint16_t(flags >> 16);
         if (cryptVersion_ >= 1000) {
-            error = "WOLF RPG Editor Pro archive (needs the game's own key, not supported yet)";
+            // WOLF RPG Editor Pro: the key comes from the game's key file (WolfTL/UberWolf's derivation).
+            if (!proKeyFile_ || proKeyFile_->size() < 32) {
+                error = "WOLF RPG Editor Pro archive without its key file";
+                return false;
+            }
+            KnownKey pro{"WOLF RPG Editor Pro", 8, cryptVersion_, {}};
+            Bytes file = *proKeyFile_;
+            if (file[0] == 0xA0) {  // Pro 1 (encryption version 1000)
+                if (file.size() < 0x5CB8) { error = "Pro key file too small"; return false; }
+                wolf::crypt::rng::msvc_srand(file[4]);
+                for (size_t j = 20; j < file.size(); j++) file[j] ^= uint8_t(wolf::crypt::rng::msvc_rand() >> 12);
+                uint8_t length = file[19];
+                if (!length) { error = "bad Pro key file"; return false; }
+                uint32_t step = 0x58B1 / length, offset = 30;
+                for (uint8_t i = 0; i < length && offset < file.size(); i++, offset += step) pro.key.push_back(file[offset]);
+            } else {               // Pro 2 (1010 and later): the key string, a zero, then 4 more key bytes
+                pro.key = wolf::crypt::dxarckey::v2::calcKey(file);
+            }
+            if (loadV8With(plainHead, pro)) { keyName_ = pro.name; return true; }
+            error = "WOLF RPG Editor Pro archive: the key from the key file does not fit";
             return false;
         }
         for (const KnownKey& k : knownKeys()) {
@@ -425,8 +446,14 @@ private:
     bool loadV8With(const uint8_t* plainHead, const KnownKey& k) {
         uint8_t h[64];
         std::memcpy(h, plainHead, 64);
-        std::string keyString(k.key.begin(), k.key.end());
+        // Pro 2 keys carry four more bytes after the key string's terminating zero.
+        auto zero = std::find(k.key.begin(), k.key.end(), uint8_t(0));
+        std::string keyString(k.key.begin(), zero);
         if (keyString.size() > 63) keyString.resize(63);
+        std::array<uint8_t, 4> proKey{};
+        bool hasProKey = cryptVersion_ >= 1010 && zero != k.key.end() && k.key.end() - zero > 4;
+        if (hasProKey) std::copy(zero + 1, zero + 5, proKey.begin());
+        uint8_t* pK2 = hasProKey ? proKey.data() : nullptr;
         bool newCrypt = (cryptVersion_ >= 331 && cryptVersion_ < 1000) || cryptVersion_ >= 1010;
         aesBody_.clear();
         aesTables_.clear();
@@ -447,7 +474,8 @@ private:
             if (size < 64 + 16) return false;
             uint64_t bodySize = std::min<uint64_t>(0x400, size - 64);
             if (wolf::crypt::utils::isV35(cryptVersion_)) {
-                uint32_t seed = uint32_t(pw[2] * pw[4] + pw[12]);
+                uint32_t seed = cryptVersion_ >= 1020 && pK2 ? uint32_t(pK2[0] * pK2[1] + pw[2] * pw[4] + pw[11])
+                                                              : uint32_t(pw[2] * pw[4] + pw[12]);
                 if (!seed) seed = 1;
                 wolf::crypt::xorshift32(seed);
                 if (size >= wolf::crypt::xorshift32() % 500 + 800) wolf::crypt::xorshift32();
@@ -457,13 +485,13 @@ private:
             tableStart_ = le64(h + 16);
             if (tableStart_ > size) return false;
             uint8_t roundKey[wolf::crypt::aes::ROUND_KEY_SIZE] = {};
-            wolf::crypt::aes::initAES128(roundKey, pw, nullptr, cryptVersion_);
+            wolf::crypt::aes::initAES128(roundKey, pw, pK2, cryptVersion_);
             aesBody_.assign(size_t(bodySize), 0);
             wolf::crypt::aes::aesCtrXCrypt(aesBody_.data(), roundKey, aesBody_.size());
             aesTables_.assign(size_t(size - tableStart_), 0);
             wolf::crypt::aes::aesCtrXCrypt(aesTables_.data(), roundKey, aesTables_.size());
             special_.assign(768, 0);
-            wolf::crypt::initWolfCrypt(cryptVersion_, pw, special_.data(), nullptr);
+            wolf::crypt::initWolfCrypt(cryptVersion_, pw, special_.data(), pK2);
         } else if (cryptVersion_ == 0x64) {
             crypt_ = Crypt::ChaCha;
             std::copy(k.key.begin(), k.key.begin() + 32, chachaKey_.begin());
@@ -608,14 +636,30 @@ private:
     uint64_t tableStart_ = 0;
     std::vector<Meta> meta_;
     std::string keyName_;
+    const Bytes* proKeyFile_ = nullptr;
 };
 
 }  // namespace
 
-std::unique_ptr<Archive> Archive::open(const std::string& path, std::string& error) {
+std::unique_ptr<Archive> Archive::open(const std::string& path, std::string& error, const Bytes* proKeyFile) {
     auto archive = std::make_unique<DxArchive>();
-    if (!archive->load(path, error)) return nullptr;
+    if (!archive->load(path, error, proKeyFile)) return nullptr;
     return archive;
+}
+
+const std::vector<std::string>& Archive::extensions() {
+    static const std::vector<std::string> list = {".wolf", ".data", ".pak", ".bin", ".assets", ".content", ".res", ".resource"};
+    return list;
+}
+
+const std::vector<std::string>& Archive::proKeyFileNames() {
+    static const std::vector<std::string> list = [] {
+        std::vector<std::string> out;
+        for (const char* name : {"game", "list", "data2", "gamefile", "basicdata2"})
+            for (const auto& e : extensions()) out.push_back(name + e);
+        return out;
+    }();
+    return list;
 }
 
 }  // namespace wolf

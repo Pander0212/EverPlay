@@ -74,17 +74,31 @@ void Vfs::scan(const std::string& dir, const std::string& rel) {
 }
 
 void Vfs::mountArchives() {
-    // Data.wolf holds the whole Data folder; Data/<Name>.wolf holds Data/<Name>.
+    // Data.wolf holds the whole Data folder; Data/<Name>.wolf holds Data/<Name>. Pro games may use
+    // other extensions (.data, .pak, …) and keep their archive key in Data/Game.wolf or the like.
     std::vector<std::pair<std::string, std::string>> found;  // archive rel path, mount prefix
+    std::optional<Bytes> proKey;
+    for (const auto& name : Archive::proKeyFileNames()) {
+        auto it = files_.find("data/" + name);
+        if (it == files_.end()) continue;
+        Bytes b;
+        if (readFile(root_ + "/" + it->second, b)) { proKey = std::move(b); break; }
+    }
+    const auto& keyNames = Archive::proKeyFileNames();
     for (auto& [norm, real] : files_) {
-        if (norm.size() < 5 || norm.compare(norm.size() - 5, 5, ".wolf") != 0) continue;
-        std::string base = norm.substr(0, norm.size() - 5);
+        size_t dot = norm.rfind('.');
+        if (dot == std::string::npos) continue;
+        std::string ext = norm.substr(dot);
+        if (std::find(Archive::extensions().begin(), Archive::extensions().end(), ext) == Archive::extensions().end()) continue;
+        std::string base = norm.substr(0, dot);
         if (base == "data") found.push_back({real, "data"});
-        else if (base.rfind("data/", 0) == 0 && base.find('/', 5) == std::string::npos) found.push_back({real, base});
+        else if (base.rfind("data/", 0) == 0 && base.find('/', 5) == std::string::npos &&
+                 std::find(keyNames.begin(), keyNames.end(), norm.substr(5)) == keyNames.end())
+            found.push_back({real, base});
     }
     for (auto& [rel, prefix] : found) {
         std::string error;
-        auto archive = Archive::open(root_ + "/" + rel, error);
+        auto archive = Archive::open(root_ + "/" + rel, error, proKey ? &*proKey : nullptr);
         if (!archive) {
             problems_.push_back(rel + ": " + error);
             continue;

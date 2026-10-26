@@ -88,8 +88,9 @@ std::string Game::debugState() {
     for (const auto& [id, c] : mapParallel_) describe("map-parallel", *c);
     s += "pictures " + std::to_string(pictures_.size()) + ":";
     for (const auto& [n, p] : pictures_)
-        s += " " + std::to_string(n) + "(" + (p.type == 2 ? "text" : p.file) + " " + std::to_string(int(p.cur.x)) + "," +
-             std::to_string(int(p.cur.y)) + " op" + std::to_string(int(p.cur.opacity)) + ")";
+        s += " " + std::to_string(n) + "(" + (p.type == 2 ? "text:" + p.text.substr(0, 60) : p.file) + " " + std::to_string(int(p.cur.x)) + "," +
+             std::to_string(int(p.cur.y)) + " op" + std::to_string(int(p.cur.opacity)) + " z" +
+             std::to_string(int(p.cur.zoomW)) + "x" + std::to_string(int(p.corrW)) + (p.z ? " Z" + std::to_string(p.z) : "") + ")";
     s += "\nmessage " + std::to_string(msg_.open) + " choosing " + std::to_string(msg_.choosing) + " text '" +
          msg_.text.substr(0, 80) + "'\n";
     s += "screen color " + std::to_string(int(fx_.r)) + "," + std::to_string(int(fx_.g)) + "," + std::to_string(int(fx_.b)) +
@@ -147,6 +148,9 @@ DBRecord* Game::dbRecord(int db, int type, int record, bool create) {
             DBRecord r;
             r.ints.assign(ints, 0);
             r.strings.assign(strs, "");
+            // New records start with the fields' initial values, as in the editor.
+            for (auto& f : t->fields)
+                if (!f.isString && size_t(f.index) < r.ints.size()) r.ints[size_t(f.index)] = f.defaultValue;
             t->records.push_back(std::move(r));
         }
     }

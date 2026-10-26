@@ -97,6 +97,11 @@ struct Picture {
     int autoPatternMode = 0, autoPatternWait = 0, autoPatternCounter = 0, autoPatternDir = 1;
     int autoPatternFirst = 1, autoPatternLast = 1;
     int flashR = 0, flashG = 0, flashB = 0, flashFrames = 0, flashTotal = 0;
+    // WOLF 3 zoom correction (effect 0xC0): a further zoom in percent on top of the picture's own.
+    double corrW = 100, corrH = 100, corrFromW = 100, corrFromH = 100, corrToW = 100, corrToH = 100;
+    int corrFrames = 0, corrTotal = 0;
+    bool flipX = false, flipY = false;  // WOLF 3 mirror (effect 0xE0)
+    int z = 0;                          // WOLF 3 Z order (effect 0x1C0)
     bool textDone = true;
     int textChars = 0, textShown = 0;   // gradual text display
     double textProgress = 0;
@@ -338,6 +343,8 @@ private:
                               const Picture* pic = nullptr);
     TexturePtr loadImage(const std::string& path);
     TexturePtr windowTexture(const std::string& file, int w, int h);
+    TexturePtr squareTexture(const std::string& file, int w, int h);  // WOLF 3's "<SQUARE>" pictures
+    int pictureAt(int x, int y);  // the topmost picture with a visible pixel there, or -1
     void showMessage(const std::string& text, Context& ctx);
     void showChoices(const Command& c, Context& ctx);
     void updateMessage();

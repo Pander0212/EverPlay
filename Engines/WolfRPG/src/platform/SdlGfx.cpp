@@ -86,9 +86,18 @@ TexturePtr SdlGfx::loadTexture(const std::vector<uint8_t>& data) {
         return nullptr;
     }
     SDL_UpdateTexture(t, nullptr, px, w * 4);
+    auto texture = std::make_shared<SdlTexture>(t, w, h);
+    texture->maskW = std::min(w, 256);
+    texture->maskH = std::min(h, 256);
+    texture->mask.resize(size_t(texture->maskW) * size_t(texture->maskH));
+    for (int my = 0; my < texture->maskH; my++)
+        for (int mx = 0; mx < texture->maskW; mx++) {
+            int sx = mx * w / texture->maskW, sy = my * h / texture->maskH;
+            texture->mask[size_t(my * texture->maskW + mx)] = px[(size_t(sy) * size_t(w) + size_t(sx)) * 4 + 3] != 0;
+        }
     stbi_image_free(px);
     SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND);
-    return std::make_shared<SdlTexture>(t, w, h);
+    return texture;
 }
 
 TexturePtr SdlGfx::createTarget(int w, int h) {

@@ -20,7 +20,14 @@ public:
     ~SdlTexture() override { if (tex) SDL_DestroyTexture(tex); }
     int width() const override { return w_; }
     int height() const override { return h_; }
+    bool opaqueAt(int x, int y) const override {
+        if (mask.empty() || x < 0 || y < 0 || x >= w_ || y >= h_) return mask.empty();
+        return mask[size_t(y * maskH / h_) * size_t(maskW) + size_t(x * maskW / w_)] != 0;
+    }
     SDL_Texture* tex;
+    // Which pixels are not transparent, at most 256x256 (images loaded from files only).
+    std::vector<uint8_t> mask;
+    int maskW = 0, maskH = 0;
 
 private:
     int w_, h_;

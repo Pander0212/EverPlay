@@ -11,7 +11,7 @@ namespace wolf {
 namespace {
 
 constexpr uint32_t kMagic = 0x57455053;
-constexpr uint32_t kVersion = 1;
+constexpr uint32_t kVersion = 2;
 
 struct Writer {
     std::vector<uint8_t> out;
@@ -190,6 +190,8 @@ std::vector<uint8_t> Game::encodeState(const SaveState& s) {
         w.f64(c.x); w.f64(c.y); w.f64(c.zoomW); w.f64(c.zoomH); w.f64(c.angle); w.f64(c.opacity);
         w.f64(c.r); w.f64(c.g); w.f64(c.b);
         for (double v : c.corners) w.f64(v);
+        w.f64(p.corrW); w.f64(p.corrH);
+        w.i32(p.z); w.u32((p.flipX ? 1 : 0) | (p.flipY ? 2 : 0));
     }
     return w.out;
 }
@@ -252,6 +254,10 @@ bool Game::decodeState(const std::vector<uint8_t>& data, SaveState& s) {
         c.x = r.f64(); c.y = r.f64(); c.zoomW = r.f64(); c.zoomH = r.f64(); c.angle = r.f64(); c.opacity = r.f64();
         c.r = r.f64(); c.g = r.f64(); c.b = r.f64();
         for (double& v : c.corners) v = r.f64();
+        p.corrW = p.corrToW = r.f64(); p.corrH = p.corrToH = r.f64();
+        p.z = r.i32();
+        uint32_t flips = r.u32();
+        p.flipX = flips & 1; p.flipY = flips & 2;
         p.from = p.to = p.cur;
         s.pictures[num] = std::move(p);
     }
@@ -304,6 +310,7 @@ void Game::applyState(SaveState& s) {
     pictures_ = std::move(s.pictures);
     for (auto& [num, p] : pictures_) {
         if (p.type == 2) p.texture = renderRichText(p.text, -1, p.textW, p.textH, true, sysVar(8) > 0 ? sysVar(8) : 16, &p);
+        else if (p.file.rfind("<SQUARE>", 0) == 0) p.texture = squareTexture(p.file, p.windowW, p.windowH);
         else if (p.type == 3) p.texture = windowTexture(p.file, p.windowW, p.windowH);
         else p.texture = loadImage(p.file);
     }

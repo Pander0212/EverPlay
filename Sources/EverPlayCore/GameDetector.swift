@@ -103,10 +103,11 @@ public enum GameDetector {
             (WolfGame.folder(ofEntryPoint: entry).split(separator: "/").count, WolfGame.isArchiveMarker(entry) ? 1 : 0)
         }
         if let entry = wolfGames.min(by: { wolfRank($0) < wolfRank($1) }) {
-            let packed = WolfGame.isArchiveMarker(entry)
-            return GameValidationResult(engine: .wolfRPG, entryPoint: entry, warnings: packed ? [
-                "This game keeps its data in .wolf archives, which EverPlay cannot open yet."
-            ] : [])
+            let folder = WolfGame.folder(ofEntryPoint: entry)
+            let pro = WolfGame.proArchives(gameFolder: folder.isEmpty ? root : root.appendingPathComponent(folder))
+            return GameValidationResult(engine: .wolfRPG, entryPoint: entry, warnings: pro.isEmpty ? [] : [
+                "Made with WOLF RPG Editor Pro: its archives need the game's own key, which EverPlay cannot read yet."
+            ])
         }
         if let entry = kirikiriEntries.min(by: { ($0.split(separator: "/").count, $0.hasSuffix(".tjs") ? 1 : 0)
                                                   < ($1.split(separator: "/").count, $1.hasSuffix(".tjs") ? 1 : 0) }) {

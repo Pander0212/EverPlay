@@ -222,6 +222,10 @@ int runGame(const RunOptions& o) {
         logLine("WolfRPG: screenshot " + path);
     };
 
+    // Presses since the last game frame: a quick tap can bring its press and release in the same
+    // batch of events, and the game must still see the press for one frame.
+    InputState latched;
+    bool latchedMouse[3] = {};
     bool paused = false;
     double accumulator = 0;
     auto last = std::chrono::steady_clock::now();
@@ -246,6 +250,7 @@ int runGame(const RunOptions& o) {
                 case SDL_KEYDOWN:
                 case SDL_KEYUP:
                     applyKey(input, e.key.keysym.sym, e.key.keysym.scancode, e.type == SDL_KEYDOWN);
+                    if (e.type == SDL_KEYDOWN) applyKey(latched, e.key.keysym.sym, e.key.keysym.scancode, true);
                     if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F12) {
                         // F12: back to the title, as in WOLF.
                     }
@@ -265,9 +270,9 @@ int runGame(const RunOptions& o) {
                     }
                     if (e.type != SDL_MOUSEMOTION) {
                         bool down = e.type == SDL_MOUSEBUTTONDOWN;
-                        if (e.button.button == SDL_BUTTON_LEFT) input.mouseLeft = down;
-                        else if (e.button.button == SDL_BUTTON_RIGHT) input.mouseRight = down;
-                        else if (e.button.button == SDL_BUTTON_MIDDLE) input.mouseMiddle = down;
+                        int b = e.button.button == SDL_BUTTON_LEFT ? 0 : e.button.button == SDL_BUTTON_RIGHT ? 1 : 2;
+                        (b == 0 ? input.mouseLeft : b == 1 ? input.mouseRight : input.mouseMiddle) = down;
+                        if (down) latchedMouse[b] = true;
                     }
                     break;
                 }
@@ -305,11 +310,27 @@ int runGame(const RunOptions& o) {
                     std::string what, arg;
                     ls >> what >> arg;
                     if (what == "shot") continue;
+                    if (what == "mouse") {  // "mouse <x> <y> [down|up]" in game pixels
+                        std::string y, state;
+                        ls >> y >> state;
+                        input.mouseX = std::atoi(arg.c_str());
+                        input.mouseY = std::atoi(y.c_str());
+                        if (!state.empty()) input.mouseLeft = state == "down";
+                        continue;
+                    }
                     int k = keyFromName(what);
                     if (k >= 0) input.down[k] = arg != "up";
                 }
             }
-            game.frame(input);
+            InputState effective = input;
+            for (int k = 0; k < KeyCount; k++) effective.down[k] = effective.down[k] || latched.down[k];
+            for (int k = 0; k < 512; k++) effective.keyboard[k] = effective.keyboard[k] || latched.keyboard[k];
+            effective.mouseLeft = effective.mouseLeft || latchedMouse[0];
+            effective.mouseRight = effective.mouseRight || latchedMouse[1];
+            effective.mouseMiddle = effective.mouseMiddle || latchedMouse[2];
+            game.frame(effective);
+            latched = InputState();
+            latchedMouse[0] = latchedMouse[1] = latchedMouse[2] = false;
             input.wheel = 0;
             frame++;
         }

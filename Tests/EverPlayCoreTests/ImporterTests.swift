@@ -242,15 +242,25 @@ final class ImporterTests: FixtureTestCase {
                                  ("Ekidake/Data/BasicData/CommonEvent.dat", Data([0])), ("Ekidake/Data/MapData/Map001.mps", Data([0])),
                                  ("Ekidake/Data/Picture/manual.html", html)])
         XCTAssertEqual(loose.validation.engine, .wolfRPG)
-        XCTAssertEqual(loose.validation.entryPoint, "Ekidake/Data/BasicData/Game.dat")
         XCTAssertEqual(loose.validation.warnings, [])
+        XCTAssertEqual(loose.validation.entryPoint, "Ekidake/Data/BasicData/Game.dat")
         XCTAssertEqual(WolfGame.folder(ofEntryPoint: loose.validation.entryPoint), "Ekidake")
         XCTAssertFalse(GameEngine.wolfRPG.isWeb)
         let packed = try prepare([("GamePro.exe", Data("MZ".utf8)), ("Data/BasicData.wolf", Data([1])), ("Data/MapData.wolf", Data([1]))])
         XCTAssertEqual(packed.validation.engine, .wolfRPG)
         XCTAssertEqual(packed.validation.entryPoint, "Data/BasicData.wolf")
         XCTAssertEqual(WolfGame.folder(ofEntryPoint: packed.validation.entryPoint), "")
-        XCTAssertFalse(packed.validation.warnings.isEmpty, "archives cannot be opened yet")
+        var head = [UInt8](repeating: 0, count: 64)
+        head[0] = 0x44; head[1] = 0x58; head[2] = 8
+        XCTAssertFalse(WolfGame.isProHeader(head), "plain DxLib 8")
+        head[46] = 0x5E; head[47] = 0x01
+        XCTAssertFalse(WolfGame.isProHeader(head), "WOLF 3.50")
+        head[46] = 0xF2; head[47] = 0x03
+        XCTAssertTrue(WolfGame.isProHeader(head), "WOLF Pro (1010)")
+        let proGame = temporary.appendingPathComponent("ProGame/Data", isDirectory: true)
+        try FileManager.default.createDirectory(at: proGame, withIntermediateDirectories: true)
+        try Data(head).write(to: proGame.appendingPathComponent("BasicData.wolf"))
+        XCTAssertEqual(WolfGame.proArchives(gameFolder: proGame.deletingLastPathComponent()), ["BasicData.wolf"])
         let single = try prepare([("Game/Game.exe", Data("MZ".utf8)), ("Game/Data.wolf", Data([1]))])
         XCTAssertEqual(WolfGame.folder(ofEntryPoint: single.validation.entryPoint), "Game")
         // A game with both: the loose data wins over its archives.

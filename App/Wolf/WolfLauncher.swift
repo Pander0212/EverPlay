@@ -34,8 +34,10 @@ enum WolfLauncher {
     static func play(_ game: GameRecord, directory: URL) -> String? {
         guard let binary else { return "This EverPlay build does not include the WOLF RPG engine." }
         let folder = gameFolder(game, directory: directory)
-        if WolfGame.isPacked(gameFolder: folder) {
-            return "This WOLF RPG game keeps its data in .wolf archives, which EverPlay cannot open yet."
+        let pro = WolfGame.proArchives(gameFolder: folder)
+        if !pro.isEmpty {
+            return "This game was made with WOLF RPG Editor Pro; its archives (\(pro.joined(separator: ", "))) "
+                + "need the game's own key, which EverPlay cannot read yet."
         }
         EverPlayLog.write("Starting \(game.title) with the WOLF RPG engine")
         let saves = SaveFolders.libretro(game)

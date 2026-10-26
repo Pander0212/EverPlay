@@ -434,6 +434,7 @@ bool Game::step(Context& ctx) {
                     else if (op == 0x10) ok = left != right;
                     else if (op == 0x20) ok = left.find(right) != std::string::npos;
                     else if (op == 0x30) ok = left.rfind(right, 0) == 0;
+                    else if (op == 0x40) ok = left.find(right) == std::string::npos;  // WOLF 3: does not contain
                     if (ok) { chosen = k + 1; break; }
                 }
             }
@@ -903,7 +904,18 @@ void Game::execSetString(Context& ctx, const Command& c, Frame& f) {
     if (left < 1000000) left += 3000000;
     std::string right;
     switch (source) {
-        case 0: right = expandText(c.string(0), &f); break;
+        case 0: {
+            right = expandText(c.string(0), &f);
+            // WOLF 3's special strings: <<GET_FILE_EXIST>>path and <<GET_FILENAME_FROM_PICTURE>>number.
+            static const std::string fileExist = "<<GET_FILE_EXIST>>", pictureFile = "<<GET_FILENAME_FROM_PICTURE>>";
+            if (right.rfind(fileExist, 0) == 0) {
+                right = project_->vfs.exists(right.substr(fileExist.size())) ? "1" : "0";
+            } else if (right.rfind(pictureFile, 0) == 0) {
+                auto it = pictures_.find(std::atoi(right.c_str() + pictureFile.size()));
+                right = it != pictures_.end() && it->second.used ? it->second.file : "";
+            }
+            break;
+        }
         case 1: right = getString(c.arg(2), &f); break;
         case 2: {
             int32_t addr = getValue(c.arg(2), &f);
@@ -994,15 +1006,14 @@ void Game::execSetString(Context& ctx, const Command& c, Frame& f) {
             setString(left, s, &f);
             break;
         }
-        case 0x0A: {  // cut up to (and including) the first occurrence
-            size_t p = cur.find(right);
-            if (p == std::string::npos) setString(left, "", &f);
-            else setString(left, cur.substr(p + right.size()), &f);
-            break;
-        }
-        case 0x0B: {  // keep what follows the first occurrence… or what precedes it
+        case 0x0A: {  // keep what precedes the first occurrence (everything if there is none)
             size_t p = cur.find(right);
             if (p != std::string::npos) setString(left, cur.substr(0, p), &f);
+            break;
+        }
+        case 0x0B: {  // keep what follows the first occurrence (nothing if there is none)
+            size_t p = cur.find(right);
+            setString(left, p == std::string::npos ? std::string() : cur.substr(p + right.size()), &f);
             break;
         }
         default: setString(left, right, &f); break;
@@ -1027,7 +1038,9 @@ void Game::execSetVariablePlus(const Command& c, Frame& f) {
         bool precise = (b0 & 0x20) != 0;
         int tx = precise ? x / 2 : x, ty = precise ? y / 2 : y;
         int info = b2;
+        if ((info & 0x0F) == 0x0D) info = 0x0D;  // WOLF 3: the picture at a screen position (with option bits)
         switch (info) {
+            case 0x0D: value = pictureAt(x, y); break;
             case 0x00: value = tileTag(tx, ty, -1); break;
             case 0x01: {
                 value = -1;
@@ -1140,7 +1153,7 @@ void Game::execDatabase(const Command& c, Frame& f) {
     int db = kind == 0 ? 1 : kind == 1 ? 2 : 0;
     Database& d = db == 0 ? project_->udb : db == 1 ? project_->cdb : project_->sdb;
     auto byName = [&](const std::string& name, int which, int type, int data) -> int {
-        std::string n = expandText(name, &f);
+        std::string n = name.find('\\') == std::string::npos ? name : expandText(name, &f);
         if (which == 0) {
             for (size_t i = 0; i < d.types.size(); i++) if (d.types[i].name == n) return int(i);
         } else if (which == 1) {
@@ -1154,9 +1167,15 @@ void Game::execDatabase(const Command& c, Frame& f) {
         return -1;
     };
     int32_t rawType = c.arg(0), rawData = c.arg(1), rawItem = c.arg(2);
-    int type = (b2 & 0x01) ? byName(c.string(1), 0, 0, 0) : getValue(rawType, &f);
-    int data = (b2 & 0x02) ? byName(c.string(2), 1, type, 0) : (rawData < 0 && rawData > -10 ? rawData : getValue(rawData, &f));
-    int item = (b2 & 0x04) ? byName(c.string(3), 2, type, data) : (rawItem < 0 && rawItem > -10 ? rawItem : getValue(rawItem, &f));
+    // A string variable where a number belongs names the type, record or field by its contents.
+    auto pick = [&](int32_t raw, int which, int t) -> int {
+        if (raw < 0 && raw > -10) return raw;
+        if (isStringAddress(raw)) return byName(getString(raw, &f), which, t, 0);
+        return getValue(raw, &f);
+    };
+    int type = (b2 & 0x01) ? byName(c.string(1), 0, 0, 0) : pick(rawType, 0, 0);
+    int data = (b2 & 0x02) ? byName(c.string(2), 1, type, 0) : pick(rawData, 1, type);
+    int item = (b2 & 0x04) ? byName(c.string(3), 2, type, data) : pick(rawItem, 2, type);
     int32_t target = c.arg(4);
     if (read) {
         if (b0 & 0x0F) target = getValue(target, &f);
@@ -1210,8 +1229,8 @@ void Game::execDatabase(const Command& c, Frame& f) {
         if (t) for (auto& r : t->records) { for (auto& v : r.ints) v = 0; for (auto& s : r.strings) s.clear(); }
         return;
     }
-    if (rawItem == -2) {  // clear one record
-        DBRecord* r = dbRecord(db, type, data, false);
+    if (rawItem == -2) {  // reset one record to the fields' initial values (creating it if needed)
+        DBRecord* r = dbRecord(db, type, data, true);
         if (r) {
             DBType* t = dbType(db, type);
             for (size_t i = 0; t && i < t->fields.size(); i++) {
@@ -1306,7 +1325,18 @@ bool Game::execKeyInput(Context& ctx, const Command& c, Frame& f, bool first) {
         }
     } else if (deviceType == 3) {
         int what = b0 & 0x0F;
-        if (what == 0) result = input_.mouseLeft ? 1 : input_.mouseRight ? 2 : input_.mouseMiddle ? 3 : 0;
+        int buttons = b0 & 0x70;  // WOLF 3: 0x10 left, 0x20 right, 0x40 middle
+        if (what == 0 && buttons) {
+            // Reports 20 (left), 21 (right) or 22 (middle): held (mode 0), just pressed (1) or just released (2).
+            int mode = (flags >> 16) & 0x0F;
+            bool now[3] = {input_.mouseLeft, input_.mouseRight, input_.mouseMiddle};
+            bool before[3] = {prevInput_.mouseLeft, prevInput_.mouseRight, prevInput_.mouseMiddle};
+            for (int i = 0; i < 3 && !result; i++) {
+                if (!(buttons & (0x10 << i))) continue;
+                bool hit = mode == 1 ? now[i] && !before[i] : mode == 2 ? !now[i] && before[i] : now[i];
+                if (hit) result = 20 + i;
+            }
+        } else if (what == 0) result = input_.mouseLeft ? 1 : input_.mouseRight ? 2 : input_.mouseMiddle ? 3 : 0;
         else if (what == 1) result = input_.mouseX;
         else if (what == 2) result = input_.mouseY;
         else result = input_.wheel;

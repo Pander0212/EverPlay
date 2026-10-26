@@ -151,8 +151,9 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 ## 17. Wolf RPG
 EverPlay spielt WOLF-RPG-Editor-Spiele (Version 2 und 3) jetzt mit einer eigenen, nativen Engine
 (kein Web, kein WASM). Sie ist neu und experimentell: Rechne mit Fehlern in einzelnen Spielen.
-1. Ein Wolf-Spiel als ZIP importieren: den Spielordner mit `Game.exe` und dem Ordner `Data`
-   (darin `BasicData/Game.dat`). Es erscheint unter dem Filter **RPG Maker** mit „WOLF RPG Editor“.
+1. Ein Wolf-Spiel als ZIP importieren: den Spielordner mit `Game.exe` und dem Ordner `Data` (darin
+   `BasicData/Game.dat`) oder mit `.wolf`-Archiven (`Data.wolf` bzw. `Data/BasicData.wolf` usw.).
+   Es erscheint unter dem Filter **RPG Maker** mit „WOLF RPG Editor“.
 2. Starten: Das Spiel läuft im Querformat. Unten links das Steuerkreuz, rechts **OK**, **Back** (Abbrechen)
    und **Shift**. Oben links blendet der Controller-Knopf die Steuerung aus und ein, **☰** öffnet die Cheats.
 3. Spielstände liegen in Dateien unter **EverPlay › Saves › (Spielname)** (`SaveNN.everplay.sav`, ein eigenes
@@ -163,8 +164,9 @@ EverPlay spielt WOLF-RPG-Editor-Spiele (Version 2 und 3) jetzt mit einer eigenen
 6. Spiel beenden: über das Spielmenü (EverPlay schließt sich dann, wie bei RPG Maker XP/VX).
 
 Noch nicht möglich:
-- Spiele, die alles in `.wolf`-Archiven haben (`Data.wolf` oder `Data/BasicData.wolf`, oft bei WOLF Pro und
-  kommerziellen Spielen). EverPlay sagt das beim Start. Abhilfe: entpackte Spieldateien verwenden.
+- Spiele aus WOLF RPG Editor **Pro**, deren Archive einen spieleigenen Schlüssel brauchen. EverPlay sagt das
+  beim Import und beim Start. Abhilfe: entpackte Spieldateien verwenden. Normale `.wolf`-Archive (WOLF 2.x
+  und 3.x bis 3.5) gehen.
 - Spiele mit eigenem Nachrichtensystem zeigen manchmal keinen Text (bekannt bei „MY“).
 - Videos, Tastatur-Texteingabe und Maus/Touch direkt im Spiel sind noch unvollständig.
 

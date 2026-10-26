@@ -300,6 +300,23 @@ TexturePtr Game::renderRichText(const std::string& text, int maxChars, int& outW
 // ---------------------------------------------------------------------------------------------
 // Pictures
 
+TexturePtr Game::squareTexture(const std::string& file, int w, int h) {
+    TexturePtr texture = gfx_.createTarget(std::max(w, 1), std::max(h, 1));
+    gfx_.setTarget(texture);
+    if (file == "<SQUARE>") {
+        gfx_.clear(Color{255, 255, 255, 255});
+    } else {
+        gfx_.clear(Color{0, 0, 0, 0});
+        Color white{255, 255, 255, 255};
+        gfx_.fillRect(RectI{0, 0, w, 1}, white, Blend::Normal);
+        gfx_.fillRect(RectI{0, h - 1, w, 1}, white, Blend::Normal);
+        gfx_.fillRect(RectI{0, 0, 1, h}, white, Blend::Normal);
+        gfx_.fillRect(RectI{w - 1, 0, 1, h}, white, Blend::Normal);
+    }
+    gfx_.setTarget(nullptr);
+    return texture;
+}
+
 void Game::execPicture(const Command& c, Frame& f) {
     int v = c.arg(0);
     int b0 = v & 0xFF, b1 = (v >> 8) & 0xFF, b2 = (v >> 16) & 0xFF, b3 = (v >> 24) & 0xFF;
@@ -398,7 +415,15 @@ void Game::execPicture(const Command& c, Frame& f) {
             s.r = cr; s.g = cg; s.b = cb;
             if (freePos)
                 for (int k = 0; k < 8; k++) s.corners[k] = k < 2 ? (k == 0 ? s.x : s.y) : val(size_t(19 + k - 2), 0);
-            if (type == 3 || type == 4) {
+            if (fresh.file.rfind("<SQUARE>", 0) == 0) {
+                // WOLF 3: a white rectangle (tinted by the picture's colour) the size of the "divisions";
+                // "<SQUARE>FRAME" only its outline.
+                int w = std::max(divW == kSame ? 1 : divW, 1), h = std::max(divH == kSame ? 1 : divH, 1);
+                fresh.texture = squareTexture(fresh.file, w, h);
+                fresh.windowW = w;
+                fresh.windowH = h;
+                fresh.divW = fresh.divH = 1;
+            } else if (type == 3 || type == 4) {
                 // Window pictures: the "divisions" are the window size.
                 fresh.windowW = divW;
                 fresh.windowH = divH;
@@ -478,12 +503,21 @@ void Game::execPicture(const Command& c, Frame& f) {
 
 void Game::execEffect(const Command& c, Frame& f) {
     int v = c.arg(0);
-    int target = v & 0x0F, type = v & 0xF0;
+    // WOLF 3 has more effects than fit in the high nibble (Z order is 0x1C0).
+    int target = v & 0x0F, type = v & 0xFF0;
     int time = getValue(c.arg(1), &f);
     if (target == 0) {
         int first = getValue(c.arg(2), &f), last = getValue(c.arg(3), &f);
         if (last < first) last = first;
         int a1 = getValue(c.arg(4), &f), a2 = getValue(c.arg(5), &f), a3 = getValue(c.arg(6), &f);
+        if (type == 0xF0) {  // WOLF 3: copy picture a1 to the target pictures
+            auto src = pictures_.find(a1);
+            for (int n = first; n <= last; n++) {
+                if (src == pictures_.end()) pictures_.erase(n);
+                else if (n != a1) pictures_[n] = src->second;
+            }
+            return;
+        }
         for (int n = first; n <= last; n++) {
             auto it = pictures_.find(n);
             if (it == pictures_.end()) continue;
@@ -522,6 +556,26 @@ void Game::execEffect(const Command& c, Frame& f) {
                 case 0x70:  // auto zoom
                     p.effect = 0x70; p.effArgs[0] = a1; p.effArgs[1] = a2; p.effArgs[2] = a3;
                     p.effectTotal = time;
+                    break;
+                case 0xC0:  // WOLF 3: zoom correction in percent (10000: a hundredfold)
+                    p.corrFromW = p.corrW;
+                    p.corrFromH = p.corrH;
+                    p.corrToW = a1;
+                    p.corrToH = a2;
+                    if (time <= 0) {
+                        p.corrW = a1;
+                        p.corrH = a2;
+                        p.corrFrames = 0;
+                    } else {
+                        p.corrTotal = p.corrFrames = time;
+                    }
+                    break;
+                case 0xE0:  // WOLF 3: mirror (a negative value flips that axis)
+                    p.flipX = a1 < 0;
+                    p.flipY = a2 < 0;
+                    break;
+                case 0x1C0:  // WOLF 3: Z order (drawn above pictures with a lower one, then by number)
+                    p.z = a1;
                     break;
                 case 0x80: case 0x90: case 0xA0:  // automatic pattern changes
                     p.autoPatternMode = (type - 0x70) >> 4;
@@ -588,6 +642,12 @@ void Game::updatePictures() {
             }
         }
         if (p.flashFrames > 0) p.flashFrames--;
+        if (p.corrFrames > 0) {
+            p.corrFrames--;
+            double t = 1.0 - double(p.corrFrames) / std::max(p.corrTotal, 1);
+            p.corrW = p.corrFromW + (p.corrToW - p.corrFromW) * t;
+            p.corrH = p.corrFromH + (p.corrToH - p.corrFromH) * t;
+        }
         if (p.effect == 0x30 && p.effectFrames > 0) {
             p.effectFrames--;
             double power = p.effArgs[0] > 0 ? p.effArgs[0] : 4;
@@ -638,7 +698,7 @@ void Game::drawPicture(Picture& p) {
         int idx = std::max(p.pattern - 1, 0) % (p.divW * p.divH);
         src = RectI{(idx % p.divW) * fw, (idx / p.divW) * fh, fw, fh};
     }
-    double w = src.w * p.cur.zoomW / 100.0, h = src.h * p.cur.zoomH / 100.0;
+    double w = src.w * p.cur.zoomW / 100.0 * p.corrW / 100.0, h = src.h * p.cur.zoomH / 100.0 * p.corrH / 100.0;
     double x = p.cur.x + p.shakeX, y = p.cur.y + p.shakeY;
     if (p.scroll) { x -= camX_; y -= camY_; }
     double ox = 0, oy = 0;  // anchor offset inside the picture
@@ -657,6 +717,10 @@ void Game::drawPicture(Picture& p) {
         double rad = p.cur.angle * M_PI / 180.0;
         double cs = std::cos(rad), sn = std::sin(rad);
         double corners[4][2] = {{-ox, -oy}, {w - ox, -oy}, {w - ox, h - oy}, {-ox, h - oy}};
+        if (p.flipX)
+            for (auto& c : corners) c[0] = w - 2 * ox - c[0];
+        if (p.flipY)
+            for (auto& c : corners) c[1] = h - 2 * oy - c[1];
         for (int k = 0; k < 4; k++) {
             double cx = corners[k][0], cy = corners[k][1];
             q[k] = PointF{float(x + cx * cs - cy * sn), float(y + cx * sn + cy * cs)};
@@ -678,9 +742,51 @@ void Game::drawPicture(Picture& p) {
     }
 }
 
+int Game::pictureAt(int px, int py) {
+    // Topmost first: the reverse of the drawing order.
+    std::vector<std::pair<std::pair<int, int>, Picture*>> order;
+    for (auto& [n, p] : pictures_) order.push_back({{p.z, n}, &p});
+    std::sort(order.begin(), order.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+    for (auto& [key, pp] : order) {
+        Picture& p = *pp;
+        if (!p.used || !p.texture || p.cur.opacity <= 0 || p.freePos) continue;
+        const TexturePtr& t = p.texture;
+        RectI src{0, 0, t->width(), t->height()};
+        if (p.type == 0 && (p.divW > 1 || p.divH > 1)) {
+            int fw = t->width() / p.divW, fh = t->height() / p.divH;
+            int idx = std::max(p.pattern - 1, 0) % (p.divW * p.divH);
+            src = RectI{(idx % p.divW) * fw, (idx / p.divW) * fh, fw, fh};
+        }
+        double w = src.w * p.cur.zoomW / 100.0 * p.corrW / 100.0, h = src.h * p.cur.zoomH / 100.0 * p.corrH / 100.0;
+        if (w <= 0 || h <= 0) continue;
+        double x = p.cur.x + p.shakeX, y = p.cur.y + p.shakeY;
+        if (p.scroll) { x -= camX_; y -= camY_; }
+        double ox = 0, oy = 0;
+        switch (p.anchor) {
+            case 1: ox = w / 2; oy = h / 2; break;
+            case 2: oy = h; break;
+            case 3: ox = w; break;
+            case 4: ox = w; oy = h; break;
+        }
+        // Back into the picture: undo the rotation about (x, y), then the anchor.
+        double rad = -p.cur.angle * M_PI / 180.0, dx = px - x, dy = py - y;
+        double lx = dx * std::cos(rad) - dy * std::sin(rad) + ox, ly = dx * std::sin(rad) + dy * std::cos(rad) + oy;
+        if (lx < 0 || ly < 0 || lx >= w || ly >= h) continue;
+        if (p.flipX) lx = w - lx;
+        if (p.flipY) ly = h - ly;
+        if (!t->opaqueAt(src.x + int(lx * src.w / w), src.y + int(ly * src.h / h))) continue;
+        return key.second;
+    }
+    return -1;
+}
+
 void Game::drawPictures(bool belowMessage) {
     (void)belowMessage;
-    for (auto& [n, p] : pictures_) drawPicture(p);
+    std::vector<std::pair<std::pair<int, int>, Picture*>> order;
+    order.reserve(pictures_.size());
+    for (auto& [n, p] : pictures_) order.push_back({{p.z, n}, &p});
+    std::sort(order.begin(), order.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    for (auto& [key, p] : order) drawPicture(*p);
 }
 
 // ---------------------------------------------------------------------------------------------

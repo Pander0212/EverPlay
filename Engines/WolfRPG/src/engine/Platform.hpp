@@ -28,6 +28,8 @@ public:
     virtual ~Texture() = default;
     virtual int width() const = 0;
     virtual int height() const = 0;
+    // Whether the pixel at (x, y) is not fully transparent (for picking pictures under the mouse).
+    virtual bool opaqueAt(int x, int y) const { (void)x; (void)y; return true; }
 };
 using TexturePtr = std::shared_ptr<Texture>;
 

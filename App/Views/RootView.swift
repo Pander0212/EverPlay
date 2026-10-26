@@ -474,7 +474,7 @@ private struct ImportHelpView: View {
                 Text("RPG Maker 2000/2003 games with EasyRPG Player (on iPhone and iPad).")
                 Text("RPG Maker XP, VX and VX Ace games with mkxp-z; the free RTP is downloaded on the game's page.")
                 Text("KiriKiri visual novels; encrypted ones with a key from GARbro's list.")
-                Text("WOLF RPG Editor 2 and 3 games with EverPlay's own engine (experimental; games packed in .wolf archives not yet).")
+                Text("WOLF RPG Editor 2 and 3 games with EverPlay's own engine (experimental; archives of WOLF RPG Editor Pro not yet).")
             }
             Section("Saves") {
                 Text("Ren'Py, RPG Maker 2000/2003, XP/VX/VX Ace, KiriKiri and WOLF RPG saves: On My iPhone › EverPlay › Saves › game. Web games keep their saves in EverPlay's private storage.")
