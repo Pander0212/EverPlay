@@ -71,7 +71,9 @@ jobs:
           patch="$(cat scripts/godot/everplay_godot.mm scripts/godot/patch-godot-ios.py scripts/godot/build-godot-ios.sh | shasum -a 256 | cut -c1-7)"
           name="Godot${id}_${arch}-${{ matrix.version }}-${patch}.framework.zip"
           # Never replace a published engine: allinone.yml pins its checksum. Changed patches get a new name.
-          if gh release view libretro-cores --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | grep -qx "$name"; then
+          # (The release's asset list is cut off after a few dozen files, so ask for the file itself.)
+          if curl --silent --fail --head --location --output /dev/null \
+               "https://github.com/$GITHUB_REPOSITORY/releases/download/libretro-cores/$name"; then
             echo "$name is already published; kept as it is."
             exit 0
           fi
