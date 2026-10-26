@@ -8,12 +8,17 @@ Kennzeichnung jeder Aussage:
 - **[S]** im Simulator gesehen
 - **[i]** auf dem iPhone bestätigt
 
-Stand: 2026-10-26. Bisher ist alles **[R]**; nichts wurde im Simulator oder auf dem iPhone gesehen.
+Stand: 2026-10-26. Alles ist **[R]**; nichts wurde im Simulator oder auf dem iPhone gesehen.
 
-## Ergebnis (vorläufig)
+## Ergebnis
 
-**Geht nicht auf dem im Auftrag vermuteten Weg. Geht höchstens unter starken Bedingungen, mit Forschungsaufwand
-in Monaten, nicht Tagen.**
+**Geht nicht, für die vorliegenden Testspiele. Abbruchgrenze erreicht:** Es ist kein Weg erkennbar, auf dem eines
+der Testspiele in absehbarer Zeit auch nur ein Bild zeigt. Beide geprüften Spiele sind IL2CPP (x86-64-Spielcode) und
+haben nur D3D11-Shader. Dafür bräuchte es gleichzeitig einen x86-64→ARM64-Übersetzer mit Win32-Nachbau im Prozess
+und eine Shader-Umwandlung DXBC → GLES/Metal, beides Projekte in der Größenordnung von Monaten bis Jahren.
+
+Für Mono-Spiele allgemein: **geht nicht auf dem im Auftrag vermuteten Weg; höchstens unter starken Bedingungen**
+(Weg A unten, Forschungsaufwand in Monaten), und auch dann nur mit Shader-Umwandlung.
 
 1. **Den vermuteten Hauptweg gibt es nicht** [R]: Ein „Android-Unity-Player ARM64 mit Mono“ existiert nicht.
    Unity baut Mono auf Android nur für **ARMv7 (32 Bit)**; ARM64 auf Android gibt es nur mit IL2CPP. Unitys
@@ -37,9 +42,26 @@ Was trotzdem denkbar ist, steht unter „Wege“. Keiner davon ist ein Wochenend
 
 Nur Name, Unity-Version, Mono oder IL2CPP. Niemals Dateien, Spielstände oder Screenshots ins Repo.
 
-| Spiel | Unity-Version | Backend | Grafik-APIs im Build | Anmerkung |
-|---|---|---|---|---|
-| (folgt) | | | | |
+Geprüft mit `scripts/unity_probe.py` (liest nur Dateinamen und Daten-Header, UnityPy für die Shader). [R, Dateien gelesen]
+
+| Spiel | Unity-Version | Backend | Shader-GPU-Programme | Native Plugins | Anmerkung |
+|---|---|---|---|---|---|
+| FantasyStudio (Demo, itch.io) | 6000.0.60f1 (Unity 6) | **IL2CPP** | nur D3D11 (55 Shader) | `lib_burst_generated.dll`, `steam_api64.dll` (x86-64) | Liegt mit `D3D12/`. Der Entwickler hat versehentlich `FantasyStudio_BackUpThisFolder_ButDontShipItWithYourGame/il2cppOutput` (generierter C++-Code des Spiels) mitgeliefert. |
+| Fellworld | 2021.3.18f1 | **IL2CPP** | nur D3D11 (32 Shader) | `lib_burst_generated.dll` (x86-64) | |
+| (zwei weitere, Gofile) | – | – | – | – | nicht geladen: Gofile-Download braucht ein Gastkonto über die API, das in dieser Umgebung nicht erlaubt wurde |
+
+Folgen:
+- **Kein Testspiel ist Mono.** Der Mono-Weg (A) trifft auf keines zu. Beide brauchen den IL2CPP-Weg, also
+  x86-64-Code (`GameAssembly.dll`) auf ARM64.
+- **Kein Testspiel hat Shader für eine andere API als D3D11.** Selbst mit laufendem Code gäbe es ohne
+  DXBC-Umwandlung kein Bild.
+- **Burst**: `lib_burst_generated.dll` ist von Unity vorab zu x86-64 kompilierter Code für Jobs. Fehlt er, fällt Unity auf
+  den verwalteten Code zurück (bei IL2CPP: in `GameAssembly.dll` enthalten), d. h. weglassen wäre möglich [R, Unitys
+  Burst-Verhalten; ungetestet].
+- Die mitgelieferte `il2cppOutput` von FantasyStudio wäre theoretisch für ARM64 neu übersetzbar (das ist genau, was
+  Unitys eigener Android-/iOS-Build tut, mit `libil2cpp` aus dem Unity-Editor 6000.0.60f1). Das ist ein Zufall
+  dieses einen Spiels, verlangt die Unity-Editor-Installation und würde Spielcode auf dem Build-Rechner übersetzen
+  und in ein Artefakt packen; beides schließen die Regeln aus. Nicht weiterverfolgt.
 
 Erkennung (nur Dateinamen und Header lesen, nichts ausführen):
 - **Mono**: `<Name>_Data/Managed/Assembly-CSharp.dll` vorhanden, `MonoBleedingEdge/` neben der `.exe`.
@@ -52,8 +74,12 @@ Erkennung (nur Dateinamen und Header lesen, nichts ausführen):
 - **JoiPlay** [R]: unterstützt laut eigener Seite RPG Maker, Ren'Py, TyranoBuilder, Construct 2/3, Godot (GDScript),
   Flash und HTML5. **Kein Unity** ([joiplay.net](https://joiplay.net/)). Nutzerberichte auf itch.io bestätigen, dass
   Unity-Spiele dort nicht laufen.
-- **MinHub** [R]: Mit Websuche nicht auffindbar (weder Store-Eintrag noch Quellcode noch Forenthread).
-  → Link vom Auftraggeber nötig, siehe Checkliste.
+- **MinHub** [R]: Android-App von „h-game18“ (Patreon `hgame18`), Changelog unter `h-game18.xyz/minhub-changelog/`.
+  Die Seite und Patreon liefern hinter Cloudflare nur 403; eine Umgehung der Bot-Sperre wurde bewusst nicht versucht.
+  Aus Suchergebnissen: MinHub 0.5.2 (11. Juni 2026) lagert RPG VX Ace, KiriKiri und Godot in ladbare Plugins aus;
+  es gibt 0.7.5 (27. Aug.) und eine Vorschau auf 0.8.0. **Wie MinHub Unity startet, ist damit offen**, siehe Checkliste.
+  Die Seite heißt bei Patreon „Android Port“; möglich ist, dass Unity-Spiele dort als einzelne Android-Ports
+  (neu gebaute APKs) angeboten werden, nicht über einen allgemeinen Player. Unbestätigt.
 - Was es auf Android sonst gibt [R, Allgemeinwissen, ohne Quelle im Detail geprüft]: **Winlator** und Ähnliche starten das
   Windows-Spiel unverändert unter Wine + Box64 (x86-64→ARM64) + DXVK. Das ist Windows-Emulation, keine Unity-Lösung.
 - Händische „Ports“ von PC-Unity-Spielen nach Android in Communitys entstehen über einen Neuaufbau des Projekts
@@ -152,21 +178,31 @@ Aufwand: Größenordnung eines eigenen Emulatorprojekts (viele Monate, Experten)
 
 ## Probiertes und Sackgassen
 
-- Websuche nach MinHub: nichts gefunden.
+- Websuche nach MinHub: nur Patreon-Titel. Changelog-Seite und Patreon: 403 (Cloudflare), nicht umgangen.
 - JoiPlay: kein Unity.
 - Vermutung „ARM64-Android-Unity-Player mit Mono“: Sackgasse, gibt es nicht (Unity-Doku).
+- Testspiele: beide IL2CPP, beide nur D3D11-Shader (siehe Tabelle). Der Mono-Weg trifft auf keines zu.
+- Die ZIPs der Testspiele nutzen teils LZMA-Kompression (ZIP-Methode 14), die `unzip` nicht kann; Python `zipfile`
+  kann es. Für EverPlays Importer prüfen, ob ZIPFoundation Methode 14 kann (sonst schlägt der Import solcher ZIPs fehl).
 
 ## Nächste Schritte (Checkliste)
 
-- [ ] Testspiele vom Auftraggeber: je Unity-Version, Mono/IL2CPP, Grafik-APIs (welche Shader-Varianten im Build sind)
-      eintragen. Nur Header und Dateinamen lesen, nichts ausführen.
-- [ ] MinHub: Link vom Auftraggeber erfragen und den Startweg dort nachlesen.
+Nur sinnvoll, wenn Unity trotz des Ergebnisses weiterverfolgt werden soll:
+
+- [ ] Die zwei Gofile-Testspiele prüfen (`python3 -I scripts/unity_probe.py <Spielordner>`); als Mega-Link schicken lassen,
+      falls Gofile weiter nicht geht. Ein **Mono**-Spiel mit **OpenGLCore- oder Vulkan-Shadern** wäre der einzig
+      realistische Kandidat für Weg A.
+- [ ] MinHub: Changelog-Text vom Auftraggeber als Text/Screenshot-Abschrift geben lassen und eintragen, wie dort Unity läuft.
 - [ ] Unity-Lizenzbedingungen zur Weitergabe der Runtime im Wortlaut zitieren.
 - [ ] Für Weg A: von einer frei verfügbaren Android-APK mit Unity (IL2CPP, ARM64) gleicher Version die `il2cpp_*`-Importe
       von `libunity.so` auflisten (nur `readelf`, nichts ausführen). Ergibt die API-Fläche des Shims.
-- [ ] Shader: bei einem Testspiel zählen, welche GPU-Programmtypen in den Shader-Assets stecken.
-- [ ] Erst wenn alle drei Punkte nicht blockieren: minimaler Prototyp (siehe unten).
+- [ ] Shader-Umwandlung bewerten: HLSLcc auf ein DXBC-Programm aus einem Testspiel anwenden (nur Shader-Bytecode,
+      kein Spielcode) und prüfen, ob gültiges GLSL ES herauskommt.
+- [ ] EverPlays Erkennung (`EngineFingerprint`) könnte bei Unity zusätzlich Mono/IL2CPP und die Version nennen
+      (Logik wie in `scripts/unity_probe.py`). Kleiner, sicherer Gewinn für die Import-Meldung.
 
 ## Prototyp
 
-Noch keiner. Höchstens einer, der etwas aus einem Testspiel lädt (z. B. Unity-Version und Backend erkennen).
+`scripts/unity_probe.py`: liest aus einem Spielordner Unity-Version, Mono/IL2CPP, native Plugins und für welche
+GPU-APIs die Shader kompiliert sind. Mit beiden Testspielen gelaufen (Ergebnis in der Tabelle). Nichts darüber hinaus
+gebaut, weil die Abbruchgrenze erreicht ist.
