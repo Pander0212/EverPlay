@@ -18,7 +18,7 @@ const int kAnimWait[] = {2, 4, 8, 12, 18, 24, 36};
 // Chips of 100000 and up are autotiles: 1xxxxx is the empty one, 2xxxxx to 16xxxxx the tileset's 15
 // autotile files; the last digits say how each quarter joins its neighbours. Tag and passage lists
 // start with these 16 slots, then the base chips.
-bool blankChip(int chip) { return chip == 0 || chip / 100000 == 1; }
+bool blankChip(int chip) { return chip / 100000 == 1; }  // chip 0 is the base image's first tile
 int chipIndex(int chip, int offset) { return chip >= 100000 ? chip / 100000 - 1 : chip + offset; }
 
 int dirIndex(int dir, int rows) {
@@ -262,7 +262,7 @@ int Game::tileTag(int x, int y, int layer) {
         int chip = map_.tile(l, x, y);
         if (!blankChip(chip)) return tagOf(chip);
     }
-    return tagOf(0);
+    return tagOf(100000);
 }
 
 // Whether the quarter-tile grid cell (qx, qy) (half-tile units) can be entered, moving in `dir`.
@@ -771,6 +771,7 @@ void Game::drawTiles(int layerMask, double camX, double camY, bool upper) {
         if (!((layerMask >> l) & 1)) continue;
         for (int ty = y0; ty < y0 + rows; ty++) {
             for (int tx = x0; tx < x0 + cols; tx++) {
+                if (tx < 0 || ty < 0 || tx >= map_.width || ty >= map_.height) continue;
                 int chip = map_.tile(l, tx, ty);
                 if (blankChip(chip)) continue;
                 int idx = chipIndex(chip, offset);

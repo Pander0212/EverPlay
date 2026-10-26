@@ -1119,7 +1119,7 @@ void Game::execSetVariablePlus(const Command& c, Frame& f) {
             case 0x04: {
                 value = 0;
                 for (int l = map_.layers - 1; l >= 0; l--)
-                    if (int t = map_.tile(l, tx, ty)) { value = t; break; }
+                    if (int t = map_.tile(l, tx, ty); t / 100000 != 1) { value = t; break; }
                 break;
             }
             case 0x05: case 0x06: case 0x07: value = map_.tile(info - 0x05, tx, ty); break;
