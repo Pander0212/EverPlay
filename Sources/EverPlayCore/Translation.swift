@@ -125,8 +125,10 @@ public enum TranslationAPI {
             return request
         case .openAI:
             guard let key, !key.isEmpty else { throw TranslationError.missingKey }
-            let base = settings.baseURL.trimmingCharacters(in: .whitespaces).isEmpty
+            var base = settings.baseURL.trimmingCharacters(in: .whitespaces).isEmpty
                 ? "https://api.openai.com/v1" : settings.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
+            // The full endpoint pasted as base URL works too.
+            if base.lowercased().hasSuffix("/chat/completions") { base.removeLast("/chat/completions".count) }
             guard let url = URL(string: base + "/chat/completions") else { throw TranslationError.badResponse }
             var request = URLRequest(url: url)
             request.httpMethod = "POST"

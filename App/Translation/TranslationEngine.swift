@@ -31,9 +31,14 @@ final class TranslationEngine: @unchecked Sendable {
     private var lastSave = Date.distantPast
     /// Why the last request failed (shown on the whole-game page; logged once per reason).
     private var failure: String?
+    /// After a "too many requests" or a timeout: nothing is sent before then (the service gets air).
+    private var pausedUntil: Date?
+    private var wakeScheduled = false
+    /// Tries per line, so a line that keeps failing is given up after a few.
+    private var attempts: [String: Int] = [:]
     private let session: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 20
+        configuration.timeoutIntervalForRequest = 120  // language models take a while for 20 lines
         return URLSession(configuration: configuration)
     }()
 
@@ -57,7 +62,7 @@ final class TranslationEngine: @unchecked Sendable {
         try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         cacheFile = file
         cache = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: file))) ?? [:]
-        pending = []; inFlight = []; failed = []; failure = nil
+        pending = []; inFlight = []; failed = []; failure = nil; attempts = [:]; pausedUntil = nil
         bulk = []; bulkInFlight = []; bulkTotal = 0; bulkDone = 0
         EverPlayLog.write("Translation on (\(settings.provider.title) → \(settings.targetLanguage)), \(cache.count) lines known")
     }
@@ -142,7 +147,16 @@ final class TranslationEngine: @unchecked Sendable {
     }
 
     private func pump() {
-        let parallel = settings.provider == .google ? 4 : 2
+        if let until = pausedUntil {
+            guard until <= Date() else { wake(at: until); return }
+            pausedUntil = nil
+        }
+        let parallel: Int
+        switch settings.provider {
+        case .google: parallel = 4
+        case .openAI, .anthropic: parallel = 1  // their rate limits are low on cheap plans
+        default: parallel = 2
+        }
         while running < parallel, !pending.isEmpty || !bulk.isEmpty {
             let batch: [String]
             if !pending.isEmpty {
@@ -165,12 +179,24 @@ final class TranslationEngine: @unchecked Sendable {
             sendToApple(batch, masked: masked, settings: settings)
             return
         }
-        let request: URLRequest
+        var request: URLRequest
         do { request = try TranslationAPI.request(for: masked.map { $0.masked }, settings: settings, key: key) }
         catch { failLater(batch, error); return }
+        request.timeoutInterval = settings.provider == .openAI || settings.provider == .anthropic ? 120 : 20
         session.dataTask(with: request) { [weak self] data, response, error in
             guard let self else { return }
-            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            let http = response as? HTTPURLResponse
+            let status = http?.statusCode ?? 0
+            // Busy or rate limited (429, 5xx) or slow: the same lines again after a pause.
+            let code = (error as? URLError)?.code
+            let transient = status == 429 || status >= 500
+                || code == .timedOut || code == .networkConnectionLost || code == .notConnectedToInternet
+            if transient {
+                let wait = http?.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
+                let reason = status == 429 ? "too many requests" : status >= 500 ? "server error \(status)" : "no answer in time"
+                self.locked { self.retry(batch, after: wait, reason: reason) }
+                return
+            }
             guard let data, error == nil, (200..<300).contains(status) else {
                 self.locked { self.finish(batch, results: nil, error: error ?? URLError(.badServerResponse, userInfo: ["status": status])) }
                 return
@@ -205,6 +231,42 @@ final class TranslationEngine: @unchecked Sendable {
         }
     }
 
+    /// Puts the lines back at the front of their queue and pauses sending, longer each time;
+    /// a line is given up after five tries.
+    private func retry(_ batch: [String], after wait: TimeInterval?, reason: String) {
+        let tries = (batch.map { attempts[$0, default: 0] }.max() ?? 0) + 1
+        guard tries <= 5 else {
+            batch.forEach { attempts[$0] = nil }
+            finish(batch, results: nil, error: URLError(.cannotConnectToHost, userInfo: [NSLocalizedDescriptionKey: reason]))
+            return
+        }
+        batch.forEach { attempts[$0] = tries }
+        running = max(0, running - 1)
+        inFlight.subtract(batch)
+        let fromBulk = batch.filter { bulkInFlight.contains($0) }
+        bulkInFlight.subtract(fromBulk)
+        bulk.insert(contentsOf: fromBulk, at: 0)
+        pending.insert(contentsOf: batch.filter { !fromBulk.contains($0) }, at: 0)
+        let delay = min(wait ?? 2 * pow(2, Double(tries - 1)), 90)
+        pausedUntil = max(pausedUntil ?? .distantPast, Date().addingTimeInterval(delay))
+        let message = "\(settings.provider.title): \(reason), trying again in \(Int(delay)) s."
+        if message != failure { EverPlayLog.write("Translation paused: \(message)") }
+        failure = message
+        condition.broadcast()
+        pump()
+    }
+
+    private func wake(at date: Date) {
+        guard !wakeScheduled else { return }
+        wakeScheduled = true
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + max(0.1, date.timeIntervalSinceNow)) { [weak self] in
+            self?.locked {
+                self?.wakeScheduled = false
+                self?.pump()
+            }
+        }
+    }
+
     private func locked(_ work: () -> Void) {
         condition.lock(); work(); condition.unlock()
     }
@@ -215,6 +277,7 @@ final class TranslationEngine: @unchecked Sendable {
         let fromBulk = batch.filter { bulkInFlight.contains($0) }
         bulkDone += fromBulk.count
         bulkInFlight.subtract(fromBulk)
+        batch.forEach { attempts[$0] = nil }
         if let results {
             failure = nil
             for (source, translated) in zip(batch, results) {
