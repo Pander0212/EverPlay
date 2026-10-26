@@ -27,6 +27,7 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 | 14. Bibliothek | offen (neu) |
 | 15. Übersetzung: Apple + ganzes Spiel | offen (neu) |
 | 16. Engine-Erkennung | offen (neu) |
+| 17. Godot 4 (nur im Godot-Testbuild) | offen (neu) |
 
 ## 1. Ren'Py-Spiel: Tastatur (Namenseingabe)
 1. Ein Spiel starten, das nach einem Namen fragt.
@@ -146,3 +147,21 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 1. Ein Spiel importieren, das EverPlay nicht spielen kann (z. B. Unity, Unreal, Godot, GameMaker, Wolf RPG).
    Erwartet statt „not supported“: „This is a Unity game (found UnityPlayer.dll, …)“ plus Einschätzung, ob es
    aufs iPhone kommen kann. Bei ZIPs passiert das sofort, ohne erst alles zu entpacken.
+
+## 17. Godot 4 (eigener Testbuild, nicht im normalen Nightly)
+Vorher: In Feather die Quelle
+`https://github.com/Pander0212/EverPlay/releases/download/nightly-godot/release-source.json` hinzufügen und
+**EverPlay** daraus installieren (ersetzt den Nightly, Bibliothek und Spielstände bleiben). Version unter
+Einstellungen ganz unten notieren.
+1. Godot-Spiel als ZIP importieren: entweder nur die `.exe` (pck eingebettet, z. B. Elden Rod) oder `.exe`
+   und `.pck` zusammen (z. B. Slut Maker). Erwartet: Das Spiel erscheint in der Bibliothek (blaues
+   Controller-Symbol, Engine „Godot“).
+2. Starten: Querformat, das Spiel läuft. Tippen = linke Maustaste, **zwei Finger tippen** = Rechtsklick.
+3. **☰** oben links: **Escape** (Spielmenü/zurück), **Right click**, **Keys** (Enter, Space, Tab, Pfeile),
+   **Quit game** (EverPlay schließt sich dann).
+4. Spielstände: Im Spiel speichern, Spiel beenden, EverPlay neu öffnen. In Dateien unter
+   **Auf meinem iPhone › EverPlay › Saves › (Spielname)** liegen die Dateien des Spiels.
+5. Ein verschlüsseltes Spiel (Agent Feminine) zeigt beim Import „This is a Godot 4.4.1 game. Its files are
+   encrypted …“ – das ist so gewollt.
+6. Melden: Startet es? Bild (schwarz? verzerrt?), Ton, Videos, Texteingabe, Ruckeln? Bei Problemen das
+   Diagnose-Log schicken: Darin steht beim nächsten Start die Ausgabe von Godot.
