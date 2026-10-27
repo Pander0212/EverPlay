@@ -334,6 +334,16 @@ Offene Risiken, die sich erst ab M3 auf dem Gerät klären:
 Ein erster Commit (README, `docs/STATUS.md` mit M0/M1, GPL-3.0-Text) lag lokal bereit und wird nach dem Anlegen
 gepusht. EverPlay bindet später nur die fertige Bibliothek ein, wie bei `WolfRPG.framework`.
 
+### Stand im Repo UnityBridge (2026-10-27)
+
+Weitere Arbeit und Doku in [Pander0212/UnityBridge](https://github.com/Pander0212/UnityBridge) (`docs/STATUS.md`).
+- **[i] Auf dem iPhone bestätigt** (iPhone 15, iOS 26.6.2): FEXCore (AetherPS4s Darwin-Port) führt x86-64-Code aus,
+  alle 8 Prüfungen der Test-App bestehen (Integer, Flags, SSE, Bridge-Aufruf, Threads, TLS, unausgerichtete
+  Zugriffe, Code-Invalidierung). JIT über StikDebug, das die App selbst per `stikdebug://enable-jit` mit Skript
+  aufruft; JIT aus StikDebugs App-Liste reicht auf iOS 26 nicht (App stirbt mit SIGTRAP).
+- [R, Host-Tests] PE-Loader und Mini-Win32: 190 der 206 Importe von Fellworlds `GameAssembly.dll` nachgebaut; offen
+  sind Threads und x64-Ausnahmen.
+
 ### M2: x64-Seite auf dem iPhone — nächster Schritt
 
 Ziel: In einer Test-App (oder einem versteckten EverPlay-Modus) mit JIT `GameAssembly.dll` laden und `il2cpp_init`
