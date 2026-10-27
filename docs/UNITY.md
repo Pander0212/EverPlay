@@ -341,8 +341,14 @@ Weitere Arbeit und Doku in [Pander0212/UnityBridge](https://github.com/Pander021
   alle 8 Prüfungen der Test-App bestehen (Integer, Flags, SSE, Bridge-Aufruf, Threads, TLS, unausgerichtete
   Zugriffe, Code-Invalidierung). JIT über StikDebug, das die App selbst per `stikdebug://enable-jit` mit Skript
   aufruft; JIT aus StikDebugs App-Liste reicht auf iOS 26 nicht (App stirbt mit SIGTRAP).
-- [R, Host-Tests] PE-Loader und Mini-Win32: 190 der 206 Importe von Fellworlds `GameAssembly.dll` nachgebaut; offen
-  sind Threads und x64-Ausnahmen.
+- **[i] Auf dem iPhone bestätigt**: eigene Windows-Test-DLL unter FEXCore gegen das Mini-Win32, 25 von 25 Prüfungen
+  (PE-Loader, Windows-Aufrufkonvention, Dateien, Sync-Objekte, Locale, Rückrufe in beide Richtungen).
+- [R, Host-Tests] Threads (`CreateThread` u. a.) gebaut, auf dem iPhone noch ungetestet. Offen für `il2cpp_init`:
+  TLS und x64-Ausnahmen (zwei Anläufe von einem automatischen Filter abgebrochen, zurückgestellt).
+- [R] M3: Husks Translation Layer (GPL-2.0+) übernimmt den Android-Teil (libunity.so laden, bionic, JNI, Unity-Treiber);
+  UnityBridge braucht dazu ein virtuelles `libil2cpp.so`. Messung an Fellworld: 1.371 Engine-InternalCalls, davon
+  1.186 nur Integer/Pointer, 166 mit Floats, keine Structs per Wert. Offene Risiken: Daten mit Zielplattform
+  Windows (19 statt 13), DXT-Texturen, D3D11-Shader.
 
 ### M2: x64-Seite auf dem iPhone — nächster Schritt
 
