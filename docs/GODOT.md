@@ -23,9 +23,9 @@ Entscheidend ist das Format kompilierter Skripte: Godot lädt nur die eigene Tok
 
 | Spiele | Skripte | Framework | Stand |
 |---|---|---|---|
-| 3.0–3.6 | Bytecode 13 | `Godot36` (3.6.3) | gebaut (Lauf 40551531395): `Godot36_ios-arm64-3.6.3-300aff0.framework.zip` `7ea2461da493c38f95d47be7b1fc55f23e4c1f7eedaa27cabaaa487667ed6711`, Simulator `Godot36_ios-arm64-simulator-3.6.3-300aff0.framework.zip`; Simulatortest mit GodotProbe3 läuft. Vorher: Builds 1–2: fehlendes Include `core/os/keyboard.h` (SPKEY); dann 75 doppelte Recast-Symbole beim `-all_load`-Link → Godot 3 wird ohne `-all_load` gelinkt (`-ObjC` + `-u _everplay_godot_start`, wie Godots Xcode-Export). Godot 3 nimmt den Cache aus `SCONS_CACHE` |
+| 3.0–3.6 | Bytecode 13 | `Godot36` (3.6.3) | gebaut (Lauf 40551531395): `Godot36_ios-arm64-3.6.3-300aff0.framework.zip` `7ea2461da493c38f95d47be7b1fc55f23e4c1f7eedaa27cabaaa487667ed6711`, Simulator `Godot36_ios-arm64-simulator-3.6.3-300aff0.framework.zip`; **im Simulator: GodotProbe3 startet, rendert (Screenshot), speichert, beendet** (Lauf 40553741519); gepinnt. Vorher: Builds 1–2: fehlendes Include `core/os/keyboard.h` (SPKEY); dann 75 doppelte Recast-Symbole beim `-all_load`-Link → Godot 3 wird ohne `-all_load` gelinkt (`-ObjC` + `-u _everplay_godot_start`, wie Godots Xcode-Export). Godot 3 nimmt den Cache aus `SCONS_CACHE` |
 | 4.0–4.2 | Text (`.gd`) | `Godot44` | – |
-| 4.3–4.4 | Token 100 | `Godot44` (4.4.1) | gebaut (Lauf 40547372935), gepinnt: `Godot44_ios-arm64-4.4.1-618e039.framework.zip` `8bf1fc1a507be7f23cd3994c98c01324c4f56b121600cff6b12d318c1cadfbe9`; noch nicht im Simulator/auf iPhone gesehen |
+| 4.3–4.4 | Token 100 | `Godot44` (4.4.1) | gebaut (Lauf 40547372935), gepinnt: `Godot44_ios-arm64-4.4.1-618e039.framework.zip` `8bf1fc1a507be7f23cd3994c98c01324c4f56b121600cff6b12d318c1cadfbe9`; im Simulator: GodotProbe (Format 2) läuft (Lauf 40553741519); iPhone offen |
 | 4.5–4.7 | Token 101 | `Godot47` (4.7.2) | fertig, gepinnt, auf iPhone bestätigt |
 
 `make-pck.py` schreibt pck-Format 1 (Godot 3, Pfade mit `res://`, eingebettet: Offsets ab Anfang der `.exe`), 2 (4.0–4.4) und 3 (4.5+); alle sechs Varianten (3 Versionen × `.pck`/eingebettet) laufen in den offiziellen Linux-Builds 3.6.3, 4.4.1 und 4.7.2 headless. Der Simulatortest ist eine Matrix über alle drei Engines.
