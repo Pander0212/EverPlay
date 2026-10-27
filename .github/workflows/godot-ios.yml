@@ -96,20 +96,28 @@ jobs:
           path: build-godot.log
           retention-days: 14
 
-  # EverPlay's own MIT probe (Tests/Fixtures/GodotProbe), packed into a stand-in .exe, imported and
-  # started from EverPlay's library in the simulator: the screenshot should show "Gold: 37", and
-  # Saves/GodotProbe/probe.txt should record the start and the quit after 30 s.
+  # EverPlay's own MIT probes (Tests/Fixtures/GodotProbe, GodotProbe3 for Godot 3), packed as each
+  # version packs them into a stand-in .exe, imported and started from EverPlay's library in the
+  # simulator: the screenshot should show "Gold: 37", and Saves/GodotProbe/probe.txt should record
+  # the start and the quit after 30 s.
   simulator-test:
     needs: build
     runs-on: macos-26
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {version: '4.7.2', probe: GodotProbe}
+          - {version: '4.4.1', probe: GodotProbe}
+          - {version: '3.6.3', probe: GodotProbe3}
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         with:
-          name: godot-4.7.2-simulator-framework
+          name: godot-${{ matrix.version }}-simulator-framework
       - name: Reuse the pinned XcodeGen source build
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
@@ -136,7 +144,7 @@ jobs:
           set -euo pipefail
           printf 'MZ EverPlay test stand-in, not a program\n' > stand-in.exe
           mkdir -p probe
-          python3 scripts/godot/make-pck.py Tests/Fixtures/GodotProbe probe/GodotProbe.exe 4.7.2 --embed stand-in.exe
+          python3 scripts/godot/make-pck.py Tests/Fixtures/${{ matrix.probe }} probe/GodotProbe.exe ${{ matrix.version }} --embed stand-in.exe
           (cd probe && zip -q ../GodotProbe.zip GodotProbe.exe)
           app=DerivedData/Build/Products/Debug-iphonesimulator/EverPlay.app
           bundle="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")"
@@ -182,6 +190,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: godot-simulator-test
+          name: godot-simulator-test-${{ matrix.version }}
           path: artifacts/
           retention-days: 14
