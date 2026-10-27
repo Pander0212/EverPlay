@@ -61,18 +61,18 @@ public struct GodotPack: Equatable, Sendable {
 /// The Godot runtimes inside EverPlay and which one plays a pack.
 public enum GodotRuntime {
     /// Major.minor of each bundled Godot framework (Godot<major><minor>.framework).
-    public static let bundled: [(major: UInt32, minor: UInt32)] = [(4, 4), (4, 7)]
+    public static let bundled: [(major: UInt32, minor: UInt32)] = [(3, 6), (4, 4), (4, 7)]
 
     /// The framework name for a pack: the oldest bundled 4.x runtime at least as new as the game. Godot 4
-    /// reads packs of older 4.x versions, but compiled scripts (.gdc) only of its own format: 4.4 writes
+    /// reads packs of older 4.x versions (and Godot 3.6 those of 3.x), but compiled scripts (.gdc) only of its own format: 4.4 writes
     /// format 100, 4.5–4.7 write 101, so a 4.4 game needs the 4.4 runtime. Throws `recognizedEngine` saying why
     /// none fits.
     public static func framework(for pack: GodotPack) throws -> String {
         if pack.encryptedDirectory {
             throw report(pack, "Its files are encrypted with a key built into its .exe; EverPlay cannot open it yet.")
         }
-        guard pack.major == 4 else {
-            throw report(pack, "EverPlay plays Godot 4 games so far.")
+        guard pack.major == 3 || pack.major == 4 else {
+            throw report(pack, "EverPlay plays Godot 3 and 4 games.")
         }
         guard let runtime = bundled.filter({ $0.major == pack.major && $0.minor >= pack.minor }).min(by: { $0.minor < $1.minor }) else {
             throw report(pack, "It needs a newer Godot than the one inside EverPlay.")

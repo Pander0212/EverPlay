@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds Godot (official sources at a pinned tag, MIT) for iPhone as Godot<NN>.framework, which
-# EverPlay loads with dlopen to play a game's .pck (scripts/godot/everplay_godot.mm).
+# EverPlay loads with dlopen to play a game's .pck (scripts/godot/everplay_godot.mm, everplay_godot3.mm).
 # Usage: build-godot-ios.sh <version e.g. 4.7.2> <device|simulator> <output folder>
 set -euo pipefail
 
@@ -29,12 +29,20 @@ fi
 # The compatibility renderer (OpenGL ES 3) for gl_compatibility games and Metal for the others; no
 # Vulkan (MoltenVK). Release template: no editor, no debugger. Path overrides on (Godot 4.5+): EverPlay
 # names the game's pack with --main-pack, which release templates refuse otherwise.
-grep -q '"disable_path_overrides"' "$work/SConstruct" && flags+=(disable_path_overrides=no)
-(cd "$work" && scons -j"$(sysctl -n hw.ncpu)" platform=ios target=template_release "${flags[@]}" \
-  vulkan=no generate_bundle=no debug_symbols=no ${GODOT_SCONS_EXTRA:-})
+if [ "${version%%.*}" = 3 ]; then
+  # Godot 3: platform "iphone", release template without tools (GLES3 with GLES2 fallback).
+  (cd "$work" && scons -j"$(sysctl -n hw.ncpu)" platform=iphone target=release tools=no "${flags[@]}" \
+    debug_symbols=no ${GODOT_SCONS_EXTRA:-})
+else
+  grep -q '"disable_path_overrides"' "$work/SConstruct" && flags+=(disable_path_overrides=no)
+  (cd "$work" && scons -j"$(sysctl -n hw.ncpu)" platform=ios target=template_release "${flags[@]}" \
+    vulkan=no generate_bundle=no debug_symbols=no ${GODOT_SCONS_EXTRA:-})
+fi
 
-# libgodot.ios.template_release.arm64[.simulator].a (the order of the suffixes differs between versions).
-library="$(ls "$work"/bin/libgodot.ios.template_release*.a | grep -E "\.$arch[.]" | { if [ "$kind" = simulator ]; then grep simulator; else grep -v simulator; fi; } | head -n 1)"
+# libgodot.ios.template_release.arm64[.simulator].a, Godot 3: libgodot.iphone.opt.arm64[.simulator].a
+# (the order of the suffixes differs between versions).
+library="$(ls "$work"/bin/libgodot.*.a | grep -E "(template_release|[.]opt)[.]" | grep -E "\.$arch[.]" \
+  | { if [ "$kind" = simulator ]; then grep simulator; else grep -v simulator; fi; } | head -n 1)"
 ls -la "$library"
 # Linked whole (-all_load): Godot 4.4's pcre2 has _pcre2_ckd_smul in both its 16- and 32-bit objects
 # (identical code), which a whole-archive link rejects as a duplicate. Keep one.

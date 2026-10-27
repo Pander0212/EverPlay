@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Adapts a Godot 4.4 or 4.5–4.7 checkout so its iOS library runs inside EverPlay; usage:
+"""Adapts a Godot 3.6, 4.4 or 4.5–4.7 checkout so its iOS library runs inside EverPlay; usage:
 patch-godot-ios.py <godot folder>.
 
 Godot's iOS template is a whole app (its own main() or SwiftUI @main, and its own app delegate).
 Inside EverPlay it is a framework: EverPlay presents Godot's view controller
-(scripts/godot/everplay_godot.mm with compat/<major.minor>.h), user:// points to the game's
+(scripts/godot/everplay_godot.mm with compat/<major.minor>.h; everplay_godot3.mm for Godot 3), user:// points to the game's
 visible Saves folder, and quitting the game tells EverPlay instead of being ignored. Every
 replacement must match exactly once, so a change upstream stops the build.
 """
@@ -29,9 +29,32 @@ def patch(name, old, new, count=1):
 version_py = (root / 'version.py').read_text(encoding='utf-8')
 major = int(re.search(r'^major = (\d+)', version_py, re.M).group(1))
 minor = int(re.search(r'^minor = (\d+)', version_py, re.M).group(1))
-if major != 4 or minor < 4:
+if (major, minor) < (3, 6) or (major == 4 and minor < 4) or major > 4:
     sys.exit(f'Godot {major}.{minor} is not supported by this patch')
-embedded = minor >= 5  # 4.5 moved the iOS code to drivers/apple_embedded
+embedded = major == 4 and minor >= 5  # 4.5 moved the iOS code to drivers/apple_embedded
+
+if major == 3:
+    # Godot 3: platform/iphone, its own API, user:// given to iphone_main (everplay_godot3.mm).
+    shutil.copy(here / 'everplay_godot3.mm', root / 'platform/iphone/everplay_godot.mm')
+    patch('platform/iphone/main.m', 'int main(int argc, char *argv[]) {', 'int godot_ios_unused_main(int argc, char *argv[]) {')
+    patch('platform/iphone/SCsub', '    "godot_iphone.mm",\n', '    "godot_iphone.mm",\n    "everplay_godot.mm",\n')
+    patch('platform/iphone/app_delegate.mm', 'static ViewController *mainViewController = nil;\n',
+          'static ViewController *mainViewController = nil;\n\n'
+          'void everplay_godot_set_view_controller(ViewController *controller) {\n'
+          '\tmainViewController = controller;\n}\n')
+    patch('platform/iphone/view_controller.mm', '- (void)viewDidLoad {',
+          '- (void)viewDidAppear:(BOOL)animated {\n\t[super viewDidAppear:animated];\n'
+          '\t[self.godotView startRendering];\n}\n\n- (void)viewDidLoad {')
+    patch('platform/iphone/godot_view_renderer.mm', '@implementation GodotViewRenderer',
+          'void everplay_godot_quit_requested();\n\n@implementation GodotViewRenderer')
+    patch('platform/iphone/godot_view_renderer.mm', """	OSIPhone::get_singleton()->iterate();
+}""", """	if (OSIPhone::get_singleton()->iterate()) {
+		everplay_godot_quit_requested();
+	}
+}""")
+    patch('platform/iphone/godot_view.mm', '[UIApplication sharedApplication].delegate.window.windowScene', 'self.window.windowScene')
+    print(f'Godot {major}.{minor} patched for EverPlay')
+    sys.exit(0)
 
 # EverPlay's entry points, built into the iOS platform library, with this version's iOS classes.
 shutil.copy(here / 'everplay_godot.mm', root / 'platform/ios/everplay_godot.mm')

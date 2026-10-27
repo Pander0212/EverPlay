@@ -43,8 +43,9 @@ final class GodotPackTests: FixtureTestCase {
         XCTAssertEqual(try GodotRuntime.framework(for: GodotPack(formatVersion: 4, major: 4, minor: 7, patch: 2, encryptedDirectory: false, offset: 0)), "Godot47")
         XCTAssertEqual(try GodotRuntime.framework(for: GodotPack(formatVersion: 2, major: 4, minor: 4, patch: 1, encryptedDirectory: false, offset: 0)), "Godot44")
         XCTAssertEqual(try GodotRuntime.framework(for: GodotPack(formatVersion: 2, major: 4, minor: 3, patch: 0, encryptedDirectory: false, offset: 0)), "Godot44")
+        XCTAssertEqual(try GodotRuntime.framework(for: GodotPack(formatVersion: 1, major: 3, minor: 5, patch: 3, encryptedDirectory: false, offset: 0)), "Godot36")
         for (pack, words) in [
-            (GodotPack(formatVersion: 1, major: 3, minor: 5, patch: 0, encryptedDirectory: false, offset: 0), "Godot 4 games"),
+            (GodotPack(formatVersion: 1, major: 2, minor: 1, patch: 0, encryptedDirectory: false, offset: 0), "Godot 3 and 4 games"),
             (GodotPack(formatVersion: 4, major: 4, minor: 9, patch: 0, encryptedDirectory: false, offset: 0), "newer Godot"),
             (GodotPack(formatVersion: 2, major: 4, minor: 4, patch: 1, encryptedDirectory: true, offset: 0), "encrypted"),
         ] {
