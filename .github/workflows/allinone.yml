@@ -216,6 +216,7 @@ jobs:
       # (empty: build without Godot). 4.4 games need Godot44 (their compiled scripts), 4.5-4.7 Godot47.
       GODOT_FRAMEWORKS: |
         Godot47_ios-arm64-4.7.2-d97d3e5.framework.zip 3d52f6ee3eb2e6a78ab62a1fe1dff81b5a1316ed59ebdd62ded6378a11ac0631
+        Godot44_ios-arm64-4.4.1-618e039.framework.zip 8bf1fc1a507be7f23cd3994c98c01324c4f56b121600cff6b12d318c1cadfbe9
       # General MIDI sounds for XP/VX games' MIDI music: TimGM6mb (GPL-2) from Ubuntu's archive.
       MIDI_SOUNDFONT_DEB: http://archive.ubuntu.com/ubuntu/pool/universe/t/timgm6mb-soundfont/timgm6mb-soundfont_1.3-5_all.deb
       MIDI_SOUNDFONT_DEB_SHA256: b70bc29b8f27adef8f92a2d9c1e26cee977b84c68110f0dd4326d97730a7c3ed

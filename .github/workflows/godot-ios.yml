@@ -41,6 +41,7 @@ jobs:
       - name: Build Godot
         env:
           GODOT_SCONS_EXTRA: cache_path=${{ github.workspace }}/.scons-cache cache_limit=4
+          SCONS_CACHE: ${{ github.workspace }}/.scons-cache  # Godot 3's way to the same cache
         run: |
           mkdir -p build/godot-output
           status=0

@@ -5,6 +5,7 @@
 
 #include "core/os/input.h"
 #include "core/os/input_event.h"
+#include "core/os/keyboard.h"
 #include "core/os/main_loop.h"
 #include "core/os/os.h"
 #include "core/project_settings.h"
