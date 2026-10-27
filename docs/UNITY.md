@@ -343,7 +343,7 @@ Weitere Arbeit und Doku in [Pander0212/UnityBridge](https://github.com/Pander021
   aufruft; JIT aus StikDebugs App-Liste reicht auf iOS 26 nicht (App stirbt mit SIGTRAP).
 - **[i] Auf dem iPhone bestätigt**: eigene Windows-Test-DLL unter FEXCore gegen das Mini-Win32, 25 von 25 Prüfungen
   (PE-Loader, Windows-Aufrufkonvention, Dateien, Sync-Objekte, Locale, Rückrufe in beide Richtungen).
-- [R, Host-Tests] Threads (`CreateThread` u. a.) gebaut, auf dem iPhone noch ungetestet. Offen für `il2cpp_init`:
+- **[i] Auf dem iPhone bestätigt**: Threads (`CreateThread` u. a.), 27 von 27 Prüfungen. Offen für `il2cpp_init`:
   TLS und x64-Ausnahmen (zwei Anläufe von einem automatischen Filter abgebrochen, zurückgestellt).
 - [R] M3: Husks Translation Layer (GPL-2.0+) übernimmt den Android-Teil (libunity.so laden, bionic, JNI, Unity-Treiber);
   UnityBridge braucht dazu ein virtuelles `libil2cpp.so`. Messung an Fellworld: 1.371 Engine-InternalCalls, davon
