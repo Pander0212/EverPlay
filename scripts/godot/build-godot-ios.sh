@@ -21,20 +21,20 @@ fi
 
 if [ "$kind" = simulator ]; then
   arch="$(uname -m)"; [ "$arch" = x86_64 ] || arch=arm64
-  sdk=iphonesimulator; flags=(simulator=yes arch="$arch"); min=-mios-simulator-version-min=17.0
-  suffix=".simulator"
+  sdk=iphonesimulator; flags=(ios_simulator=yes arch="$arch"); min=-mios-simulator-version-min=17.0
 else
   arch=arm64; sdk=iphoneos; flags=(arch=arm64); min=-miphoneos-version-min=17.0
-  suffix=""
 fi
 
 # The compatibility renderer (OpenGL ES 3) for gl_compatibility games and Metal for the others; no
-# Vulkan (MoltenVK). Release template: no editor, no debugger. Path overrides on: EverPlay names the
-# game's pack with --main-pack (release templates refuse it otherwise).
+# Vulkan (MoltenVK). Release template: no editor, no debugger. Path overrides on (Godot 4.5+): EverPlay
+# names the game's pack with --main-pack, which release templates refuse otherwise.
+grep -q '"disable_path_overrides"' "$work/SConstruct" && flags+=(disable_path_overrides=no)
 (cd "$work" && scons -j"$(sysctl -n hw.ncpu)" platform=ios target=template_release "${flags[@]}" \
-  vulkan=no generate_bundle=no debug_symbols=no disable_path_overrides=no ${GODOT_SCONS_EXTRA:-})
+  vulkan=no generate_bundle=no debug_symbols=no ${GODOT_SCONS_EXTRA:-})
 
-library="$work/bin/libgodot.ios.template_release.$arch$suffix.a"
+# libgodot.ios.template_release.arm64[.simulator].a (the order of the suffixes differs between versions).
+library="$(ls "$work"/bin/libgodot.ios.template_release*.a | grep -E "\.$arch[.]" | { if [ "$kind" = simulator ]; then grep simulator; else grep -v simulator; fi; } | head -n 1)"
 ls -la "$library"
 
 framework="$output/$name.framework"

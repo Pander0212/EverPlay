@@ -4,34 +4,25 @@
  * Every function is called on the main thread. One game per process: Godot's globals are not
  * reset, so EverPlay closes when the game ends. MIT, like Godot. */
 
-#import "os_ios.h"
-
 #include "core/config/project_settings.h"
 #include "core/input/input.h"
 #include "core/input/input_event.h"
 #include "core/os/main_loop.h"
 #include "core/os/os.h"
-#import "drivers/apple_embedded/app_delegate_service.h"
-#import "drivers/apple_embedded/display_server_apple_embedded.h"
-#import "drivers/apple_embedded/godot_view_apple_embedded.h"
-#import "drivers/apple_embedded/godot_view_controller.h"
 #include "main/main.h"
 
 #import <UIKit/UIKit.h>
 
+/* Copied by patch-godot-ios.py from compat/<major.minor>.h: the iOS classes of this Godot version. */
+#import "everplay_godot_compat.h"
+
 #define EVERPLAY_EXPORT extern "C" __attribute__((visibility("default")))
-
-extern int apple_embedded_main(int, char **);
-
-/* Godot's iOS export generates these for a project's iOS plugins; EverPlay runs games without any. */
-void godot_apple_embedded_plugins_initialize() {}
-void godot_apple_embedded_plugins_deinitialize() {}
 
 typedef void (*everplay_godot_quit_fn)(int code);
 static everplay_godot_quit_fn quit_callback = nullptr;
 static bool quitting = false;
 
-/* Called by the patched GDTViewRenderer when Godot's main loop asks to quit (iOS Godot never does). */
+/* Called by Godot's patched view renderer when Godot's main loop asks to quit (iOS Godot never does). */
 void everplay_godot_quit_requested() {
 	if (quitting) {
 		return;
@@ -56,20 +47,17 @@ EVERPLAY_EXPORT int everplay_godot_start(int argc, const char **argv, const char
 	for (int i = 0; i < argc; i++) {
 		copy[i] = strdup(argv[i]);
 	}
-	return apple_embedded_main(argc, copy);
+	return everplay_godot_main(argc, copy);
 }
 
 /* The view controller that runs the game (+1 retained; Godot's display server finds it too). */
 EVERPLAY_EXPORT void *everplay_godot_view_controller() {
-	if (!GDTAppDelegateService.viewController) {
-		GDTAppDelegateService.viewController = [[GDTViewController alloc] init];
-	}
-	return (__bridge_retained void *)GDTAppDelegateService.viewController;
+	return (__bridge_retained void *)everplay_godot_controller();
 }
 
 /* The app's state: 0 inactive, 1 active, 2 entered the background, 3 back from the background. */
 EVERPLAY_EXPORT void everplay_godot_app_state(int state) {
-	OS_AppleEmbedded *os = OS_AppleEmbedded::get_singleton();
+	EverPlayGodotOS *os = EverPlayGodotOS::get_singleton();
 	if (!os) {
 		return;
 	}
@@ -97,10 +85,10 @@ EVERPLAY_EXPORT void everplay_godot_memory_warning() {
 
 /* A mouse button (1 left, 2 right, 3 middle, 4/5 wheel up/down) at a point in the game view (points). */
 EVERPLAY_EXPORT void everplay_godot_mouse_button(int button, int pressed, float x, float y) {
-	if (!Input::get_singleton() || !GDTAppDelegateService.viewController) {
+	if (!Input::get_singleton() || !everplay_godot_view()) {
 		return;
 	}
-	CGFloat scale = GDTAppDelegateService.viewController.godotView.contentScaleFactor;
+	CGFloat scale = everplay_godot_view().contentScaleFactor;
 	Vector2 position(x * scale, y * scale);
 	Ref<InputEventMouseButton> event;
 	event.instantiate();

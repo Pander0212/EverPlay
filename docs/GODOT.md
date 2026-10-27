@@ -10,7 +10,7 @@ Branch: `claude/godot` (nie in `claude/beautiful-wozniak-ryh9su` mergen oder pus
 |---|---|---|
 | Godot-Engine 4.7.2 als iOS-Framework (`Godot47.framework`) | ja: iPhone + Simulator grün; im Simulator startet GodotProbe aus der Bibliothek, OpenGL ES 3 (Compatibility) (Lauf 40389255051) | nein |
 | Erkennung (`.pck`, eingebettetes pck, Engine-Version) | Swift-Tests grün (Linux, `GodotPackTests`) | nein |
-| Bild | Renderer läuft (godot.log: „OpenGL ES 3.0 … Compatibility“); Screenshot im Spiel noch nicht eingefangen | nein |
+| Bild | ja: Screenshot zeigt GodotProbe („Gold: 37“, Querformat, ☰) (Lauf 40391807381) | Engine startet auf iPhone (A16, Metal 4.0 Forward Mobile, Summer Exchange); Spielbild noch offen |
 | Ton | Audiotreiber läuft (mix_rate 48000 im Probe-Spielstand) | nein |
 | Touch als Maus, Tasten | nein | nein |
 | Spielstände unter Dateien › EverPlay › Saves › Spielname | ja: `Saves/GodotProbe/probe.txt` geschrieben, `get_tree().quit()` beendet EverPlay sauber | nein |
@@ -49,7 +49,12 @@ App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `
       Xcode-Export erzeugt; jetzt leer in `everplay_godot.mm`)
 - [x] Simulator-Build + `simulator-test` (GodotProbe) grün (Lauf 40389255051)
 - [ ] Screenshot während des Spiels (Start jetzt im Hintergrund, Screenshot nach 12 s)
-- [ ] Vom Nutzer: Elden Rod und Slut Maker auf dem iPhone (Testbuild `nightly-godot` aus allinone 40387051117)
+- [ ] Vom Nutzer: Elden Rod, Slut Maker, Golden Boy, Corrupting your Guild auf dem iPhone (Godot47)
+- [ ] `Godot44` bauen (Matrix in godot-ios.yml hat jetzt 4.4.1; Patch + `compat/4.4.h` geschrieben, noch
+      nicht kompiliert gesehen), dann in `allinone.yml` unter `GODOT_FRAMEWORKS` eintragen (eine Zeile pro
+      Framework: „Datei SHA-256“). Danach: Summer Exchange und With The Childhood Friend testen
+- [ ] Nicht Godot, aber im Log des Nutzers: „RPG Maker saves not copied to Saves: You don’t have
+      permission to save the file … in the folder Saves“ (mkxp `RGSSSaves.collect`) – an den RPG-Maker-Zweig melden
 - [x] Eigenes MIT-Testspiel `Tests/Fixtures/GodotProbe/` (Text-Szene + GDScript), gepackt von
       `scripts/godot/make-pck.py` (kein Godot-Editor nötig; `--embed` hängt es an eine Platzhalter-.exe).
       Zeigt „Gold: 37“, schreibt `user://probe.txt`, zählt Klicks, beendet sich nach 30 s.
@@ -76,7 +81,15 @@ App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `
 
 - Branch: `claude/godot` laut Auftrag. `allinone.yml` veröffentlicht den Nightly nur von
   `claude/beautiful-wozniak-ryh9su`; dieser Branch bekommt das eigene Pre-Release `nightly-godot`.
-- Eine Laufzeit 4.7.2 für alle 4.x-Spiele zuerst: 4.5.1 und 4.7.2 haben dasselbe GDScript-Token-Format
+- **4.4-Spiele brauchen eine 4.4-Laufzeit**: kompilierte Skripte (`.gdc`) tragen eine Token-Version (4.4: 100,
+  4.5–4.7: 101), und Godot verlangt exakt die eigene („Binary GDScript is not compatible with this engine
+  version“, so auf dem iPhone mit Summer Exchange gesehen). `GodotRuntime` wählt die älteste gebündelte Laufzeit
+  ≥ Spielversion: 4.0–4.4 → Godot44, 4.5–4.7 → Godot47.
+- 4.4 hat iOS noch in `platform/ios` (`AppDelegate`, `ViewController`, `OS_IOS`, `ios_main`, `main.m`). Der
+  Patch benennt `main` um, gibt `AppDelegate.viewController` einen Setter und startet das Rendern in
+  `viewDidAppear` (Godot 4.4 startet es sonst erst bei „App wird aktiv“). Versionsunterschiede im Einstieg
+  stehen in `scripts/godot/compat/4.4.h` bzw. `4.7.h`. `disable_path_overrides` gibt es erst ab 4.5.
+- Zuerst eine Laufzeit 4.7.2 für alle 4.x-Spiele: 4.5.1 und 4.7.2 haben dasselbe GDScript-Token-Format
   (`TOKENIZER_VERSION 101`) und Binär-Ressourcenformat (6); 4.7 liest pck-Format 2, 3 und 4. Passt ein
   Spiel nicht, kommt die exakte Version als weiteres Framework dazu (Skript ist versionsparametrisiert,
   der Patch ist aber auf 4.7 geschrieben; 4.4 hat noch `platform/ios` ohne `drivers/apple_embedded`).
@@ -120,9 +133,13 @@ App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `
 |---|---|---|---|---|
 | Elden Rod v0.1.1 | Godot 4.7.2 official | in der `.exe` eingebettet, Format 4 | gl_compatibility | Ziel 1 |
 | Slut Maker 0.42 | Godot 4.5.1 | separate `.pck`, Format 3 | gl_compatibility, `sensor_landscape` | Ziel 2 (mit 4.7.2-Laufzeit) |
-| Agent Feminine 0.4.7 | Godot 4.4.1 custom_build | eingebettet, Format 2, Verzeichnis verschlüsselt | ? | zurückgestellt (Schlüssel versteckt) |
+| Agent Feminine 0.4.7 | Godot 4.4.1 custom_build | eingebettet, Format 2, Verzeichnis verschlüsselt | ? | nicht spielbar: Schlüssel vom Entwickler versteckt; wird nicht ausgelesen. Option: Schlüsselfeld, falls der Nutzer ihn vom Entwickler bekommt |
+| Golden Boy v0.1.1 | Godot 4.7.2 | separate `.pck`, Format 4 | gl_compatibility; auch S3TC/RGTC-Texturen (Godot entpackt sie, `bcdec`) | Godot47 |
+| Corrupting your Guild Demo 0.3 | Godot 4.7.2 | in der `.exe` eingebettet (1,4 GB), Format 4 | Forward+ am PC, `rendering_method.mobile` = gl_compatibility | Godot47 |
+| With The Childhood Friend v1.0.3-BETA | Godot 4.4.1 | separate `.pck`, Format 2 | gl_compatibility, Theora-Videos | braucht Godot44 |
+| Summer Exchange v0.3 | Godot 4.4.1 | separate `.pck`, Format 2 | Mobile (Metal), S3TC-Texturen | braucht Godot44 (auf iPhone mit Godot47: Skriptfehler) |
 
 Beide offenen Spiele: Texturen verlustfrei (WebP/PNG in `.ctex`), `.gdc` (tokenisiertes GDScript),
 keine GDExtension, kein C#. Elden Rod hat ein Theora-Video (`.ogv`) und `use_custom_user_dir`
 (`Gobaky/EldenRod`, das ignoriert der iOS-Patch: alles geht nach `EVERPLAY_GODOT_USER_DIR`).
-Der Nutzer hat noch ein 2,6-GB-Spiel für spätere Tests angeboten.
+Alle sieben: keine GDExtension, kein C#.

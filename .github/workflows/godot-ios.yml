@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ['4.7.2']
+        version: ['4.7.2', '4.4.1']
         kind: [device, simulator]
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
@@ -68,7 +68,7 @@ jobs:
           set -euo pipefail
           id="$(echo '${{ matrix.version }}' | cut -d. -f1,2 | tr -d .)"
           arch=ios-arm64; [ '${{ matrix.kind }}' = simulator ] && arch=ios-arm64-simulator
-          patch="$(cat scripts/godot/everplay_godot.mm scripts/godot/patch-godot-ios.py scripts/godot/build-godot-ios.sh | shasum -a 256 | cut -c1-7)"
+          patch="$(cat scripts/godot/everplay_godot.mm scripts/godot/compat/*.h scripts/godot/patch-godot-ios.py scripts/godot/build-godot-ios.sh | shasum -a 256 | cut -c1-7)"
           name="Godot${id}_${arch}-${{ matrix.version }}-${patch}.framework.zip"
           # Never replace a published engine: allinone.yml pins its checksum. Changed patches get a new name.
           # (The release's asset list is cut off after a few dozen files, so ask for the file itself.)
