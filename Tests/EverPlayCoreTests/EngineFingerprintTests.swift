@@ -24,6 +24,27 @@ final class EngineFingerprintTests: FixtureTestCase {
         XCTAssertNil(EngineFingerprint.identify(paths: ["readme.txt", "__MACOSX/._Game.exe"]))
     }
 
+    func testUnityReportsItsScriptingBackend() {
+        let il2cpp = EngineFingerprint.identify(paths: [
+            "Game/Game.exe", "Game/UnityPlayer.dll", "Game/GameAssembly.dll",
+            "Game/Game_Data/il2cpp_data/Metadata/global-metadata.dat", "Game/Game_Data/globalgamemanagers",
+        ])
+        XCTAssertEqual(il2cpp?.engine, "Unity")
+        XCTAssertEqual(il2cpp?.outlook.contains("IL2CPP"), true)
+        XCTAssertEqual(il2cpp?.outlook.contains("Madeira"), true)
+
+        let mono = EngineFingerprint.identify(paths: [
+            "Game/Game.exe", "Game/UnityPlayer.dll", "Game/MonoBleedingEdge/EmbedRuntime/mono-2.0-bdwgc.dll",
+            "Game/Game_Data/Managed/Assembly-CSharp.dll",
+        ])
+        XCTAssertEqual(mono?.outlook.contains("Mono scripting backend"), true)
+
+        // An Android/Mac build (no UnityPlayer.dll) gets no Windows hint.
+        let other = EngineFingerprint.identify(paths: ["Game_Data/globalgamemanagers", "Game_Data/sharedassets0.assets"])
+        XCTAssertEqual(other?.engine, "Unity")
+        XCTAssertEqual(other?.outlook.contains("Madeira"), false)
+    }
+
     func testImportNamesAnUnplayableEngine() throws {
         let game = temporary.appendingPathComponent("Game")
         try FileManager.default.createDirectory(at: game.appendingPathComponent("Game_Data"), withIntermediateDirectories: true)

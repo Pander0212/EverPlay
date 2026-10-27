@@ -110,6 +110,30 @@ public enum EngineFingerprint {
         },
     ]
 
+    /// Which scripting backend a Windows Unity build uses, told from its files: IL2CPP builds carry
+    /// GameAssembly.dll and il2cpp_data, Mono builds Managed/Assembly-CSharp.dll and MonoBleedingEdge.
+    static func unityBackend(_ lowered: [String]) -> String? {
+        if lowered.contains(where: { name($0) == "gameassembly.dll" || $0.hasSuffix("il2cpp_data/metadata/global-metadata.dat") }) {
+            return "IL2CPP"
+        }
+        if lowered.contains(where: { $0.hasSuffix("managed/assembly-csharp.dll") || $0.contains("monobleedingedge/") }) {
+            return "Mono"
+        }
+        return nil
+    }
+
+    /// Windows Unity games cannot run in EverPlay; Madeira (an open-source app that runs Windows games on
+    /// iPhone through FEX-Emu, Wine and DXMT) can start many of them, with JIT from StikDebug.
+    static func unityOutlook(_ lowered: [String]) -> String {
+        let backend = unityBackend(lowered).map { " It uses Unity's \($0) scripting backend." } ?? ""
+        let windows = lowered.contains { name($0) == "unityplayer.dll" }
+        let hint = windows
+            ? " EverPlay cannot play Windows Unity games yet. The free app Madeira runs many Windows games on iPhone (it needs JIT through StikDebug)."
+            : ""
+        return "Unity games are compiled for Windows, Mac or Android; only a version the developer builds for iOS runs natively on iPhone."
+            + backend + hint
+    }
+
     /// The engine the files point to, or nil when nothing is recognised.
     public static func identify(paths: [String]) -> EngineReport? {
         let lowered = paths.map { $0.lowercased() }
@@ -117,7 +141,8 @@ public enum EngineFingerprint {
         for rule in rules {
             let hits = lowered.filter(rule.matches)
             if !hits.isEmpty {
-                return EngineReport(engine: rule.engine, playable: rule.playable, outlook: rule.outlook,
+                let outlook = rule.engine == "Unity" ? unityOutlook(lowered) : rule.outlook
+                return EngineReport(engine: rule.engine, playable: rule.playable, outlook: outlook,
                                     evidence: Array(hits.prefix(3)).map(name))
             }
         }
