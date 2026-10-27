@@ -36,6 +36,12 @@ grep -q '"disable_path_overrides"' "$work/SConstruct" && flags+=(disable_path_ov
 # libgodot.ios.template_release.arm64[.simulator].a (the order of the suffixes differs between versions).
 library="$(ls "$work"/bin/libgodot.ios.template_release*.a | grep -E "\.$arch[.]" | { if [ "$kind" = simulator ]; then grep simulator; else grep -v simulator; fi; } | head -n 1)"
 ls -la "$library"
+# Linked whole (-all_load): Godot 4.4's pcre2 has _pcre2_ckd_smul in both its 16- and 32-bit objects
+# (identical code), which a whole-archive link rejects as a duplicate. Keep one.
+copy="$output/libgodot.a"
+cp "$library" "$copy"
+for member in $(ar t "$copy" | grep -E '^pcre2_chkdint_16[.]' || true); do ar d "$copy" "$member"; done
+library="$copy"
 
 framework="$output/$name.framework"
 rm -rf "$framework"
@@ -55,6 +61,7 @@ xcrun --sdk "$sdk" clang++ -dynamiclib -arch "$arch" -isysroot "$sdk_path" "$min
   -Wl,-all_load "$library" "${links[@]}" -lc++ -lz \
   -Wl,-exported_symbols_list,"$output/exports.txt" -Wl,-dead_strip \
   -o "$framework/$name"
+rm -f "$copy"
 platform=iPhoneOS; [ "$kind" = simulator ] && platform=iPhoneSimulator
 python3 - "$framework/Info.plist" "$name" "$version" "$platform" <<'PYTHON'
 import plistlib, sys
