@@ -64,9 +64,17 @@ links=()
 for f in "${frameworks[@]}"; do
   [ -d "$sdk_path/System/Library/Frameworks/$f.framework" ] && links+=(-framework "$f")
 done
+# Godot 4: the whole library. Godot 3's library holds some third-party code twice (Recast for
+# navigation), which a whole-archive link rejects; it links like Godot's own Xcode export instead:
+# what EverPlay's entry needs, plus every Objective-C class (-ObjC).
+if [ "${version%%.*}" = 3 ]; then
+  load=(-ObjC -Wl,-u,_everplay_godot_start "$library")
+else
+  load=(-Wl,-all_load "$library")
+fi
 xcrun --sdk "$sdk" clang++ -dynamiclib -arch "$arch" -isysroot "$sdk_path" "$min" \
   -install_name "@rpath/$name.framework/$name" \
-  -Wl,-all_load "$library" "${links[@]}" -lc++ -lz \
+  "${load[@]}" "${links[@]}" -lc++ -lz \
   -Wl,-exported_symbols_list,"$output/exports.txt" -Wl,-dead_strip \
   -o "$framework/$name"
 rm -f "$copy"

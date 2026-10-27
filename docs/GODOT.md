@@ -23,7 +23,7 @@ Entscheidend ist das Format kompilierter Skripte: Godot lädt nur die eigene Tok
 
 | Spiele | Skripte | Framework | Stand |
 |---|---|---|---|
-| 3.0–3.6 | Bytecode 13 | `Godot36` (3.6.3) | erster Build: fehlendes Include `core/os/keyboard.h` (SPKEY), behoben; Godot 3 nimmt den Cache aus `SCONS_CACHE` |
+| 3.0–3.6 | Bytecode 13 | `Godot36` (3.6.3) | Builds 1–2: fehlendes Include `core/os/keyboard.h` (SPKEY); dann 75 doppelte Recast-Symbole beim `-all_load`-Link → Godot 3 wird ohne `-all_load` gelinkt (`-ObjC` + `-u _everplay_godot_start`, wie Godots Xcode-Export). Godot 3 nimmt den Cache aus `SCONS_CACHE` |
 | 4.0–4.2 | Text (`.gd`) | `Godot44` | – |
 | 4.3–4.4 | Token 100 | `Godot44` (4.4.1) | gebaut (Lauf 40547372935), gepinnt: `Godot44_ios-arm64-4.4.1-618e039.framework.zip` `8bf1fc1a507be7f23cd3994c98c01324c4f56b121600cff6b12d318c1cadfbe9`; noch nicht im Simulator/auf iPhone gesehen |
 | 4.5–4.7 | Token 101 | `Godot47` (4.7.2) | fertig, gepinnt, auf iPhone bestätigt |
