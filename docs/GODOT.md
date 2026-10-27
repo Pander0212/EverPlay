@@ -8,7 +8,7 @@ Branch: `claude/godot` (nie in `claude/beautiful-wozniak-ryh9su` mergen oder pus
 
 | Was | Im Simulator/CI gesehen | Vom Nutzer auf dem iPhone bestätigt |
 |---|---|---|
-| Godot-Engine 4.7.2 als iOS-Framework (`Godot47.framework`) | ja: iPhone + Simulator grün; im Simulator startet GodotProbe aus der Bibliothek, OpenGL ES 3 (Compatibility) (Lauf 40389255051) | nein |
+| Godot-Engine 4.7.2 als iOS-Framework (`Godot47.framework`) | ja: iPhone + Simulator grün; im Simulator startet GodotProbe aus der Bibliothek, OpenGL ES 3 (Compatibility) (Lauf 40389255051) | **ja: Elden Rod (4.7.2, pck in der .exe) läuft** (Nutzer, 2026-10-27, nightly-godot 0.2.74) |
 | Erkennung (`.pck`, eingebettetes pck, Engine-Version) | Swift-Tests grün (Linux, `GodotPackTests`) | nein |
 | Bild | ja: Screenshot zeigt GodotProbe („Gold: 37“, Querformat, ☰) (Lauf 40391807381) | Engine startet auf iPhone (A16, Metal 4.0 Forward Mobile, Summer Exchange); Spielbild noch offen |
 | Ton | Audiotreiber läuft (mix_rate 48000 im Probe-Spielstand) | nein |
@@ -131,7 +131,7 @@ App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `
 
 | Spiel | Engine | pck | Renderer | Stand |
 |---|---|---|---|---|
-| Elden Rod v0.1.1 | Godot 4.7.2 official | in der `.exe` eingebettet, Format 4 | gl_compatibility | Ziel 1 |
+| Elden Rod v0.1.1 | Godot 4.7.2 official | in der `.exe` eingebettet, Format 4 | gl_compatibility | **läuft auf dem iPhone** (Nutzer; Ton/Video/Spielstände noch nicht einzeln bestätigt) |
 | Slut Maker 0.42 | Godot 4.5.1 | separate `.pck`, Format 3 | gl_compatibility, `sensor_landscape` | Ziel 2 (mit 4.7.2-Laufzeit) |
 | Agent Feminine 0.4.7 | Godot 4.4.1 custom_build | eingebettet, Format 2, Verzeichnis verschlüsselt | ? | nicht spielbar: Schlüssel vom Entwickler versteckt; wird nicht ausgelesen. Option: Schlüsselfeld, falls der Nutzer ihn vom Entwickler bekommt |
 | Golden Boy v0.1.1 | Godot 4.7.2 | separate `.pck`, Format 4 | gl_compatibility; auch S3TC/RGTC-Texturen (Godot entpackt sie, `bcdec`) | Godot47 |
