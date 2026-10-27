@@ -17,6 +17,20 @@ Branch: `claude/godot` (nie in `claude/beautiful-wozniak-ryh9su` mergen oder pus
 
 App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `allinone.yml` gepinnt; der erste Testbuild `nightly-godot` mit Godot kommt aus dem nächsten allinone-Lauf.
 
+## Laufzeiten (welche Engine für welches Spiel)
+
+Entscheidend ist das Format kompilierter Skripte: Godot lädt nur die eigene Token-Version.
+
+| Spiele | Skripte | Framework | Stand |
+|---|---|---|---|
+| 3.0–3.6 | Bytecode 13 | `Godot36` (3.6.3) | Patch + `everplay_godot3.mm` geschrieben, Build läuft |
+| 4.0–4.2 | Text (`.gd`) | `Godot44` | – |
+| 4.3–4.4 | Token 100 | `Godot44` (4.4.1) | Build läuft (Link-Fix pcre2) |
+| 4.5–4.7 | Token 101 | `Godot47` (4.7.2) | fertig, gepinnt, auf iPhone bestätigt |
+
+Neue Godot-Versionen (4.8 …): Tokenversion in `modules/gdscript/gdscript_tokenizer_buffer.h` prüfen; gleiche
+Version → `Godot47` ersetzen/erweitern, neue Version → weiteres Framework in der Matrix und in `GodotRuntime.bundled`.
+
 ## Aufbau
 
 - `scripts/godot/build-godot-ios.sh <version> <device|simulator> <out>`: holt Godot am Tag
@@ -50,6 +64,8 @@ App-Seite (`App/Godot/`) kompiliert fürs iPhone (app-ipa grün). Framework in `
 - [x] Simulator-Build + `simulator-test` (GodotProbe) grün (Lauf 40389255051)
 - [ ] Screenshot während des Spiels (Start jetzt im Hintergrund, Screenshot nach 12 s)
 - [ ] Vom Nutzer: Elden Rod, Slut Maker, Golden Boy, Corrupting your Guild auf dem iPhone (Godot47)
+- [ ] `Godot36` bauen (Matrix 3.6.3; Godot 3: `platform=iphone target=release tools=no`, Bibliothek
+      `libgodot.iphone.opt.arm64.a`), Simulator-Probe für Godot 3 fehlt noch (Probe ist ein 4er-Projekt)
 - [ ] `Godot44` bauen (Matrix in godot-ios.yml hat jetzt 4.4.1; Patch + `compat/4.4.h` geschrieben, noch
       nicht kompiliert gesehen), dann in `allinone.yml` unter `GODOT_FRAMEWORKS` eintragen (eine Zeile pro
       Framework: „Datei SHA-256“). Danach: Summer Exchange und With The Childhood Friend testen
