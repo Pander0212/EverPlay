@@ -165,3 +165,5 @@ Einstellungen ganz unten notieren.
    encrypted …“ – das ist so gewollt.
 6. Melden: Startet es? Bild (schwarz? verzerrt?), Ton, Videos, Texteingabe, Ruckeln? Bei Problemen das
    Diagnose-Log schicken: Darin steht beim nächsten Start die Ausgabe von Godot.
+7. Ab 0.2.79 sind drei Godot-Versionen drin: Godot 3.x-Spiele, 4.0–4.4 (z. B. Summer Exchange, With The
+   Childhood Friend) und 4.5–4.7 (Elden Rod, Golden Boy, …). EverPlay wählt die passende selbst.

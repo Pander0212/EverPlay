@@ -141,6 +141,8 @@ Version → `Godot47` ersetzen/erweitern, neue Version → weiteres Framework in
 | godot-ios.yml 40375456849 | iPhone grün, Simulator: falscher Bibliotheksname | `Godot47_ios-arm64-4.7.2-a417992.framework.zip` (ohne Path-Overrides, startet keine Spiele) |
 | godot-ios.yml 40376413760 | beide Builds grün; Simulatortest: `--main-pack` abgelehnt | – |
 | allinone.yml 40376413743 | IPA → `nightly-godot` (noch mit a417992, startet keine Spiele) | – |
+| allinone.yml 40557053860 | IPA → `nightly-godot` 0.2.79 mit Godot36 + Godot44 + Godot47 (IPA 202 MB, vorher 169 MB mit nur Godot47) | – |
+| godot-ios.yml 40553741519 | alle Builds grün; Simulatortest für 4.7.2, 4.4.1, 3.6.3 grün | – |
 | godot-ios.yml 40389255051 | alles grün, GodotProbe läuft im Simulator | – |
 | allinone.yml 40387051117 | IPA → `nightly-godot` mit d97d3e5 (erster Testbuild, der Spiele starten sollte) | – |
 | godot-ios.yml 40382732038 | beide Builds grün (mit Path-Overrides); Simulatortest: `simctl launch` hing, App nie gestartet (kein Log) → Wartezeit + 3 Versuche | `Godot47_ios-arm64-4.7.2-d97d3e5.framework.zip` `3d52f6ee3eb2e6a78ab62a1fe1dff81b5a1316ed59ebdd62ded6378a11ac0631` (gepinnt); Simulator: `Godot47_ios-arm64-simulator-4.7.2-d97d3e5.framework.zip` `0016875d0599e2e87194f0fc3d7c6d38af9bcf7a0ee518d9071b6aa7628a28cd` |
