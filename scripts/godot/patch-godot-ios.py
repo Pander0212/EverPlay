@@ -66,20 +66,21 @@ if major == 3:
 
 # EverPlay's entry points, built into the iOS platform library, with this version's iOS classes.
 shutil.copy(here / 'everplay_godot.mm', root / 'platform/ios/everplay_godot.mm')
+shutil.copy(here / 'everplay_godot_cheats.cpp', root / 'platform/ios/everplay_godot_cheats.cpp')
 shutil.copy(here / 'compat' / ('4.7.h' if embedded else '4.4.h'), root / 'platform/ios/everplay_godot_compat.h')
 
 if embedded:
     driver = 'drivers/apple_embedded'
     # EverPlay is the app: no SwiftUI @main from Godot.
     (root / driver / 'app.swift').unlink()
-    patch('platform/ios/SCsub', '    "main_ios.mm",\n', '    "main_ios.mm",\n    "everplay_godot.mm",\n')
+    patch('platform/ios/SCsub', '    "main_ios.mm",\n', '    "main_ios.mm",\n    "everplay_godot.mm",\n    "everplay_godot_cheats.cpp",\n')
     os_file, renderer, view, os_class = f'{driver}/os_apple_embedded.mm', f'{driver}/godot_view_renderer.mm', \
         f'{driver}/godot_view_apple_embedded.mm', 'OS_AppleEmbedded'
     renderer_class = 'GDTViewRenderer'
 else:
     # EverPlay is the app: Godot's main() stays unused.
     patch('platform/ios/main.m', 'int main(int argc, char *argv[]) {', 'int godot_ios_unused_main(int argc, char *argv[]) {')
-    patch('platform/ios/SCsub', '    "godot_ios.mm",\n', '    "godot_ios.mm",\n    "everplay_godot.mm",\n')
+    patch('platform/ios/SCsub', '    "godot_ios.mm",\n', '    "godot_ios.mm",\n    "everplay_godot.mm",\n    "everplay_godot_cheats.cpp",\n')
     os_file, renderer, view, os_class = 'platform/ios/os_ios.mm', 'platform/ios/godot_view_renderer.mm', \
         'platform/ios/godot_view.mm', 'OS_IOS'
     renderer_class = 'GodotViewRenderer'
