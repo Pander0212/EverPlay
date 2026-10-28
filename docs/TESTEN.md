@@ -165,7 +165,7 @@ Einstellungen ganz unten notieren.
    encrypted …“ – das ist so gewollt.
 6. Melden: Startet es? Bild (schwarz? verzerrt?), Ton, Videos, Texteingabe, Ruckeln? Bei Problemen das
    Diagnose-Log schicken: Darin steht beim nächsten Start die Ausgabe von Godot.
-7. **Cheats** (sobald im Testbuild, siehe Notiz unten): ☰ › **Cheats** zeigt alle Variablen der globalen
+7. **Cheats** (ab 0.2.81): ☰ › **Cheats** zeigt alle Variablen der globalen
    Skripte des Spiels (z. B. `GameState.money`) und der aktuellen Szene. Suche nach Name oder `=100` für einen
    Wert, ±1/10/100, **Edit** zum Eintippen, Schalter für Ja/Nein, **Game speed** ½× bis 4×. Danach im Spiel
    speichern. Melden: Findest du Geld/Werte? Wirkt die Änderung im Spiel?

@@ -160,6 +160,7 @@ speichern so in den sichtbaren Saves-Ordner. Ob das Town's Charms betrifft, ist 
 | godot-ios.yml 40375456849 | iPhone grün, Simulator: falscher Bibliotheksname | `Godot47_ios-arm64-4.7.2-a417992.framework.zip` (ohne Path-Overrides, startet keine Spiele) |
 | godot-ios.yml 40376413760 | beide Builds grün; Simulatortest: `--main-pack` abgelehnt | – |
 | allinone.yml 40376413743 | IPA → `nightly-godot` (noch mit a417992, startet keine Spiele) | – |
+| allinone.yml 40690742140 | IPA → `nightly-godot` 0.2.81: drei Engines mit Cheats + Speichern neben der .exe | – |
 | godot-ios.yml 40686424795 | alle grün inkl. Simulatortests; Engines mit Cheats + Exe-Pfad-Patch (8b2cf4b), gepinnt: Godot47 `0ece86504669bd7c313ca6ce63ff0b917cd466510173f15105fe87992aad803f`, Godot44 `0b056db5f0298db592073f755003e37449e4126a19946766b4515f985f55f32c`, Godot36 `fca63b130c4880c1d254c0bbcdf0b6a4fbd155cdab48e104a93169c5c28c8b88` | `Godot{47,44,36}_ios-arm64-<v>-8b2cf4b.framework.zip` |
 | godot-ios.yml 40685849028 | Godot 4: `FontVariation` aus Godots `window.h` kollidiert mit CoreText (UIKit) in derselben .mm → Cheats in `everplay_godot_cheats.cpp` | – |
 | allinone.yml 40557053860 | IPA → `nightly-godot` 0.2.79 mit Godot36 + Godot44 + Godot47 (IPA 202 MB, vorher 169 MB mit nur Godot47) | – |
