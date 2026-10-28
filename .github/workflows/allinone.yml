@@ -215,9 +215,9 @@ jobs:
       # Godot 4: Godot<NN>.framework per runtime, published by godot-ios.yml; "file sha256" per line
       # (empty: build without Godot). Godot 3.x games need Godot36, 4.0-4.4 Godot44, 4.5-4.7 Godot47.
       GODOT_FRAMEWORKS: |
-        Godot47_ios-arm64-4.7.2-d97d3e5.framework.zip 3d52f6ee3eb2e6a78ab62a1fe1dff81b5a1316ed59ebdd62ded6378a11ac0631
-        Godot44_ios-arm64-4.4.1-618e039.framework.zip 8bf1fc1a507be7f23cd3994c98c01324c4f56b121600cff6b12d318c1cadfbe9
-        Godot36_ios-arm64-3.6.3-300aff0.framework.zip 7ea2461da493c38f95d47be7b1fc55f23e4c1f7eedaa27cabaaa487667ed6711
+        Godot47_ios-arm64-4.7.2-8b2cf4b.framework.zip 0ece86504669bd7c313ca6ce63ff0b917cd466510173f15105fe87992aad803f
+        Godot44_ios-arm64-4.4.1-8b2cf4b.framework.zip 0b056db5f0298db592073f755003e37449e4126a19946766b4515f985f55f32c
+        Godot36_ios-arm64-3.6.3-8b2cf4b.framework.zip fca63b130c4880c1d254c0bbcdf0b6a4fbd155cdab48e104a93169c5c28c8b88
       # General MIDI sounds for XP/VX games' MIDI music: TimGM6mb (GPL-2) from Ubuntu's archive.
       MIDI_SOUNDFONT_DEB: http://archive.ubuntu.com/ubuntu/pool/universe/t/timgm6mb-soundfont/timgm6mb-soundfont_1.3-5_all.deb
       MIDI_SOUNDFONT_DEB_SHA256: b70bc29b8f27adef8f92a2d9c1e26cee977b84c68110f0dd4326d97730a7c3ed
