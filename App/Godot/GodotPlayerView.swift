@@ -4,7 +4,7 @@ import AVFoundation
 import EverPlayCore
 
 /// Plays a Godot game. Godot turns taps into mouse clicks itself; a two-finger tap is a right
-/// click, and the ☰ button sends Escape, Enter and the arrow keys and leaves the game.
+/// click, and the ☰ button has cheats (the game's variables), Escape, Enter, the arrow keys and leaving.
 struct GodotPlayerView: UIViewControllerRepresentable {
     let game: GameRecord
     let store: LibraryStore
@@ -140,6 +140,9 @@ final class GodotGameViewController: UIViewController {
 
     private func makeMenu() -> UIMenu {
         UIMenu(children: [
+            UIAction(title: "Cheats", image: UIImage(systemName: "wand.and.stars")) { [weak self] _ in
+                self?.showCheats()
+            },
             UIAction(title: "Escape (menu or back)", image: UIImage(systemName: "escape")) { [weak self] _ in
                 self?.press(GodotEngine.Keys.escape)
             },
@@ -158,6 +161,25 @@ final class GodotGameViewController: UIViewController {
                 self?.confirmQuit()
             },
         ])
+    }
+
+    /// The variable browser over the running game (it keeps running behind the sheet).
+    private func showCheats() {
+        guard let engine else { return }
+        let screen = NavigationStack {
+            GodotCheatsView(engine: engine)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { [weak self] in self?.dismiss(animated: true) }
+                    }
+                }
+        }
+        let controller = UIHostingController(rootView: screen)
+        if let sheet = controller.sheetPresentationController {
+            sheet.detents = [.large()]
+            sheet.prefersGrabberVisible = true
+        }
+        present(controller, animated: true)
     }
 
     private func confirmQuit() {

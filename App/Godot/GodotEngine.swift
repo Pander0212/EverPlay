@@ -15,9 +15,14 @@ final class GodotEngine {
     typealias Notify = @convention(c) () -> Void
     typealias MouseButton = @convention(c) (Int32, Int32, Float, Float) -> Void
     typealias Key = @convention(c) (Int32, Int32, Int32) -> Void
+    typealias Variables = @convention(c) (UnsafeMutablePointer<CChar>?, Int32) -> Int32
+    typealias SetVariable = @convention(c) (UnsafePointer<CChar>?, UnsafePointer<CChar>?, UnsafePointer<CChar>?) -> Int32
+    typealias SetSpeed = @convention(c) (Double) -> Void
 
     let start: Start, viewController: ViewController, appState: AppState, memoryWarning: Notify
     let mouseButton: MouseButton, key: Key
+    /// Cheats (frameworks built before them lack these).
+    private(set) var variables: Variables?, setVariable: SetVariable?, setSpeed: SetSpeed?
 
     /// Godot's key codes for the keys EverPlay sends (core/os/keyboard.h).
     enum Keys {
@@ -51,8 +56,12 @@ final class GodotEngine {
               let key = symbol("everplay_godot_key", Key.self) else {
             return .failure(GodotError("The Godot engine is incomplete."))
         }
-        return .success(GodotEngine(start: start, viewController: viewController, appState: appState,
-                                    memoryWarning: memoryWarning, mouseButton: mouseButton, key: key))
+        let engine = GodotEngine(start: start, viewController: viewController, appState: appState,
+                                 memoryWarning: memoryWarning, mouseButton: mouseButton, key: key)
+        engine.variables = symbol("everplay_godot_variables", Variables.self)
+        engine.setVariable = symbol("everplay_godot_set_variable", SetVariable.self)
+        engine.setSpeed = symbol("everplay_godot_set_speed", SetSpeed.self)
+        return .success(engine)
     }
 
     private init(start: Start, viewController: ViewController, appState: AppState, memoryWarning: Notify,
@@ -74,6 +83,10 @@ final class GodotEngine {
         try? FileManager.default.createDirectory(at: Self.logFile.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? FileManager.default.removeItem(at: Self.logFile)
         let program = Bundle.main.bundleURL.appendingPathComponent("godot").path
+        // OS.get_executable_path(): games that save next to their .exe save into their Saves folder.
+        let executable = pack.pathExtension.lowercased() == "exe" ? pack.lastPathComponent
+            : pack.deletingPathExtension().lastPathComponent + ".exe"
+        setenv("EVERPLAY_GODOT_EXECUTABLE", saves.appendingPathComponent(executable).path, 1)
         let arguments = [program, "--main-pack", pack.path, "--log-file", Self.logFile.path]
         let copies = arguments.map { strdup($0) }
         defer { copies.forEach { free($0) } }
@@ -90,6 +103,22 @@ final class GodotEngine {
         return Unmanaged<UIViewController>.fromOpaque(raw).takeRetainedValue()
     }
 
+    /// The game's variables: script variables of its global scripts (autoloads) and current scene.
+    func gameVariables() -> [GodotVariable] {
+        guard let variables else { return [] }
+        let size = variables(nil, 0)
+        guard size > 1 else { return [] }
+        var buffer = [CChar](repeating: 0, count: Int(size))
+        _ = variables(&buffer, size)
+        let data = Data(buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) })
+        return (try? JSONDecoder().decode([GodotVariable].self, from: data)) ?? []
+    }
+
+    /// Sets a variable to `text`, read as its current type. False when the game no longer has it.
+    func set(_ variable: GodotVariable, to text: String) -> Bool {
+        setVariable?(variable.node, variable.path, text) == 1
+    }
+
     /// The end of Godot's log, for error messages.
     static func lastLines(_ count: Int) -> String {
         guard let text = try? String(contentsOf: logFile, encoding: .utf8) else { return "" }
@@ -102,6 +131,37 @@ final class GodotEngine {
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false).suffix(60)
         EverPlayLog.write("Godot engine output of the last game:\n" + lines.joined(separator: "\n"))
         try? FileManager.default.removeItem(at: logFile)
+    }
+}
+
+/// A variable of the running game, as everplay_godot_variables lists it.
+struct GodotVariable: Decodable, Identifiable, Hashable {
+    let node: String
+    let path: String
+    let type: String
+    let value: Value
+    var id: String { node + "|" + path }
+    /// "GameState.money": the global script's name and the variable.
+    var name: String { (node.split(separator: "/").last.map(String.init) ?? node) + "." + path }
+
+    enum Value: Decodable, Hashable {
+        case flag(Bool), number(Double), text(String)
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let flag = try? container.decode(Bool.self) { self = .flag(flag) }
+            else if let number = try? container.decode(Double.self) { self = .number(number) }
+            else { self = .text((try? container.decode(String.self)) ?? "") }
+        }
+
+        var text: String {
+            switch self {
+            case .flag(let flag): return flag ? "true" : "false"
+            case .number(let number):
+                return number == number.rounded() && abs(number) < 1e15 ? String(Int64(number)) : String(number)
+            case .text(let text): return text
+            }
+        }
     }
 }
 

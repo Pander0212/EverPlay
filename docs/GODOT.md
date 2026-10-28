@@ -33,6 +33,23 @@ Entscheidend ist das Format kompilierter Skripte: Godot lädt nur die eigene Tok
 Neue Godot-Versionen (4.8 …): Tokenversion in `modules/gdscript/gdscript_tokenizer_buffer.h` prüfen; gleiche
 Version → `Godot47` ersetzen/erweitern, neue Version → weiteres Framework in der Matrix und in `GodotRuntime.bundled`.
 
+## Cheats
+
+☰ › **Cheats** (`App/Godot/GodotCheatsView.swift`): liest per `everplay_godot_variables` alle Skriptvariablen
+(`PROPERTY_USAGE_SCRIPT_VARIABLE`) der Kinder von `/root` (Autoloads + aktuelle Szene), eine Ebene tief in
+Dictionaries (`flags.key`) und Nicht-Node-Objekte (`player.gold`); nur bool/int/float/String. Als JSON
+`[{node, path, type, value}]`. `everplay_godot_set_variable(node, path, text)` setzt im aktuellen Typ;
+`everplay_godot_set_speed` = `Engine.time_scale`. Godot 4 in `everplay_godot.mm`, Godot 3 in
+`everplay_godot3.mm` (REAL statt FLOAT, `JSON::print`). Ältere Frameworks ohne diese Symbole: die App zeigt
+„no cheats yet“. Ideen: Werte einfrieren, Suche nach geänderten Werten (wie bei Ren'Py geplant).
+
+## Speichern neben der .exe
+
+`OS.get_executable_path()` liefert auf Apple den echten App-Pfad (`_NSGetExecutablePath`), `argv[0]` hilft nicht.
+Patch in `drivers/unix/os_unix.cpp`: gibt `EVERPLAY_GODOT_EXECUTABLE` zurück, wenn gesetzt; EverPlay setzt
+`Saves/<Spiel>/<Spiel>.exe`. Spiele, die `OS.get_executable_path().get_base_dir()` für Spielstände nutzen,
+speichern so in den sichtbaren Saves-Ordner. Ob das Town's Charms betrifft, ist offen (Log vom Nutzer fehlt).
+
 ## Aufbau
 
 - `scripts/godot/build-godot-ios.sh <version> <device|simulator> <out>`: holt Godot am Tag
@@ -65,7 +82,9 @@ Version → `Godot47` ersetzen/erweitern, neue Version → weiteres Framework in
       Xcode-Export erzeugt; jetzt leer in `everplay_godot.mm`)
 - [x] Simulator-Build + `simulator-test` (GodotProbe) grün (Lauf 40389255051)
 - [ ] Screenshot während des Spiels (Start jetzt im Hintergrund, Screenshot nach 12 s)
-- [ ] Vom Nutzer: Elden Rod, Slut Maker, Golden Boy, Corrupting your Guild auf dem iPhone (Godot47)
+- [x] Vom Nutzer (2026-10-28): „klappt eigentlich alles“, nur in Town's Charms ging Speichern nicht
+- [ ] Town's Charms: Diagnose-Log nach Speicherversuch (godot.log) ansehen; Kandidat: Speichern neben der .exe (gepatcht)
+- [ ] Cheats auf dem iPhone testen lassen (nach Neubau der Frameworks mit `everplay_godot_variables`)
 - [ ] `Godot36` bauen (Matrix 3.6.3; Godot 3: `platform=iphone target=release tools=no`, Bibliothek
       `libgodot.iphone.opt.arm64.a`), Simulator-Probe für Godot 3 fehlt noch (Probe ist ein 4er-Projekt)
 - [ ] `Godot44` bauen (Matrix in godot-ios.yml hat jetzt 4.4.1; Patch + `compat/4.4.h` geschrieben, noch

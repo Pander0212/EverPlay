@@ -33,6 +33,14 @@ if (major, minor) < (3, 6) or (major == 4 and minor < 4) or major > 4:
     sys.exit(f'Godot {major}.{minor} is not supported by this patch')
 embedded = major == 4 and minor >= 5  # 4.5 moved the iOS code to drivers/apple_embedded
 
+# OS.get_executable_path(): many PC games save next to their .exe. EverPlay names a path in the game's
+# Saves folder (EVERPLAY_GODOT_EXECUTABLE), so those saves land there instead of in the read-only app.
+patch('drivers/unix/os_unix.cpp', 'String OS_Unix::get_executable_path() const {\n',
+      'String OS_Unix::get_executable_path() const {\n'
+      '\tif (getenv("EVERPLAY_GODOT_EXECUTABLE")) {\n'
+      '\t\treturn String::utf8(getenv("EVERPLAY_GODOT_EXECUTABLE"));\n'
+      '\t}\n')
+
 if major == 3:
     # Godot 3: platform/iphone, its own API, user:// given to iphone_main (everplay_godot3.mm).
     shutil.copy(here / 'everplay_godot3.mm', root / 'platform/iphone/everplay_godot.mm')

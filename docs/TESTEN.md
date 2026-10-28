@@ -165,5 +165,11 @@ Einstellungen ganz unten notieren.
    encrypted …“ – das ist so gewollt.
 6. Melden: Startet es? Bild (schwarz? verzerrt?), Ton, Videos, Texteingabe, Ruckeln? Bei Problemen das
    Diagnose-Log schicken: Darin steht beim nächsten Start die Ausgabe von Godot.
-7. Ab 0.2.79 sind drei Godot-Versionen drin: Godot 3.x-Spiele, 4.0–4.4 (z. B. Summer Exchange, With The
+7. **Cheats** (sobald im Testbuild, siehe Notiz unten): ☰ › **Cheats** zeigt alle Variablen der globalen
+   Skripte des Spiels (z. B. `GameState.money`) und der aktuellen Szene. Suche nach Name oder `=100` für einen
+   Wert, ±1/10/100, **Edit** zum Eintippen, Schalter für Ja/Nein, **Game speed** ½× bis 4×. Danach im Spiel
+   speichern. Melden: Findest du Geld/Werte? Wirkt die Änderung im Spiel?
+8. Spiele, die neben ihre `.exe` speichern, speichern jetzt in **EverPlay › Saves › (Spielname)**.
+   Town's Charms: nochmal speichern probieren und das Diagnose-Log schicken, falls es weiter nicht geht.
+9. Ab 0.2.79 sind drei Godot-Versionen drin: Godot 3.x-Spiele, 4.0–4.4 (z. B. Summer Exchange, With The
    Childhood Friend) und 4.5–4.7 (Elden Rod, Golden Boy, …). EverPlay wählt die passende selbst.
