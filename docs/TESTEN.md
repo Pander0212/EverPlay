@@ -27,7 +27,7 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 | 14. Bibliothek | offen (neu) |
 | 15. Übersetzung: Apple + ganzes Spiel | offen (neu) |
 | 16. Engine-Erkennung | offen (neu) |
-| 17. Godot 4 (nur im Godot-Testbuild) | Elden Rod läuft; Rest offen |
+| 17. Godot 3/4 (nur im Godot-Testbuild) | läuft, Cheats gehen; offen: Videos in Town's Charms („Video timed out“) |
 
 ## 1. Ren'Py-Spiel: Tastatur (Namenseingabe)
 1. Ein Spiel starten, das nach einem Namen fragt.

@@ -84,7 +84,10 @@ speichern so in den sichtbaren Saves-Ordner. Ob das Town's Charms betrifft, ist 
 - [ ] Screenshot während des Spiels (Start jetzt im Hintergrund, Screenshot nach 12 s)
 - [x] Vom Nutzer (2026-10-28): „klappt eigentlich alles“, nur in Town's Charms ging Speichern nicht
 - [ ] Town's Charms: Diagnose-Log nach Speicherversuch (godot.log) ansehen; Kandidat: Speichern neben der .exe (gepatcht)
-- [ ] Cheats auf dem iPhone testen lassen (nach Neubau der Frameworks mit `everplay_godot_variables`)
+- [x] Cheats auf dem iPhone: funktionieren (Nutzer, 2026-10-29, nightly-godot 0.2.81); Town's Charms speichert jetzt
+- [ ] Town's Charms: bei jedem Video „Video timed out“ (Meldung des Spiels, nicht von Godot). Theora ist in allen
+      Engines gebaut. Spiel und Diagnose-Log (godot.log) vom Nutzer angefragt: Videoformat prüfen (`.webm`/`.mp4`
+      über ein natives Plug-in? anderes Theora-Profil?)
 - [ ] `Godot36` bauen (Matrix 3.6.3; Godot 3: `platform=iphone target=release tools=no`, Bibliothek
       `libgodot.iphone.opt.arm64.a`), Simulator-Probe für Godot 3 fehlt noch (Probe ist ein 4er-Projekt)
 - [ ] `Godot44` bauen (Matrix in godot-ios.yml hat jetzt 4.4.1; Patch + `compat/4.4.h` geschrieben, noch
