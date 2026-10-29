@@ -1,0 +1,9 @@
+; As games ship GDE GoZen (MIT): libraries for Windows only. EverPlay's Godot loads its own iOS build.
+[configuration]
+
+entry_symbol = "gozen_library_init"
+compatibility_minimum = "4.3"
+
+[libraries]
+
+windows.release.x86_64 = "res://addons/gde_gozen/bin/libgozen.windows.template_release.x86_64.dll"

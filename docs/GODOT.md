@@ -65,6 +65,11 @@ Lösung:
   `<name>` = `entry_symbol` ohne `_library_init`/`_init` (gozen_library_init → gozen). Allgemein: jedes
   weitere Plug-in, das EverPlay für iOS baut, greift genauso.
 - `.github/workflows/gozen-ios.yml` (device/simulator), Pin in `allinone.yml` unter `GODOT_EXTENSIONS`.
+- Simulatortest `Tests/Fixtures/GodotGoZenProbe` (eigenes 2-s-Testbild-Video, H.264 + AAC, mit ffmpeg erzeugt;
+  `gozen.gdextension` nur mit Windows-Bibliothek wie in Spielen): öffnet `res://clip.mp4` über `GoZenVideo`,
+  dekodiert 10 Bilder, zeigt die Y-Ebene, schreibt „gozen open 0 frames N …“. Auf dem Desktop (offizielles
+  Godot ohne GoZen) kommt genau der Fehler des Spiels („No GDExtension library found“). In dieser GoZen-Version
+  liefert `get_y_data()` ein `Image`.
 - GoZen liest `res://`-Videos per `FileAccess::get_file_as_bytes` (ganze Datei in den Speicher) – aus dem pck ok.
 
 ## Aufbau

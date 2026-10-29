@@ -111,6 +111,9 @@ jobs:
           - {version: '4.7.2', probe: GodotProbe}
           - {version: '4.4.1', probe: GodotProbe}
           - {version: '3.6.3', probe: GodotProbe3}
+          # Videos through the GoZen plug-in (games ship it for Windows only): EverPlay's iOS build.
+          - {version: '4.7.2', probe: GodotGoZenProbe, gozen: gozen_ios-arm64-simulator-06f3df6.framework.zip,
+             gozen_sha256: 881aa5a7378ae5082cde71eb06cb0ce11906d93662257f6ede6865768b081572}
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
@@ -137,6 +140,12 @@ jobs:
           app=DerivedData/Build/Products/Debug-iphonesimulator/EverPlay.app
           mkdir -p "$app/Frameworks"
           unzip -o -q godot.framework.zip -d "$app/Frameworks"
+          if [ -n "${{ matrix.gozen }}" ]; then
+            curl --fail --location --show-error --retry 2 --max-time 300 --output gozen.zip \
+              "https://github.com/${GITHUB_REPOSITORY}/releases/download/libretro-cores/${{ matrix.gozen }}"
+            echo "${{ matrix.gozen_sha256 }}  gozen.zip" | shasum -a 256 -c -
+            unzip -o -q gozen.zip -d "$app/Frameworks"
+          fi
           for framework in "$app"/Frameworks/*.framework; do codesign --force --sign - --timestamp=none "$framework"; done
           codesign --force --sign - --timestamp=none "$app"
       - name: Start the Godot probe from EverPlay's library
@@ -186,10 +195,11 @@ jobs:
           for report in artifacts/EverPlay*.ips; do [ -f "$report" ] && head -c 6000 "$report"; done || true
           grep -q '^start gold 37' "$data/Documents/Saves/GodotProbe/probe.txt"
           grep -q '^quit' "$data/Documents/Saves/GodotProbe/probe.txt"
+          if [ -n "${{ matrix.gozen }}" ]; then grep -qE 'gozen open 0 frames [1-9]' "$data/Documents/Saves/GodotProbe/probe.txt"; fi
       - name: Keep screenshots and logs (EverPlay's own probe only)
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: godot-simulator-test-${{ matrix.version }}
+          name: godot-simulator-test-${{ matrix.version }}-${{ matrix.probe }}
           path: artifacts/
           retention-days: 14
