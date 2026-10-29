@@ -215,11 +215,12 @@ jobs:
       # Godot 4: Godot<NN>.framework per runtime, published by godot-ios.yml; "file sha256" per line
       # (empty: build without Godot). Godot 3.x games need Godot36, 4.0-4.4 Godot44, 4.5-4.7 Godot47.
       # Native Godot plug-ins EverPlay builds for iOS (GoZen video, gozen-ios.yml); same format.
-      GODOT_EXTENSIONS: ''
+      GODOT_EXTENSIONS: |
+        gozen_ios-arm64-06f3df6.framework.zip dc4f1658730957d94a34ce8aa568bab0846a35e0748a0c3121c80988f3627910
       GODOT_FRAMEWORKS: |
-        Godot47_ios-arm64-4.7.2-8b2cf4b.framework.zip 0ece86504669bd7c313ca6ce63ff0b917cd466510173f15105fe87992aad803f
-        Godot44_ios-arm64-4.4.1-8b2cf4b.framework.zip 0b056db5f0298db592073f755003e37449e4126a19946766b4515f985f55f32c
-        Godot36_ios-arm64-3.6.3-8b2cf4b.framework.zip fca63b130c4880c1d254c0bbcdf0b6a4fbd155cdab48e104a93169c5c28c8b88
+        Godot47_ios-arm64-4.7.2-65e20f6.framework.zip 30ffb9653b2a73f2dca32e182bdf2c890c0b38c6e2d0ede6956bbb9ada6fd99d
+        Godot44_ios-arm64-4.4.1-65e20f6.framework.zip b98761674f6f701b5f8be2d4284daec9e56468f8834283315c4589bbbc86e6f3
+        Godot36_ios-arm64-3.6.3-65e20f6.framework.zip 54c7b0aee4b1b42f8224abf57ab236ec329682f00e7097338cd8242d7fd72d3d
       # General MIDI sounds for XP/VX games' MIDI music: TimGM6mb (GPL-2) from Ubuntu's archive.
       MIDI_SOUNDFONT_DEB: http://archive.ubuntu.com/ubuntu/pool/universe/t/timgm6mb-soundfont/timgm6mb-soundfont_1.3-5_all.deb
       MIDI_SOUNDFONT_DEB_SHA256: b70bc29b8f27adef8f92a2d9c1e26cee977b84c68110f0dd4326d97730a7c3ed
