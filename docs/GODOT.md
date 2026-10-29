@@ -107,7 +107,7 @@ Lösung:
 - [x] Vom Nutzer (2026-10-28): „klappt eigentlich alles“, nur in Town's Charms ging Speichern nicht
 - [ ] Town's Charms: Diagnose-Log nach Speicherversuch (godot.log) ansehen; Kandidat: Speichern neben der .exe (gepatcht)
 - [x] Cheats auf dem iPhone: funktionieren (Nutzer, 2026-10-29, nightly-godot 0.2.81); Town's Charms speichert jetzt
-- [ ] Town's Charms Videos: GoZen für iOS bauen (gozen-ios.yml), Godot-Engines mit Plug-in-Umleitung neu bauen, beides pinnen, testen. Früher Befund:
+- [ ] Town's Charms Videos: GoZen im Simulator bestätigt; Test auf dem iPhone offen. GoZen für iOS bauen (gozen-ios.yml), Godot-Engines mit Plug-in-Umleitung neu bauen, beides pinnen, testen. Früher Befund:
       bei jedem Video „Video timed out“ (Meldung des Spiels, nicht von Godot). Theora ist in allen
       Engines gebaut. Spiel und Diagnose-Log (godot.log) vom Nutzer angefragt: Videoformat prüfen (`.webm`/`.mp4`
       über ein natives Plug-in? anderes Theora-Profil?)
@@ -186,6 +186,8 @@ Lösung:
 | godot-ios.yml 40375456849 | iPhone grün, Simulator: falscher Bibliotheksname | `Godot47_ios-arm64-4.7.2-a417992.framework.zip` (ohne Path-Overrides, startet keine Spiele) |
 | godot-ios.yml 40376413760 | beide Builds grün; Simulatortest: `--main-pack` abgelehnt | – |
 | allinone.yml 40376413743 | IPA → `nightly-godot` (noch mit a417992, startet keine Spiele) | – |
+| godot-ios.yml 40856406588 | **GoZen im Simulator: `gozen open 0 frames 10 res 320x180 y (320, 180) audio_class true`** (GodotGoZenProbe über Godot47 + gozen.framework, Plug-in-Umleitung greift); alle anderen Probes grün | – |
+| allinone.yml 40856221124 | IPA gebaut, Veröffentlichen scheiterte: `HTTP 403: Resource not accessible by integration` beim Anlegen des Releases (Löschen davor ging → `nightly-godot` war kurz weg). Keine Rulesets im Repo; vorher lief derselbe Schritt. Job neu gestartet | – |
 | gozen-ios.yml 40852118501 | grün beim ersten Lauf (device + simulator) | `gozen_ios-arm64-06f3df6.framework.zip` `dc4f1658730957d94a34ce8aa568bab0846a35e0748a0c3121c80988f3627910` (gepinnt), Simulator `gozen_ios-arm64-simulator-06f3df6.framework.zip` `881aa5a7378ae5082cde71eb06cb0ce11906d93662257f6ede6865768b081572` |
 | godot-ios.yml 40852118403 | alle grün inkl. Simulatortests; Engines mit Plug-in-Umleitung (65e20f6), gepinnt: Godot47 `30ffb9653b2a73f2dca32e182bdf2c890c0b38c6e2d0ede6956bbb9ada6fd99d`, Godot44 `b98761674f6f701b5f8be2d4284daec9e56468f8834283315c4589bbbc86e6f3`, Godot36 `54c7b0aee4b1b42f8224abf57ab236ec329682f00e7097338cd8242d7fd72d3d` | `Godot{47,44,36}_ios-arm64-<v>-65e20f6.framework.zip` |
 | allinone.yml 40690742140 | IPA → `nightly-godot` 0.2.81: drei Engines mit Cheats + Speichern neben der .exe | – |
