@@ -87,6 +87,8 @@ final class GodotEngine {
         let executable = pack.pathExtension.lowercased() == "exe" ? pack.lastPathComponent
             : pack.deletingPathExtension().lastPathComponent + ".exe"
         setenv("EVERPLAY_GODOT_EXECUTABLE", saves.appendingPathComponent(executable).path, 1)
+        // Native plug-ins EverPlay brings for iOS (gozen.framework …) instead of the game's Windows ones.
+        if let frameworks = Bundle.main.privateFrameworksPath { setenv("EVERPLAY_GODOT_EXTENSIONS", frameworks, 1) }
         let arguments = [program, "--main-pack", pack.path, "--log-file", Self.logFile.path]
         let copies = arguments.map { strdup($0) }
         defer { copies.forEach { free($0) } }

@@ -50,6 +50,23 @@ Patch in `drivers/unix/os_unix.cpp`: gibt `EVERPLAY_GODOT_EXECUTABLE` zurück, w
 `Saves/<Spiel>/<Spiel>.exe`. Spiele, die `OS.get_executable_path().get_base_dir()` für Spielstände nutzen,
 speichern so in den sichtbaren Saves-Ordner. Ob das Town's Charms betrifft, ist offen (Log vom Nutzer fehlt).
 
+## Native Plug-ins (GDExtension): GoZen-Video
+
+Town's Charms (Godot 4.6.2) spielt 271 MP4s (H.264 + AAC) über **GDE GoZen** (MIT, FFmpeg 7.1;
+`addons/gde_gozen`, Klassen `GoZenVideo`, `AudioStreamFFmpeg`, eingebunden über `.godot/extension_list.cfg`).
+Mitgeliefert ist nur `libgozen.windows…dll` → auf iOS lädt nichts, das Spiel meldet „Video timed out“.
+Lösung:
+- `scripts/godot/build-gozen-ios.sh` baut GoZen (Commit f944861, = Codeberg `gozen/gde_gozen` master; das Spiel
+  nutzt eine fast gleiche Version) mit den von GoZen gepinnten FFmpeg-/godot-cpp-Commits; FFmpeg statisch mit
+  H.264/HEVC/VP8/VP9/Theora/MPEG-4 und AAC/MP3/Vorbis/Opus/FLAC/PCM (MOV/MP4, MKV/WebM, Ogg …), ohne Netzwerk.
+  GoZens SConstruct bekommt einen `ios`-Zweig (godot-cpp-iOS-Toolchain). Ergebnis `gozen.framework`.
+- Patch `core/extension/gdextension_library_loader.cpp` (4.x): findet Godot für eine Erweiterung keine
+  Bibliothek fürs aktuelle System, nimmt es `$EVERPLAY_GODOT_EXTENSIONS/<name>.framework/<name>`, wobei
+  `<name>` = `entry_symbol` ohne `_library_init`/`_init` (gozen_library_init → gozen). Allgemein: jedes
+  weitere Plug-in, das EverPlay für iOS baut, greift genauso.
+- `.github/workflows/gozen-ios.yml` (device/simulator), Pin in `allinone.yml` unter `GODOT_EXTENSIONS`.
+- GoZen liest `res://`-Videos per `FileAccess::get_file_as_bytes` (ganze Datei in den Speicher) – aus dem pck ok.
+
 ## Aufbau
 
 - `scripts/godot/build-godot-ios.sh <version> <device|simulator> <out>`: holt Godot am Tag
@@ -85,7 +102,8 @@ speichern so in den sichtbaren Saves-Ordner. Ob das Town's Charms betrifft, ist 
 - [x] Vom Nutzer (2026-10-28): „klappt eigentlich alles“, nur in Town's Charms ging Speichern nicht
 - [ ] Town's Charms: Diagnose-Log nach Speicherversuch (godot.log) ansehen; Kandidat: Speichern neben der .exe (gepatcht)
 - [x] Cheats auf dem iPhone: funktionieren (Nutzer, 2026-10-29, nightly-godot 0.2.81); Town's Charms speichert jetzt
-- [ ] Town's Charms: bei jedem Video „Video timed out“ (Meldung des Spiels, nicht von Godot). Theora ist in allen
+- [ ] Town's Charms Videos: GoZen für iOS bauen (gozen-ios.yml), Godot-Engines mit Plug-in-Umleitung neu bauen, beides pinnen, testen. Früher Befund:
+      bei jedem Video „Video timed out“ (Meldung des Spiels, nicht von Godot). Theora ist in allen
       Engines gebaut. Spiel und Diagnose-Log (godot.log) vom Nutzer angefragt: Videoformat prüfen (`.webm`/`.mp4`
       über ein natives Plug-in? anderes Theora-Profil?)
 - [ ] `Godot36` bauen (Matrix 3.6.3; Godot 3: `platform=iphone target=release tools=no`, Bibliothek

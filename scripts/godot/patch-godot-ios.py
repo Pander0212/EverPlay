@@ -41,6 +41,26 @@ patch('drivers/unix/os_unix.cpp', 'String OS_Unix::get_executable_path() const {
       '\t\treturn String::utf8(getenv("EVERPLAY_GODOT_EXECUTABLE"));\n'
       '\t}\n')
 
+if major == 4:
+    # Native plug-ins (GDExtension) come with the game for Windows/Linux/macOS only. For those EverPlay
+    # brings for iOS (gozen.framework for entry symbol gozen_library_init …, in the folder named by
+    # EVERPLAY_GODOT_EXTENSIONS), Godot loads EverPlay's build instead.
+    patch('core/extension/gdextension_library_loader.cpp', """	library_path = find_extension_library(p_path, config, [](const String &p_feature) { return OS::get_singleton()->has_feature(p_feature); });
+
+	if (library_path.is_empty()) {""", """	library_path = find_extension_library(p_path, config, [](const String &p_feature) { return OS::get_singleton()->has_feature(p_feature); });
+
+	if ((library_path.is_empty() || (library_path.is_resource_file() && !FileAccess::exists(library_path))) && getenv("EVERPLAY_GODOT_EXTENSIONS")) {
+		String everplay_name = entry_symbol.trim_suffix("_library_init").trim_suffix("_init");
+		String everplay_library = String::utf8(getenv("EVERPLAY_GODOT_EXTENSIONS")).path_join(everplay_name + ".framework").path_join(everplay_name);
+		if (FileAccess::exists(everplay_library)) {
+			library_path = everplay_library;
+		}
+	}
+
+	if (library_path.is_empty()) {""")
+    patch('core/extension/gdextension_library_loader.cpp', '#include "gdextension_library_loader.h"\n',
+          '#include "gdextension_library_loader.h"\n\n#include "core/io/file_access.h"\n')
+
 if major == 3:
     # Godot 3: platform/iphone, its own API, user:// given to iphone_main (everplay_godot3.mm).
     shutil.copy(here / 'everplay_godot3.mm', root / 'platform/iphone/everplay_godot.mm')

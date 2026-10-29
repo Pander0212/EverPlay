@@ -214,6 +214,8 @@ jobs:
       KIRIKIRI_FRAMEWORK_SHA256: ad26e389acebe9a9d378c4044d50af533afd247cfcf54a59d747021b8125b702
       # Godot 4: Godot<NN>.framework per runtime, published by godot-ios.yml; "file sha256" per line
       # (empty: build without Godot). Godot 3.x games need Godot36, 4.0-4.4 Godot44, 4.5-4.7 Godot47.
+      # Native Godot plug-ins EverPlay builds for iOS (GoZen video, gozen-ios.yml); same format.
+      GODOT_EXTENSIONS: ''
       GODOT_FRAMEWORKS: |
         Godot47_ios-arm64-4.7.2-8b2cf4b.framework.zip 0ece86504669bd7c313ca6ce63ff0b917cd466510173f15105fe87992aad803f
         Godot44_ios-arm64-4.4.1-8b2cf4b.framework.zip 0b056db5f0298db592073f755003e37449e4126a19946766b4515f985f55f32c
@@ -334,8 +336,9 @@ jobs:
               "https://github.com/${GITHUB_REPOSITORY}/releases/download/libretro-cores/$godot_file" --output godot.zip
             echo "$godot_sha  godot.zip" | shasum -a 256 -c -
             rm -rf godot-unpacked && unzip -o -q godot.zip -d godot-unpacked
-            cp -R godot-unpacked/Godot*.framework "$app/Frameworks/"
-          done <<< "$GODOT_FRAMEWORKS"
+            cp -R godot-unpacked/*.framework "$app/Frameworks/"
+          done <<< "$GODOT_FRAMEWORKS
+          $GODOT_EXTENSIONS"
           # Ad-hoc placeholder signatures; sideloading tools re-sign every framework and the app.
           for framework in "$app"/Frameworks/*.framework; do codesign --force --sign - --timestamp=none "$framework"; done
           codesign --force --sign - --timestamp=none "$app"

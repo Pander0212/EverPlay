@@ -1,0 +1,76 @@
+name: GoZen video plug-in for iPhone (Godot)
+# Builds gozen.framework (GDE GoZen, MIT, with a static FFmpeg 7.1, LGPL) for iPhone and the
+# simulator with scripts/godot/build-gozen-ios.sh and publishes it to the libretro-cores release,
+# which the all-in-one build pins (GODOT_EXTENSIONS). Godot games that bring GoZen for Windows play
+# their videos with it.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/gozen-ios.yml
+      - scripts/godot/build-gozen-ios.sh
+permissions:
+  contents: read
+concurrency:
+  group: gozen-ios-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-26
+    permissions:
+      contents: write  # the libretro-cores release
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [device, simulator]
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Reuse the FFmpeg build
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: build/gozen/ffmpeg/bin
+          key: gozen-ffmpeg-${{ matrix.kind }}-v1-${{ hashFiles('scripts/godot/build-gozen-ios.sh') }}-${{ github.run_id }}
+          restore-keys: gozen-ffmpeg-${{ matrix.kind }}-v1-${{ hashFiles('scripts/godot/build-gozen-ios.sh') }}-
+      - name: Build tools
+        run: python3 -m pip install --break-system-packages --quiet 'scons==4.9.1'
+      - name: Build GoZen
+        run: |
+          status=0
+          bash scripts/godot/build-gozen-ios.sh "${{ matrix.kind }}" build/gozen-output > build-gozen.log 2>&1 || status=$?
+          grep -E 'error:|ERROR|Undefined symbols|ld: |gozen_library_init|gozen\.framework|^scons: ' build-gozen.log | head -n 200 || true
+          [ "$status" = 0 ] || { tail -n 80 build-gozen.log; exit "$status"; }
+      - name: Keep the FFmpeg build
+        if: always()
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: build/gozen/ffmpeg/bin
+          key: gozen-ffmpeg-${{ matrix.kind }}-v1-${{ hashFiles('scripts/godot/build-gozen-ios.sh') }}-${{ github.run_id }}
+      - name: Package
+        run: (cd build/gozen-output && zip -qry "$GITHUB_WORKSPACE/gozen.framework.zip" gozen.framework) && ls -la gozen.framework.zip
+      - name: Publish the framework for the all-in-one build
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          arch=ios-arm64; [ '${{ matrix.kind }}' = simulator ] && arch=ios-arm64-simulator
+          name="gozen_${arch}-$(shasum -a 256 scripts/godot/build-gozen-ios.sh | cut -c1-7).framework.zip"
+          # Never replace a published file: allinone.yml pins its checksum.
+          if curl --silent --fail --head --location --output /dev/null \
+               "https://github.com/$GITHUB_REPOSITORY/releases/download/libretro-cores/$name"; then
+            echo "$name is already published; kept as it is."
+            exit 0
+          fi
+          cp gozen.framework.zip "$name"
+          gh release upload libretro-cores --repo "$GITHUB_REPOSITORY" "$name"
+          echo "Pin in allinone.yml: $name $(shasum -a 256 "$name" | cut -d' ' -f1)"
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: gozen-ios-${{ matrix.kind }}-logs
+          path: build-gozen.log
+          retention-days: 14
