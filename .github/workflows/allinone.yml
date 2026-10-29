@@ -393,7 +393,24 @@ jobs:
             gh release delete "$TAG" --yes --cleanup-tag || true
             sleep $((attempt * 15))
           done
-          exit 1
+          # Since 2026-10-29 the workflow may not create releases (HTTP 403 "Resource not accessible by
+          # integration") but may still upload to existing ones. The Godot test build then goes into the
+          # existing libretro-cores release under fixed names, with its own Feather source.
+          [ "$TAG" = nightly-godot ] || exit 1
+          fallback="https://github.com/${GITHUB_REPOSITORY}/releases/download/libretro-cores"
+          cp release-EverPlay.ipa EverPlay-godot.ipa
+          python3 - "$fallback" <<'PYTHON'
+          import json, sys
+          base = sys.argv[1]
+          source = json.load(open('release-source.json'))
+          app = source['apps'][0]
+          app['downloadURL'] = app['versions'][0]['downloadURL'] = f'{base}/EverPlay-godot.ipa'
+          app['iconURL'] = f'{base}/EverPlay-godot-icon.png'
+          json.dump(source, open('godot-source.json', 'w'), indent=2)
+          PYTHON
+          cp release-icon.png EverPlay-godot-icon.png
+          gh release upload libretro-cores --repo "$GITHUB_REPOSITORY" --clobber EverPlay-godot.ipa EverPlay-godot-icon.png godot-source.json
+          echo "Godot test build published in libretro-cores; Feather source: $fallback/godot-source.json"
       - name: Keep the IPA
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

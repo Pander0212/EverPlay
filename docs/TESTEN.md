@@ -150,7 +150,9 @@ unter „Reports from Ren'Py“ die `traceback.txt` teilen.
 
 ## 17. Godot 4 (eigener Testbuild, nicht im normalen Nightly)
 Vorher: In Feather die Quelle
-`https://github.com/Pander0212/EverPlay/releases/download/nightly-godot/release-source.json` hinzufügen und
+`https://github.com/Pander0212/EverPlay/releases/download/nightly-godot/release-source.json` hinzufügen
+(seit 2026-10-29 darf der Workflow keine Releases anlegen; dann gilt stattdessen
+`https://github.com/Pander0212/EverPlay/releases/download/libretro-cores/godot-source.json`) und
 **EverPlay** daraus installieren (ersetzt den Nightly, Bibliothek und Spielstände bleiben). Version unter
 Einstellungen ganz unten notieren.
 1. Godot-Spiel als ZIP importieren: entweder nur die `.exe` (pck eingebettet, z. B. Elden Rod) oder `.exe`
